@@ -95,6 +95,12 @@ const BGS = [
   { id: 'snow', name: 'Winter (animated)', css: 'linear-gradient(180deg,#0b1430,#23325f)', cls: 'bg-snow' },
   { id: 'neon', name: 'Neon', css: 'radial-gradient(60% 50% at 0% 100%, #ff2fa0, transparent 70%), radial-gradient(60% 50% at 100% 0%, #2fe6ff, transparent 70%), #0a0718' },
   { id: 'ocean', name: 'Ocean', css: 'linear-gradient(180deg,#031a2e 0%,#06405e 60%,#0b7b8f 100%)' },
+  { id: 'stars', name: 'Starry night (animated)', css: 'radial-gradient(120% 80% at 50% 0%,#1b2a6b,#070a1c 70%)', cls: 'bg-stars' },
+  { id: 'waves', name: 'Ocean waves (animated)', css: 'linear-gradient(180deg,#041a33,#0a3d62)', cls: 'bg-waves' },
+  { id: 'lava', name: 'Lava lamp (animated)', css: '#1a0826', cls: 'bg-lava' },
+  { id: 'halloween', name: 'Halloween (animated)', css: 'radial-gradient(60% 45% at 75% 18%,#ffb347,transparent 60%),linear-gradient(180deg,#1c0b2e,#3a1242 60%,#0b0612)', cls: 'bg-halloween' },
+  { id: 'blossom', name: 'Cherry blossom (animated)', css: 'linear-gradient(180deg,#ffd6e5,#ffb3c9 55%,#f48fb1)', cls: 'bg-blossom' },
+  { id: 'summer', name: 'Summer sunset (animated)', css: 'linear-gradient(180deg,#2b1055,#d53a9d 55%,#ffb347)', cls: 'bg-summer' },
   { id: 'autumn', name: 'Autumn', css: 'radial-gradient(70% 60% at 80% 20%, rgba(255,150,60,.55), transparent 70%), linear-gradient(180deg,#2a1208,#5b2410)' }
 ];
 const ACCENTS = [
@@ -280,7 +286,7 @@ function applyTheme() {
   const acc = p.customAccent ? { a: p.customAccent, b: p.customAccent } : ACCENTS[p.accent] || ACCENTS[0];
   r.style.setProperty('--ac', acc.a);
   r.style.setProperty('--ac2', p.customAccent ? `color-mix(in oklab, ${p.customAccent} 70%, #ff4d6d)` : acc.b);
-  r.dataset.sky = p.appBg ? 'custom' : (p.appStyle || 'atmosphere');
+  r.dataset.sky = p.appBg ? 'custom' : p.appStyle === 'seasonal' ? 'season-' + season() : (p.appStyle || 'atmosphere');
   const sky = $('.sky .custom');
   if (sky) sky.style.backgroundImage = safeImg(p.appBg) ? `url(${p.appBg})` : 'none';
   lsSet('nexa.look', { theme: p.theme, accent: p.accent, customAccent: p.customAccent, motion: p.motion, appStyle: p.appStyle, contrast: p.contrast, bigTargets: p.bigTargets });
@@ -304,7 +310,7 @@ function startData() {
   unsubs.base.push(db().listenDoc('users/' + me, p => {
     S.profile = p;
     if (!p) { if (S.view !== 'auth') { S.view = 'onboard'; S.onbStep = 0; } }
-    else if (S.view === 'loading' || S.view === 'auth') { S.view = 'app'; checkInvite(); checkJoin(); checkCommunityInvite(); const oc = lsGet('nexa.openChat', null), op = lsGet('nexa.openPage', null); lsSet('nexa.openChat', null); lsSet('nexa.openPage', null); if (oc) setTimeout(() => openConv(oc), 300); else if (op) go(op); const qr = lsGet('nexa.reply', null); if (qr) { lsSet('nexa.reply', null); setTimeout(() => quickReply(qr.chat, qr.text), 900); } }
+    else if (S.view === 'loading' || S.view === 'auth') { S.view = 'app'; checkInvite(); checkJoin(); checkCommunityInvite(); checkAddHandle(); const oc = lsGet('nexa.openChat', null), op = lsGet('nexa.openPage', null); lsSet('nexa.openChat', null); lsSet('nexa.openPage', null); if (oc) setTimeout(() => openConv(oc), 300); else if (op) go(op); const qr = lsGet('nexa.reply', null); if (qr) { lsSet('nexa.reply', null); setTimeout(() => quickReply(qr.chat, qr.text), 900); } }
     render();
   }));
   let prefsFirst = true;
@@ -321,7 +327,7 @@ function startData() {
           const viewing = S.page === 'messages' && S.conv === c.id && document.visibilityState === 'visible';
           if (blocked(c.last.from) || isMuted(c.id)) return;
           if (isRequestForMe(c)) { if (!old || !isRequestForMe(old) || !old.last) { toast(`<b>Message request</b> <span class="mute">from ${esc(dname(c.last.from))}</span>`, () => { S.convFilter = 'requests'; openConv(c.id); }, c.last.from); sound('ping'); } return; }
-          playTone(toneFor(c.last.from));
+          playTone(toneFor(c.last.from)); buzz([12, 40, 12]);
           if (!viewing && S.prefs.notif.msg) toast(`<b>${esc(c.type !== 'dm' ? convName(c) : dname(c.last.from))}</b> <span class="mute ellip" style="max-width:260px">${esc(c.last.text || 'Photo')}</span>`, () => openConv(c.id), c.last.from);
           if (S.prefs.notif.msg) deviceNotify(c.type !== 'dm' ? convName(c) : dname(c.last.from), (c.type !== 'dm' ? dname(c.last.from).split(' ')[0] + ': ' : '') + (c.last.text || 'Photo'), () => openConv(c.id));
         }
@@ -598,7 +604,7 @@ function vMoments() {
   const mine = by[S.me];
   return `<div class="moments" aria-label="Moments">
     <div class="mo"><button class="mring ${mine ? '' : 'none'}" data-a="${mine ? 'storyOpen' : 'momentNew'}" data-v="${S.me}" aria-label="${mine ? 'View your moment' : 'Add a moment'}">${av(S.me, 58)}</button>${mine ? '' : `<button class="mplus" data-a="momentNew" aria-label="Add a moment">${ic('plus', 14, 2.6)}</button>`}<span class="small">${mine ? 'Your moment' : 'Add moment'}</span></div>
-    ${list.map(u => `<div class="mo"><button class="mring ${seenAll(u) ? 'seen' : ''}" data-a="storyOpen" data-v="${u}" aria-label="View ${esc(dname(u))}'s moment">${av(u, 58)}</button><span class="small ellip">${esc(dname(u).split(' ')[0])}</span></div>`).join('')}
+    ${list.map(u => `<div class="mo"><button class="mring ${seenAll(u) ? 'seen' : by[u].some(m => m.close && !(m.seen || []).includes(S.me)) ? 'close' : ''}" data-a="storyOpen" data-v="${u}" aria-label="View ${esc(dname(u))}'s moment">${av(u, 58)}</button><span class="small ellip">${esc(dname(u).split(' ')[0])}</span></div>`).join('')}
     ${mine ? `<div class="mo"><button class="mring none" data-a="momentNew" aria-label="Add another moment"><span class="av" style="width:58px;height:58px;background:rgba(255,255,255,.05);color:var(--ac)">${ic('plus', 22, 2)}</span></button><span class="small">Add</span></div>` : ''}
     ${!list.length && !mine ? `<span class="mute small" style="align-self:center;max-width:240px">Moments disappear after 24 hours. Share one with your friends.</span>` : ''}
   </div>`;
@@ -677,8 +683,10 @@ function vMsgBody(m, q, quote) {
   if (m.audio) {
     const src = safeAudio(m.audio.src); const peaks = (m.audio.peaks || []).slice(0, 48);
     const on = S.playing?.id === m.id;
-    return `<div class="bub voice-bub">${quote}<div class="voice" id="vp-${m.id}"><button class="vplay" aria-label="${on && S.playing.on ? 'Pause' : 'Play'} voice message" data-a="playVoice" data-v="${m.id}">${ic(on && S.playing.on ? 'pause' : 'play', 16, 2)}</button><span class="bars">${(peaks.length ? peaks : Array(32).fill(30)).map(h => `<i style="height:${Math.max(12, Math.min(100, +h || 0))}%"></i>`).join('')}</span><span class="vt">${fmtDur(m.audio.dur || 0)}</span></div>${src ? '' : '<span class="small">Audio unavailable</span>'}${m.transcript ? `<div class="transcript">${esc(m.transcript)}</div>` : src ? `<button class="tlink" data-a="transcribe" data-v="${m.id}">${(S.transcribing || {})[m.id] ? 'Transcribing…' : 'Transcribe'}</button>` : ''}</div>`;
+    return `<div class="bub voice-bub">${quote}<div class="voice" id="vp-${m.id}"><button class="vplay" aria-label="${on && S.playing.on ? 'Pause' : 'Play'} voice message" data-a="playVoice" data-v="${m.id}">${ic(on && S.playing.on ? 'pause' : 'play', 16, 2)}</button><span class="bars">${(peaks.length ? peaks : Array(32).fill(30)).map(h => `<i style="height:${Math.max(12, Math.min(100, +h || 0))}%"></i>`).join('')}</span><span class="vt">${fmtDur(m.audio.dur || 0)}</span><button class="vrate" data-a="voiceRate" aria-label="Playback speed ${voiceRate()}×">${voiceRate()}×</button></div>${src ? '' : '<span class="small">Audio unavailable</span>'}${m.transcript ? `<div class="transcript">${esc(m.transcript)}</div>` : src ? `<button class="tlink" data-a="transcribe" data-v="${m.id}">${(S.transcribing || {})[m.id] ? 'Transcribing…' : 'Transcribe'}</button>` : ''}</div>`;
   }
+  if (m.video && !m.deleted) return vVideoBubble(m, quote);
+  if (m.live && !m.deleted) return vLiveBubble(m, quote);
   if (m.roomCall && !m.deleted) { const live = roomLive(m.roomCall), inIt = S.room === m.roomCall; return `<div class="bub roomcard">${quote}<span class="row" style="gap:10px"><span class="notif-ic" style="width:40px;height:40px;background:linear-gradient(135deg,#3fbf6f,#2fd4c4)">${ic('video', 18)}</span><span class="grow"><b style="display:block">Group video call</b><span class="small" style="opacity:.8">${live.length ? `${live.length} in the call` : 'Call ended'}</span></span>${live.length ? `<span class="stack">${live.slice(0, 3).map(u => av(u, 22)).join('')}</span>` : ''}</span>${live.length && !inIt ? `<button class="btn sm pri" data-a="groupCall">Join</button>` : inIt ? '<span class="small" style="opacity:.8">You\'re in this call</span>' : `<button class="btn sm" data-a="groupCall">Start again</button>`}</div>`; }
   if (m.poll) {
     const opts = m.poll.opts || [], total = opts.reduce((n, o) => n + (o.v || []).length, 0);
@@ -788,7 +796,7 @@ function vChat(c) {
     <div class="composer-wrap">
       ${sugg ? `<div class="suggs${A('sugg')}">${sugg.loading ? `<span class="chip" style="display:inline-flex;gap:8px;align-items:center">${ic('spark', 14)} Thinking…</span>` : sugg.items.map((t, i) => `<button class="chip" data-a="useSugg" data-i="${i}">${esc(t)}</button>`).join('')}<button class="ibtn sm" aria-label="Close suggestions" data-a="closeSugg">${ic('x', 14)}</button></div>` : ''}
       ${S.picker ? vPicker() : ''}
-      ${S.attach ? `<div class="menu glass${A('attach')}" style="position:absolute;left:16px;bottom:78px"><label class="mbtn">${ic('album', 18)}Photos (up to 6)<input type="file" accept="image/*" multiple class="sr" data-file="sendPhotos"></label><button data-a="fxOpen">${ic('spark', 18)}Send with effect</button><button data-a="pollOpen">${ic('poll', 18)}Poll</button><button data-a="schOpen">${ic('clock', 18)}Schedule message</button><label class="mbtn">${ic('sticker', 18)}Make a sticker<input type="file" accept="image/*" class="sr" data-file="newSticker"></label><button data-a="watchOpen">${ic('play', 18)}Watch together</button><button data-a="boardOpen">${ic('brush', 18)}Drawing board</button><div class="msep">Games</div><button data-a="newGame" data-v="ttt">${ic('game', 18)}Tic-tac-toe</button><button data-a="newGame" data-v="c4">${ic('game', 18)}Connect Four</button><button data-a="wordNewOpen">${ic('game', 18)}Word guess</button><button data-a="newGame" data-v="trivia">${ic('game', 18)}Trivia battle</button><button data-a="newGame" data-v="rps">${ic('game', 18)}Rock, paper, scissors</button><button data-a="addLink">${ic('link', 18)}Link</button></div>` : ''}
+      ${S.attach ? `<div class="menu glass${A('attach')}" style="position:absolute;left:16px;bottom:78px"><label class="mbtn">${ic('album', 18)}Photos (up to 6)<input type="file" accept="image/*" multiple class="sr" data-file="sendPhotos"></label><button data-a="vnoteStart">${ic('video', 18)}Video message</button><label class="mbtn">${ic('film', 18)}Send a video<input type="file" accept="video/*" class="sr" data-file="sendVideo"></label><button data-a="liveOpen">${ic('map', 18)}Share live location</button><button data-a="fxOpen">${ic('spark', 18)}Send with effect</button><button data-a="pollOpen">${ic('poll', 18)}Poll</button><button data-a="schOpen">${ic('clock', 18)}Schedule message</button><label class="mbtn">${ic('sticker', 18)}Make a sticker<input type="file" accept="image/*" class="sr" data-file="newSticker"></label><button data-a="watchOpen">${ic('play', 18)}Watch together</button><button data-a="boardOpen">${ic('brush', 18)}Drawing board</button><div class="msep">Games</div><button data-a="newGame" data-v="ttt">${ic('game', 18)}Tic-tac-toe</button><button data-a="newGame" data-v="c4">${ic('game', 18)}Connect Four</button><button data-a="wordNewOpen">${ic('game', 18)}Word guess</button><button data-a="newGame" data-v="trivia">${ic('game', 18)}Trivia battle</button><button data-a="newGame" data-v="rps">${ic('game', 18)}Rock, paper, scissors</button><button data-a="addLink">${ic('link', 18)}Link</button></div>` : ''}
       ${(S.scheduled || []).some(x => x.conv === c.id) ? `<button class="ctx glass" style="width:100%;text-align:left" data-a="schOpen">${ic('clock', 16)}<span class="grow">${(S.scheduled || []).filter(x => x.conv === c.id).length} scheduled message${(S.scheduled || []).filter(x => x.conv === c.id).length > 1 ? 's' : ''}</span><span class="mute small">Manage</span></button>` : ''}
       ${S.replyTo ? `<div class="ctx glass${A('ctx')}"><span style="color:var(--ac);font-weight:700">${ic('reply', 16)}</span><span class="grow ellip"><b>Replying to ${esc(dname(S.replyTo.from))}</b> <span class="mute">${esc(S.replyTo.text || 'Attachment')}</span></span><button class="ibtn sm" aria-label="Cancel reply" data-a="cancelCtx">${ic('x', 14)}</button></div>` : ''}
       ${S.editing ? `<div class="ctx glass${A('ctxe')}"><span style="color:var(--warm)">${ic('edit', 16)}</span><span class="grow"><b>Editing message</b> <span class="mute small">Esc to cancel</span></span><button class="ibtn sm" aria-label="Cancel edit" data-a="cancelCtx">${ic('x', 14)}</button></div>` : ''}
@@ -810,11 +818,11 @@ function vChat(c) {
 }
 function vPicker() {
   const tab = S.pickTab || 'emoji';
-  const gifOn = !!CONFIG.tenorKey;
+  const gifOn = !!gifKey();
   let body = '';
   if (tab === 'emoji') body = `<div class="emgrid">${EMOJI.map(e => `<button data-a="insEmoji" data-v="${e}" aria-label="${e}">${e}</button>`).join('')}</div>`;
   if (tab === 'stickers') body = `<div class="row spread"><span class="sec">Yours</span>${(S.myStickers || []).length ? `<button class="small mute" data-a="stickerEdit">${S.stickerEdit ? 'Done' : 'Edit'}</button>` : ''}</div><div class="stgrid">${(S.myStickers || []).map((u, i) => `<button class="mysticker" data-a="${S.stickerEdit ? 'delMySticker' : 'sendMySticker'}" data-i="${i}" aria-label="${S.stickerEdit ? 'Remove sticker' : 'Send your sticker'}"><img src="${safeImg(u)}" alt="">${S.stickerEdit ? `<span class="stx">${ic('x', 12, 2.5)}</span>` : ''}</button>`).join('')}<label class="mysticker add" aria-label="Make a sticker from a photo" title="Make a sticker from a photo">${ic('plus', 20)}<input type="file" accept="image/*" class="sr" data-file="newSticker"></label></div><div class="sec">Nexa</div><div class="stgrid">${STICKERS.map(s => `<button data-a="sendSticker" data-v="${s[0]}" aria-label="Send ${esc(s[1])} sticker">${stickerSvg(s[0], 72)}</button>`).join('')}</div>`;
-  if (tab === 'gifs') body = `<label class="search" style="flex:none;max-width:none;height:40px">${ic('search', 16)}<input id="gifQ" data-model="form.gifQ" value="${esc(S.form.gifQ || '')}" placeholder="Search GIFs" aria-label="Search GIFs"></label><div class="gifgrid scroll">${(S.gifs || []).map((g, i) => `<button data-a="sendGif" data-i="${i}"><img src="${esc(g.preview)}" alt="${esc(g.alt || 'GIF')}" loading="lazy"></button>`).join('') || `<div class="empty small">${S.gifLoading ? 'Loading…' : 'Type to search GIFs'}</div>`}</div><div class="mute" style="font-size:10px;text-align:right">Powered by Tenor</div>`;
+  if (tab === 'gifs') body = `<label class="search" style="flex:none;max-width:none;height:40px">${ic('search', 16)}<input id="gifQ" data-model="form.gifQ" value="${esc(S.form.gifQ || '')}" placeholder="Search GIFs" aria-label="Search GIFs"></label><div class="gifgrid scroll">${(S.gifs || []).map((g, i) => `<button data-a="sendGif" data-i="${i}"><img src="${esc(g.preview)}" alt="${esc(g.alt || 'GIF')}" loading="lazy"></button>`).join('') || `<div class="empty small">${S.gifLoading ? 'Loading…' : 'Type to search GIFs'}</div>`}</div><div class="mute" style="font-size:10px;text-align:right">Powered by KLIPY</div>`;
   return `<div class="picker glass${A('picker')}"><div class="tabs">${[['emoji', 'Emoji'], ['stickers', 'Stickers']].concat(gifOn ? [['gifs', 'GIFs']] : []).map(([k, l]) => `<button class="tab ${tab === k ? 'on' : ''}" data-a="pickTab" data-v="${k}">${l}</button>`).join('')}</div>${body}</div>`;
 }
 function vBgPop(c) {
@@ -864,8 +872,8 @@ function vPeople() {
         <div class="step"><span class="n">2</span><span><b>Accept</b> <span class="mute">their request, or they accept yours — you'll both get notified.</span></span></div>
         <div class="step"><span class="n">3</span><span><b>Nickname</b> <span class="mute">friends privately. Only you see it; they keep their public name.</span></span></div></div>
       <div class="panel glass card react"><h2 class="h2">Your Nexa handle</h2>
-        <div class="row" style="padding:14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line2)"><span class="disp grow ellip" style="font-size:20px;font-weight:600">@${esc(S.profile.handle)}</span><button class="btn sm" data-a="copyHandle">Copy</button></div>
-        <div class="mute small">Anyone with your handle can send a request. Change this in Settings › Privacy.</div></div>
+        <div class="row" style="padding:14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line2)"><span class="grow" style="min-width:0"><span class="disp ellip" style="display:block;font-size:20px;font-weight:600">@${esc(S.profile.handle)}</span><span class="mute small ellip" style="display:block">${esc(profileLink().replace(/^https?:\/\//, ''))}</span></span><button class="btn sm" data-a="copyHandle">Copy link</button><button class="ibtn sm" aria-label="Show my QR code" data-a="myQr">${ic('qr', 16)}</button></div>
+        <div class="mute small">Friends can tap your link or scan your QR code to add you. Change who can send requests in Settings › Privacy.</div></div>
     </section>
   </div>`;
 }
@@ -1019,6 +1027,7 @@ function vSettings() {
       <button class="sw ${!p.appBg && p.appStyle !== 'aurora' && p.appStyle !== 'still' ? 'on' : ''}" style="background:radial-gradient(80% 80% at 10% 0%,var(--ac),transparent 60%),radial-gradient(60% 60% at 100% 100%,var(--warm),transparent 60%),#05070f" data-a="appStyle" data-v="atmosphere">Nexa atmosphere</button>
       <button class="sw bg-aurora ${!p.appBg && p.appStyle === 'aurora' ? 'on' : ''}" style="background:linear-gradient(120deg,#07122e,#0c3b4a,#1e1856,#4a1a5c,#07122e)" data-a="appStyle" data-v="aurora">Aurora (animated)</button>
       <button class="sw ${!p.appBg && p.appStyle === 'still' ? 'on' : ''}" style="background:#0a0d1c" data-a="appStyle" data-v="still">Still night</button>
+      <button class="sw bg-${season()} ${!p.appBg && p.appStyle === 'seasonal' ? 'on' : ''}" style="background:${(BGS.find(b => b.id === season()) || BGS[0]).css}" data-a="appStyle" data-v="seasonal">Seasonal (${SEASON_NAMES[season()]})</button>
       <label class="sw add ${p.appBg ? 'on' : ''}" style="${p.appBg ? `background:url(${safeImg(p.appBg)}) center/cover;color:#fff` : ''}">${p.appBg ? 'Custom image' : ic('plus', 18) + '&nbsp;Custom image'}<input type="file" accept="image/*" class="sr" data-file="appBg"></label></div></div>
     <div class="field">Text size<div class="pills">${[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, l]) => `<button class="pill ${p.textSize === k ? 'on' : ''}" data-a="pref" data-k="textSize" data-v="${k}">${l}</button>`).join('')}</div></div>
     <div><div class="setrow"><span><b>Celebration effects</b><div class="mute small">A little confetti for new friends and plans.</div></span>${tog(p.effects, 'prefTog', 'effects', 'Celebration effects')}</div>
@@ -1043,6 +1052,7 @@ function vSettings() {
     </div>
     ${S.be.push && p.deviceNotifs && perm === 'granted' ? `<div class="setrow"><span><b>Show message text in alerts</b><div class="mute small">Turn off to only show who messaged you, for privacy on your lock screen.</div></span>${tog(p.pushPreview !== false, 'prefFlagInv', 'pushPreview', 'Show message text')}</div>` : ''}
     <div><div class="setrow"><span><b>Sounds</b><div class="mute small">Soft chimes for sent and received messages.</div></span>${tog(p.sounds, 'prefTog', 'sounds', 'Sounds')}</div>
+    ${'vibrate' in navigator ? `<div class="setrow"><span><b>Vibration</b><div class="mute small">A light buzz when you send or get a message (Android phones).</div></span>${tog(p.haptics !== false, 'prefFlagInv', 'haptics', 'Vibration')}</div>` : ''}
     ${[['msg', 'New messages', 'Pop-up when a message arrives in another chat.'], ['friend', 'Friend requests', 'Requests and accepted requests.'], ['event', 'Events', 'Invitations, updates and people joining.'], ['remind', 'Event reminders', 'One hour before events you\'re going to.']].map(([k, t, d]) => `<div class="setrow"><span><b>${t}</b><div class="mute small">${d}</div></span>${tog(p.notif[k], 'notifTog', k, t)}</div>`).join('')}</div>
     <div class="mute small">Muted chats never notify. Mute a chat from its ••• menu.</div>`;
   if (s === 'privacy') body = `<h2 class="h1" style="font-size:24px">Privacy</h2>
@@ -1230,7 +1240,9 @@ function vModal() {
   }
   if (m.type === 'moment') {
     const bg = MOMENT_BGS[f.moBg || 0];
-    return head('New moment', 'Visible to your friends for 24 hours') + `
+    const cf = closeFriendIds();
+    return head('New moment', f.moClose ? `Only your ${cf.length} close friend${cf.length === 1 ? '' : 's'} will see it · 24 hours` : 'Visible to your friends for 24 hours') + `
+      <div class="pills"><button class="pill ${f.moClose ? '' : 'on'}" data-a="moAud" data-v="all">${ic('people', 14)} All friends</button><button class="pill ${f.moClose ? 'on cfpill' : ''}" data-a="moAud" data-v="close">${ic('star', 14)} Close friends${cf.length ? ' · ' + cf.length : ''}</button><button class="pill addpill" data-a="cfOpen">Edit list</button></div>
       <div class="mopreview" style="background:${safeImg(f.moImg) ? `url(${f.moImg}) center/cover` : bg}">${f.moText ? `<span class="motext">${esc(f.moText)}</span>` : safeImg(f.moImg) ? '' : '<span class="motext" style="opacity:.6">Say something…</span>'}</div>
       <div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn sm" style="cursor:pointer">${ic('photo', 16)} ${f.moImg ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" class="sr" data-file="moImg"></label>${f.moImg ? '<button class="btn sm" data-a="moNoImg">Remove photo</button>' : MOMENT_BGS.map((b, i) => `<button class="acc ${(f.moBg || 0) === i ? 'on' : ''}" style="width:30px;height:30px;background:${b}" aria-label="Background ${i + 1}" data-a="moBg" data-v="${i}"></button>`).join('')}</div>
       <label class="field">Caption<input class="inp" id="mo-text" data-model="form.moText" value="${esc(f.moText || '')}" maxlength="140" placeholder="What's happening?" data-rerender="1"></label>
@@ -1318,7 +1330,7 @@ function onTyping() {
   if (!c || S.profile?.typingOn === false) return;
   if (now() - typingSent > 2500) { typingSent = now(); db().update('conversations/' + c.id, { ['typing.' + S.me]: now() }).catch(() => {}); }
 }
-const msgLabel = m => m.stickerImg ? 'Sticker' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.game ? ({ ttt: 'Tic-tac-toe', rps: 'Rock, paper, scissors', c4: 'Connect Four', word: 'Word guess', trivia: 'Trivia battle' }[m.game.t] || 'Game') : m.theme ? 'Chat theme' : m.audio ? 'Voice message' : m.sticker ? 'Sticker' : m.poll ? 'Poll: ' + m.poll.q : m.gif ? 'GIF' : (m.images && m.images.length > 1) ? m.images.length + ' photos' + (m.text ? ' · ' + m.text : '') : (m.images || m.image) ? 'Photo' + (m.text ? ' · ' + m.text : '') : (m.text || '');
+const msgLabel = m => m.video ? (m.video.round ? 'Video message' : 'Video') + (m.text ? ' · ' + m.text : '') : m.live ? 'Live location' : m.stickerImg ? 'Sticker' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.game ? ({ ttt: 'Tic-tac-toe', rps: 'Rock, paper, scissors', c4: 'Connect Four', word: 'Word guess', trivia: 'Trivia battle' }[m.game.t] || 'Game') : m.theme ? 'Chat theme' : m.audio ? 'Voice message' : m.sticker ? 'Sticker' : m.poll ? 'Poll: ' + m.poll.q : m.gif ? 'GIF' : (m.images && m.images.length > 1) ? m.images.length + ' photos' + (m.text ? ' · ' + m.text : '') : (m.images || m.image) ? 'Photo' + (m.text ? ' · ' + m.text : '') : (m.text || '');
 async function sendMessage(payload, convId) {
   const c = convOf(convId || S.conv); if (!c) return;
   const t = now();
@@ -1339,7 +1351,7 @@ async function sendMessage(payload, convId) {
   }
   try { id = await db().add(`conversations/${c.id}/messages`, msg); }
   catch (e) { fail(e); return; }
-  sound('send');
+  sound('send'); buzz(8);
   if (!payload.system && !payload.bot) { bumpStat('sent'); const h = new Date().getHours(); if (h >= 1 && h < 4) bumpStat('night', true); }
   await db().update('conversations/' + c.id, convPatch);
   typingSent = 0;
@@ -1461,11 +1473,12 @@ const actions = {
   // people
   ptab: d => { S.ptab = d.v; render(); },
   ptabClear: d => { S.peopleQ = ''; S.peopleRes = []; S.ptab = d.v; render(); },
-  copyHandle: async () => { const t = '@' + S.profile.handle; try { await navigator.clipboard.writeText(t); toast('Copied ' + esc(t)); } catch { toast('Your handle is ' + esc(t)); } },
+  copyHandle: async () => { const link = profileLink(); if (navigator.share && innerWidth <= 1100) { try { await navigator.share({ title: 'Add me on Nexa', text: `Add me on Nexa: @${S.profile.handle}`, url: link }); return; } catch {} } try { await navigator.clipboard.writeText(link); return toast('Your invite link is copied — send it to friends'); } catch {} const t = '@' + S.profile.handle; try { await navigator.clipboard.writeText(t); toast('Copied ' + esc(t)); } catch { toast('Your handle is ' + esc(t)); } },
   addFriend: async d => {
     const uid = d.v, id = S.me + '__' + uid;
     const back = S.reqIn.find(r => r.from === uid);
     if (back) return actions.accept({ v: back.id });
+    if (!rateOk('req')) return toast('You\'ve sent a lot of friend requests. Try again in a little while.');
     await db().set('friendRequests/' + id, { from: S.me, to: uid, at: now() });
     notify(uid, { type: 'friend_request', title: `${S.profile.name} sent you a friend request`, body: '@' + S.profile.handle, link: { page: 'people' } });
     toast('Friend request sent');
@@ -1483,7 +1496,7 @@ const actions = {
   personMenu: (d, el, ev) => { const r = el.getBoundingClientRect(); S.menu = { type: 'person', uid: d.v, x: r.left - 160, y: r.bottom + 6 }; render(); },
   nickname: d => { S.form.nick = undefined; S.modal = { type: 'nickname', uid: d.v }; S.menu = null; render(); },
   saveNick: d => { const nk = { ...(S.prefs.nicknames || {}) }; const v = (S.form.nick ?? '').trim(); if (d.v === 'clear' || !v) delete nk[S.modal.uid]; else nk[S.modal.uid] = v; S.modal = null; savePrefs({ nicknames: nk }); toast(d.v === 'clear' || !v ? 'Nickname removed' : 'Nickname saved — only you can see it'); },
-  dm: async d => { S.menu = null; if (blocked(d.v)) return toast('Unblock them first'); if (!canDM(d.v)) return toast(`${esc(dname(d.v).split(' ')[0])} only gets messages from friends. Send a friend request instead.`); const id = await ensureDM(d.v); openConv(id); },
+  dm: async d => { S.menu = null; if (blocked(d.v)) return toast('Unblock them first'); if (!isFriend(d.v) && !convOf('dm_' + pairId(S.me, d.v)) && !rateOk('dmreq')) return toast('You\'ve started a lot of new chats. Try again later.'); if (!canDM(d.v)) return toast(`${esc(dname(d.v).split(' ')[0])} only gets messages from friends. Send a friend request instead.`); const id = await ensureDM(d.v); openConv(id); },
   // messages
   newChat: () => { S.form.pickQ = ''; S.modal = { type: 'newChat' }; S.palette = false; render(); },
   newGroup: () => { S.form.pick = []; S.form.pickQ = ''; S.form.gName = ''; S.authErr = ''; S.modal = { type: 'newGroup' }; S.palette = false; S.menu = null; render(); },
@@ -1652,7 +1665,7 @@ const actions = {
     const m = (S.msgs[S.conv] || []).find(x => x.id === d.v); const src = safeAudio(m?.audio?.src); if (!src) return;
     if (S.playing?.id === d.v) { const a = S.playing.a; if (a.paused) { a.play(); S.playing.on = true; } else { a.pause(); S.playing.on = false; } render(); return; }
     if (S.playing) S.playing.a.pause();
-    const a = new Audio(src); S.playing = { id: d.v, a, on: true };
+    const a = new Audio(src); a.playbackRate = voiceRate(); S.playing = { id: d.v, a, on: true };
     a.ontimeupdate = () => paintVoice();
     a.onended = () => { S.playing = null; render(); };
     a.play().catch(() => { toast('This voice message can\'t play in this browser.'); S.playing = null; render(); }); render();
@@ -1715,13 +1728,13 @@ const actions = {
     toast('Thanks — your report was sent.');
   },
   // ---------- moments
-  momentNew: () => { S.form.moText = ''; S.form.moImg = ''; S.form.moBg = 0; S.authErr = ''; S.modal = { type: 'moment' }; S.story = null; render(); },
+  momentNew: () => { S.form.moText = ''; S.form.moImg = ''; S.form.moBg = 0; S.form.moClose = false; S.authErr = ''; S.modal = { type: 'moment' }; S.story = null; render(); },
   moBg: d => { S.form.moBg = +d.v; render(); },
   moNoImg: () => { S.form.moImg = ''; render(); },
   postMoment: async () => {
     const f = S.form; if (!(f.moText || '').trim() && !f.moImg) { S.authErr = 'Add a photo or some text.'; return render(); }
     S.busy = true; render();
-    try { bumpStat('moments'); await db().add('moments', { author: S.me, audience: [S.me, ...friendIds().filter(u => !blocked(u))], text: (f.moText || '').trim(), image: f.moImg || '', bg: f.moBg || 0, at: now(), expiresAt: now() + 864e5, seen: [] }); S.modal = null; toast('Moment shared with your friends'); }
+    try { bumpStat('moments'); const close = !!f.moClose && closeFriendIds().length > 0; if (f.moClose && !close) { S.busy = false; S.authErr = 'Add some close friends first — tap Edit list.'; return render(); } await db().add('moments', { author: S.me, close, audience: [S.me, ...(close ? closeFriendIds() : friendIds()).filter(u => !blocked(u))], text: (f.moText || '').trim(), image: f.moImg || '', bg: f.moBg || 0, at: now(), expiresAt: now() + 864e5, seen: [] }); S.modal = null; toast('Moment shared with your friends'); }
     catch (e) { S.authErr = e.message; }
     S.busy = false; render();
   },
@@ -1803,12 +1816,12 @@ function storyStep(k) {
 }
 let gifT = 0;
 async function searchGifs() {
-  if (!CONFIG.tenorKey) return;
+  if (!gifKey()) return;
   const q = (S.form.gifQ || '').trim();
   S.gifLoading = true; render();
   try {
-    const u = q ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}` : 'https://tenor.googleapis.com/v2/featured?';
-    const r = await fetch(`${u}&key=${encodeURIComponent(CONFIG.tenorKey)}&client_key=nexa&limit=24&media_filter=tinygif,gif&contentfilter=medium`);
+    const u = q ? `https://api.klipy.com/v2/search?q=${encodeURIComponent(q)}` : 'https://api.klipy.com/v2/featured?';
+    const r = await fetch(`${u}&key=${encodeURIComponent(gifKey())}&client_key=nexa&limit=24&media_filter=tinygif,gif&contentfilter=medium`);
     const j = await r.json();
     S.gifs = (j.results || []).map(x => ({ preview: x.media_formats?.tinygif?.url, url: x.media_formats?.gif?.url || x.media_formats?.tinygif?.url, alt: x.content_description })).filter(g => g.preview && /^https:\/\/[^\s"'()<>]+$/.test(g.url));
   } catch { S.gifs = []; }
@@ -2027,7 +2040,7 @@ async function checkInvite() {
   S.modal = { type: 'invite', inv }; render();
 }
 async function boot() {
-  try { const q0 = new URLSearchParams(location.search); const ch = q0.get('chat'), pg = q0.get('page'); if (ch && /^[\w-]{3,80}$/.test(ch)) lsSet('nexa.openChat', ch); if (pg && PAGES.includes(pg)) lsSet('nexa.openPage', pg); const rp = q0.get('reply'), cmc = q0.get('community'), ql = q0.get('login'); if (ql && /^[a-z0-9-]{6,12}$/i.test(ql)) { sessionStorage.setItem('nexa.qlogin', ql); history.replaceState(null, '', location.pathname); } if (rp && ch) lsSet('nexa.reply', { chat: ch, text: rp.slice(0, 2000) }); if (cmc && /^[a-z0-9]{4,40}$/i.test(cmc)) lsSet('nexa.community', cmc); if (ch || pg || cmc) history.replaceState(null, '', location.pathname); } catch {}
+  try { const q0 = new URLSearchParams(location.search); const ch = q0.get('chat'), pg = q0.get('page'); if (ch && /^[\w-]{3,80}$/.test(ch)) lsSet('nexa.openChat', ch); if (pg && PAGES.includes(pg)) lsSet('nexa.openPage', pg); const hm = location.pathname.match(/\/@([a-z0-9_.]{2,24})\/?$/i) || [null, q0.get('add')]; if (hm[1] && /^[a-z0-9_.]{2,24}$/i.test(hm[1])) { lsSet('nexa.addHandle', hm[1].toLowerCase()); history.replaceState(null, '', location.pathname.replace(/@[^/]*\/?$/, '')); } const rp = q0.get('reply'), cmc = q0.get('community'), ql = q0.get('login'); if (ql && /^[a-z0-9-]{6,12}$/i.test(ql)) { sessionStorage.setItem('nexa.qlogin', ql); history.replaceState(null, '', location.pathname); } if (rp && ch) lsSet('nexa.reply', { chat: ch, text: rp.slice(0, 2000) }); if (cmc && /^[a-z0-9]{4,40}$/i.test(cmc)) lsSet('nexa.community', cmc); if (ch || pg || cmc) history.replaceState(null, '', location.pathname); } catch {}
   navigator.serviceWorker?.addEventListener?.('message', e => { const d = e.data || {}; if (d.type === 'open' && S.view === 'app') { if (d.chat) openConv(d.chat); else if (d.page) go(d.page); } if (d.type === 'reply' && d.chat && d.text) quickReply(d.chat, d.text); });
   try { const q = new URLSearchParams(location.search); const code = q.get('invite'), jc = q.get('join'); if (code && /^[a-z0-9]{4,40}$/i.test(code)) lsSet('nexa.invite', code); if (jc && /^[a-z0-9]{4,40}$/i.test(jc)) lsSet('nexa.join', jc); if (code || jc) history.replaceState(null, '', location.pathname); } catch {}
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; render(); });
@@ -2543,7 +2556,7 @@ const yesterdayKey = () => { const d = new Date(); d.setDate(d.getDate() - 1); r
 (() => {
   let sx = 0, sy = 0, el = null, dx = 0, lp = 0, moved = false;
   document.addEventListener('touchstart', e => {
-    const m = e.target.closest('#stream .m'); if (!m || e.target.closest('button,a,input,.ttt,.c4')) return;
+    const m = e.target.closest('#stream .m'); if (!m || e.target.closest('button,a,input,.ttt,.c4') || e.touches[0].clientX < 24) return;
     el = m; sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; moved = false;
     clearTimeout(lp);
     lp = setTimeout(() => { if (!moved && el) { navigator.vibrate?.(12); const r = el.getBoundingClientRect(); S.menu = { type: 'react', mid: el.dataset.v, x: Math.max(8, r.left), y: r.top - 60 }; S.selMsg = el.dataset.v; el = null; render(); } }, 480);
@@ -3684,3 +3697,247 @@ vModal5b = function (m, f, head) {
   }
   return _vModal5b(m, f, head);
 };
+
+/* =====================================================================
+   v6 — phone gestures & bottom sheets, haptics, video messages,
+   voice speed, KLIPY GIFs, close friends, live location, animated &
+   seasonal wallpapers, spam limits, invite links (/@handle)
+   ===================================================================== */
+Object.assign(P, { film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>' });
+
+/* ---- small helpers ---- */
+const buzz = p => { try { if (S.prefs?.haptics !== false && navigator.vibrate) navigator.vibrate(p); } catch {} };
+const voiceRate = () => +(lsGet('nexa.vrate', 1) || 1);
+const gifKey = () => CONFIG.gifKey || CONFIG.klipyKey || CONFIG.tenorKey || '';
+const closeFriendIds = () => (S.prefs.closeFriends || []).filter(u => isFriend(u) && !blocked(u));
+const profileLink = () => location.origin + location.pathname.replace(/[^/]*$/, '') + '@' + (S.profile?.handle || '');
+const SEASON_NAMES = { halloween: 'Halloween', autumn: 'Autumn', snow: 'Winter', blossom: 'Spring', summer: 'Summer' };
+function season() { const m = new Date().getMonth(); return m === 9 ? 'halloween' : m === 10 ? 'autumn' : (m === 11 || m <= 1) ? 'snow' : m <= 4 ? 'blossom' : 'summer'; }
+// Simple rate limits so new accounts can't spam people
+function rateOk(kind) {
+  const young = now() - (S.profile?.createdAt || 0) < 3 * 864e5;
+  const lim = { req: young ? 10 : 30, dmreq: young ? 5 : 20 }[kind] || 20, win = kind === 'dmreq' ? 864e5 : 3600e3;
+  const key = 'nexa.rate.' + kind + '.' + S.me, log = (lsGet(key, []) || []).filter(t => now() - t < win);
+  if (log.length >= lim) return false;
+  log.push(now()); lsSet(key, log); return true;
+}
+/* ---- invite links: nexa.../@handle ---- */
+async function checkAddHandle() {
+  const h = lsGet('nexa.addHandle', null); if (!h) return;
+  lsSet('nexa.addHandle', null);
+  if (h === S.profile?.handle) return toast('That\'s your own invite link — share it with friends!');
+  const rec = await db().get('handles/' + h).catch(() => null);
+  if (!rec?.uid) return toast(`No one on Nexa has the handle @${esc(h)}.`);
+  watchUser(rec.uid); S.profileUid = rec.uid; S.page = 'profile'; render();
+  if (!isFriend(rec.uid)) setTimeout(() => toast(`Tap <b>Add friend</b> to connect with @${esc(h)}`), 600);
+}
+
+/* ---- video bubbles ---- */
+const safeVideo = u => (typeof u === 'string' && /^data:video\/(mp4|webm|quicktime)(;[a-z0-9=.,+-]+)*;base64,[A-Za-z0-9+/=]+$/i.test(u)) ? u : '';
+function vVideoBubble(m, quote) {
+  const v = m.video, th = safeImg(v.thumb);
+  if (v.round) return `<div class="vnote-wrap">${quote ? `<div class="bub" style="margin-bottom:4px">${quote}</div>` : ''}<button class="vnote" data-a="playVideo" data-v="${m.id}" aria-label="Play video message, ${fmtDur(v.dur || 0)}">${th ? `<img src="${th}" alt="">` : ''}<span class="vplayic">${ic('play', 22, 2)}</span><span class="vdur">${fmtDur(v.dur || 0)}</span></button></div>`;
+  return `<div class="bub img">${quote}<button class="vclip" data-a="playVideo" data-v="${m.id}" aria-label="Play video, ${fmtDur(v.dur || 0)}" style="aspect-ratio:${(v.w && v.h) ? v.w + '/' + v.h : '16/9'}">${th ? `<img src="${th}" alt="">` : ''}<span class="vplayic">${ic('play', 26, 2)}</span><span class="vdur">${ic('film', 12)} ${fmtDur(v.dur || 0)}</span></button>${m.text ? `<div style="padding:6px 8px 2px">${linkify(m.text)}</div>` : ''}</div>`;
+}
+function openVideo(m) {
+  const src = safeVideo(m?.video?.src); if (!src) return toast('This video can\'t play here.');
+  closeVideo();
+  const L = document.createElement('div'); L.id = 'videoLayer'; L.className = m.video.round ? 'round' : '';
+  L.innerHTML = `<div class="vbox"><video playsinline autoplay ${m.video.round ? '' : 'controls'} src="${src}"></video>${m.video.round ? '<svg class="vring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48"/></svg>' : ''}</div><button class="cbtn" aria-label="Close video">${ic('x', 22, 2)}</button>`;
+  document.body.appendChild(L);
+  const v = L.querySelector('video'), ring = L.querySelector('.vring circle');
+  if (ring) { const len = 2 * Math.PI * 48; ring.style.strokeDasharray = len; ring.style.strokeDashoffset = len; v.ontimeupdate = () => { ring.style.strokeDashoffset = len * (1 - (v.currentTime / (v.duration || m.video.dur || 1))); }; v.onended = closeVideo; v.onclick = () => v.paused ? v.play() : v.pause(); }
+  v.play().catch(() => {});
+  L.addEventListener('click', e => { if (e.target === L || e.target.closest('.cbtn')) closeVideo(); });
+}
+function closeVideo() { const L = document.getElementById('videoLayer'); if (L) { const v = L.querySelector('video'); try { v.pause(); v.removeAttribute('src'); v.load(); } catch {} L.remove(); } }
+const pickVideoMime = () => ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
+const blobToData = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
+async function videoThumb(url, size = 220) {
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.src = url;
+  await new Promise(r => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 3000); });
+  try { v.currentTime = Math.min(0.2, (v.duration || 1) / 2); await new Promise(r => { v.onseeked = r; setTimeout(r, 1500); }); } catch {}
+  const w = v.videoWidth || 240, h = v.videoHeight || 240, k = Math.min(1, size / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  try { c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); return { thumb: c.toDataURL('image/jpeg', .65), w, h, dur: v.duration }; } catch { return { thumb: '', w, h, dur: v.duration }; }
+}
+const MAX_VIDEO_BYTES = 700000, MAX_VIDEO_SEC = 20;
+async function sendVideoBlob(blob, dur, round) {
+  if (blob.size > MAX_VIDEO_BYTES) return toast('That video is too big to send. Try a shorter one.');
+  const url = URL.createObjectURL(blob), t = await videoThumb(url); URL.revokeObjectURL(url);
+  const src = String(await blobToData(blob)).replace(/;codecs=[^;,]+/, '');
+  const text = round ? '' : (S.draft[S.conv] || '').trim(); if (!round) { S.draft[S.conv] = ''; saveDraftSoon(); }
+  await sendMessage({ video: { src, thumb: t.thumb, dur: Math.round((dur || t.dur || 0) * 10) / 10, w: t.w, h: t.h, round: !!round }, text });
+}
+/* Re-encode a picked video so it's small enough to send (first 20 seconds, 360p) */
+async function shrinkVideo(file) {
+  const mime = pickVideoMime(); if (!mime || !HTMLCanvasElement.prototype.captureStream) throw new Error('Your browser can\'t prepare videos. Try a shorter clip.');
+  const url = URL.createObjectURL(file), v = document.createElement('video'); v.muted = true; v.playsInline = true; v.src = url;
+  await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error('That video can\'t be opened.')); });
+  const k = Math.min(1, 360 / Math.max(v.videoWidth, v.videoHeight)), W = Math.round(v.videoWidth * k / 2) * 2, H = Math.round(v.videoHeight * k / 2) * 2;
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const stream = c.captureStream(24), len = Math.min(v.duration || MAX_VIDEO_SEC, MAX_VIDEO_SEC);
+  let actx, srcNode;
+  try { actx = new (window.AudioContext || window.webkitAudioContext)(); const buf = await actx.decodeAudioData(await file.arrayBuffer()); const dest = actx.createMediaStreamDestination(); srcNode = actx.createBufferSource(); srcNode.buffer = buf; srcNode.connect(dest); dest.stream.getAudioTracks().forEach(t => stream.addTrack(t)); } catch {}
+  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 200000, audioBitsPerSecond: 32000 }), chunks = [];
+  mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => mr.onstop = r);
+  mr.start(500); await v.play(); if (srcNode) srcNode.start(0, 0);
+  const t0 = performance.now();
+  await new Promise(r => { const draw = () => { g.drawImage(v, 0, 0, W, H); const el = (performance.now() - t0) / 1000; const p = document.getElementById('vprog'); if (p) p.textContent = Math.min(100, Math.round(el / len * 100)) + '%'; if (el >= len || v.ended) return r(); requestAnimationFrame(draw); }; draw(); });
+  v.pause(); try { srcNode && srcNode.stop(); } catch {} mr.stop(); await done; try { actx && actx.close(); } catch {} URL.revokeObjectURL(url);
+  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), dur: len, trimmed: (v.duration || 0) > MAX_VIDEO_SEC + .5 };
+}
+/* Round video notes */
+let VN = null;
+async function vnoteStart() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return toast('Video messages aren\'t supported in this browser.');
+  S.attach = false; render();
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } }, audio: { echoCancellation: true, noiseSuppression: true } }); }
+  catch { return toast('Camera or microphone access was blocked.'); }
+  const L = document.createElement('div'); L.id = 'vnoteLayer';
+  L.innerHTML = `<div class="vnote-live"><video autoplay playsinline muted></video><svg class="vring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48"/></svg></div><div class="vnote-time" id="vnTime">0:00 / 0:20</div><div class="call-controls" style="position:static;transform:none"><button class="cbtn" data-vn="cancel" aria-label="Cancel">${ic('trash', 22, 2)}</button><button class="cbtn red" data-vn="rec" aria-label="Start recording"><span class="recdot" style="width:18px;height:18px"></span></button><button class="cbtn" data-vn="flip" aria-label="Switch camera">${ic('expand', 20, 2)}</button></div>`;
+  document.body.appendChild(L);
+  const v = L.querySelector('video'); v.srcObject = stream; v.play().catch(() => {});
+  VN = { stream, L, facing: 'user', recording: false };
+  L.addEventListener('click', async e => { const b = e.target.closest('[data-vn]'); if (!b) return; const k = b.dataset.vn;
+    if (k === 'cancel') return vnoteStop(false);
+    if (k === 'flip') { if (VN.recording) return; VN.facing = VN.facing === 'user' ? 'environment' : 'user'; try { const s2 = await navigator.mediaDevices.getUserMedia({ video: { facingMode: VN.facing, width: { ideal: 480 }, height: { ideal: 480 } }, audio: true }); VN.stream.getTracks().forEach(t => t.stop()); VN.stream = s2; v.srcObject = s2; L.classList.toggle('back', VN.facing !== 'user'); } catch {} return; }
+    if (k === 'rec') { if (VN.recording) return vnoteStop(true); vnoteRecord(b); }
+  });
+}
+function vnoteRecord(btn) {
+  const mime = pickVideoMime(), mr = new MediaRecorder(VN.stream, mime ? { mimeType: mime, videoBitsPerSecond: 200000, audioBitsPerSecond: 32000 } : { videoBitsPerSecond: 200000 });
+  const R0 = VN; R0.chunks = []; R0.mr = mr; R0.recording = true; R0.t0 = now(); R0.mime = mime;
+  mr.ondataavailable = e => e.data.size && R0.chunks.push(e.data);
+  mr.start(500); buzz(10);
+  btn.innerHTML = `<span style="width:18px;height:18px;border-radius:4px;background:#fff;display:block"></span>`; btn.setAttribute('aria-label', 'Stop and send');
+  const ring = VN.L.querySelector('.vring circle'), len = 2 * Math.PI * 48; ring.style.strokeDasharray = len;
+  VN.iv = setInterval(() => { const el = (now() - VN.t0) / 1000; ring.style.strokeDashoffset = len * (1 - el / MAX_VIDEO_SEC); const t = document.getElementById('vnTime'); if (t) t.textContent = fmtDur(el) + ' / 0:20'; if (el >= MAX_VIDEO_SEC) vnoteStop(true); }, 100);
+}
+function vnoteStop(send) {
+  const r = VN; if (!r) return; VN = null; clearInterval(r.iv);
+  const finish = async () => { r.stream.getTracks().forEach(t => t.stop()); r.L.remove();
+    if (!send || !r.chunks?.length) return;
+    const dur = (now() - r.t0) / 1000; if (dur < 1) return toast('Hold on a little longer to record.');
+    await sendVideoBlob(new Blob(r.chunks, { type: (r.mime || 'video/webm').split(';')[0] }), dur, true); };
+  if (r.mr && r.mr.state !== 'inactive') { r.mr.onstop = finish; r.mr.stop(); } else finish();
+}
+
+/* ---- live location ---- */
+let LIVE = lsGet('nexa.live', null);
+function tileFor(lat, lng, z) { const n = 2 ** z, x = (lng + 180) / 360 * n, r = lat * Math.PI / 180, y = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n; return { x, y }; }
+function vLiveBubble(m, quote) {
+  const L = m.live, on = L.until > now(), z = 15, t = tileFor(L.lat, L.lng, z), W = 260, H = 150;
+  const tx = Math.floor(t.x), ty = Math.floor(t.y), ox = W / 2 - (t.x - tx) * 256, oy = H / 2 - (t.y - ty) * 256;
+  let tiles = ''; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) tiles += `<img src="https://tile.openstreetmap.org/${z}/${tx + dx}/${ty + dy}.png" alt="" loading="lazy" style="left:${ox + dx * 256}px;top:${oy + dy * 256}px">`;
+  const mine = m.from === S.me;
+  return `<div class="bub livecard">${quote}<a class="livemap" href="https://www.google.com/maps/search/?api=1&query=${L.lat},${L.lng}" target="_blank" rel="noopener noreferrer" style="width:${W}px;height:${H}px">${tiles}<span class="livepin ${on ? 'on' : ''}">${av(m.from, 30)}</span><span class="osm">© OpenStreetMap</span></a>
+    <div class="row" style="gap:8px;padding:8px 6px 2px"><span class="grow"><b style="display:block">${on ? 'Live location' : 'Location sharing ended'}</b><span class="small" style="opacity:.8">${on ? `Updated ${fmtWhen(L.at)} · until ${fmtTime(L.until)}` : 'Last seen ' + fmtWhen(L.at)}</span></span>${on && mine ? `<button class="btn sm" data-a="liveStop" data-v="${m.id}">Stop</button>` : ''}</div></div>`;
+}
+function liveWatch() {
+  if (!LIVE || LIVE.until < now()) { lsSet('nexa.live', null); LIVE = null; return; }
+  if (LIVE.watch != null || !navigator.geolocation) return;
+  let last = 0;
+  LIVE.watch = navigator.geolocation.watchPosition(p => {
+    if (!LIVE) return; if (LIVE.until < now()) return liveEnd();
+    if (now() - last < 15000) return; last = now();
+    db().update(`conversations/${LIVE.conv}/messages/${LIVE.msg}`, { 'live.lat': +p.coords.latitude.toFixed(5), 'live.lng': +p.coords.longitude.toFixed(5), 'live.acc': Math.round(p.coords.accuracy), 'live.at': now() }).catch(() => {});
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+  clearTimeout(LIVE.tm); LIVE.tm = setTimeout(liveEnd, LIVE.until - now());
+}
+function liveEnd() { if (!LIVE) return; try { navigator.geolocation.clearWatch(LIVE.watch); } catch {} clearTimeout(LIVE.tm); LIVE = null; lsSet('nexa.live', null); }
+setTimeout(() => { if (LIVE && S.me) liveWatch(); }, 4000);
+
+/* ---- phone gestures: edge swipe back, pull to refresh, drag sheets down ---- */
+function goBack() {
+  if (document.getElementById('videoLayer')) return closeVideo();
+  if (S.lightbox) { S.lightbox = ''; return render(); }
+  if (S.menu) { S.menu = null; return render(); }
+  if (S.modal) return actions.closeModal();
+  if (S.story) return actions.storyClose();
+  if (S.ai?.open) return actions.aiClose();
+  if (S.page === 'messages' && S.conv) return actions.closeConv();
+  if (S.page === 'profile') return actions.back();
+  if (S.page !== 'home') return go('home');
+}
+(() => {
+  let g = null;
+  const hint = () => document.getElementById('edgeHint') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'edgeHint', innerHTML: ic('back', 20, 2.4) }));
+  const ptr = () => document.getElementById('ptr') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'ptr', innerHTML: '<span></span>' }));
+  const atTop = el => { for (let e = el; e && e !== document.documentElement; e = e.parentElement) if (e.scrollTop > 0) return false; return true; };
+  const layers = '#callLayer,#roomLayer,#videoLayer,#vnoteLayer,#scanLayer,#watchLayer,#boardLayer,#tourLayer';
+  document.addEventListener('touchstart', e => {
+    g = null; if (innerWidth > 900 || e.touches.length > 1 || S.view !== 'app') return;
+    const t = e.touches[0], el = e.target; if (el.closest(layers)) return;
+    const sheet = innerWidth <= 700 && el.closest('.overlay .modal, .overlay .menu');
+    if (sheet && t.clientY - sheet.getBoundingClientRect().top < 56 && !el.closest('input,textarea,select')) g = { k: 'sheet', y: t.clientY, el: sheet };
+    else if (t.clientX < 22) g = { k: 'edge', x: t.clientX, y: t.clientY };
+    else if (!el.closest('#stream,.overlay,textarea,input,.picker,.ai,.tiles') && atTop(el)) g = { k: 'pull', x: t.clientX, y: t.clientY };
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', e => {
+    if (!g) return; const t = e.touches[0], dx = t.clientX - (g.x || 0), dy = t.clientY - g.y;
+    if (g.k === 'edge') { if (Math.abs(dy) > 70) { g = null; hint().style.cssText = ''; return; } g.dx = dx; const h = hint(); h.style.opacity = Math.min(1, dx / 90); h.style.transform = `translate(${Math.min(dx, 110) - 50}px,${t.clientY - 22}px)`; h.classList.toggle('go', dx > 90); }
+    if (g.k === 'pull') { if (dy < 0 || Math.abs(dx) > Math.abs(dy)) { g = null; ptr().style.cssText = ''; return; } g.dy = dy; const p = ptr(); p.style.opacity = Math.min(1, dy / 120); p.style.transform = `translate(-50%,${Math.min(dy / 2, 90)}px) rotate(${dy * 2}deg)`; p.classList.toggle('go', dy > 150); }
+    if (g.k === 'sheet') { g.dy = Math.max(0, dy); g.el.style.transition = 'none'; g.el.style.transform = `translateY(${g.dy}px)`; }
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (!g) return; const k = g;
+    g = null;
+    if (k.k === 'edge') { const h = hint(); h.style.cssText = ''; h.classList.remove('go'); if (k.dx > 90) { buzz(6); goBack(); } }
+    if (k.k === 'pull') { const p = ptr(); if (k.dy > 150) { p.classList.add('spin'); buzz(6); setTimeout(() => location.reload(), 350); } else { p.style.cssText = ''; p.classList.remove('go'); } }
+    if (k.k === 'sheet') { k.el.style.transition = 'transform .25s var(--ease)'; if (k.dy > 110) { k.el.style.transform = 'translateY(110%)'; setTimeout(() => { k.el.style.transform = ''; S.menu ? (S.menu = null, render()) : actions.closeModal(); }, 200); } else k.el.style.transform = ''; }
+  }, { passive: true });
+})();
+
+/* ---- modals ---- */
+const _vModal5v6 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'closeFriends') {
+    const sel = S.prefs.closeFriends || [], fr = friendIds().sort((a, b) => dname(a).localeCompare(dname(b)));
+    return head('Close friends', 'Share some Moments with just these people. They won\'t be told they\'re on your list.') + `<div class="col scroll" style="gap:4px;max-height:380px">${fr.length ? fr.map(u => `<button class="item ${sel.includes(u) ? 'on' : ''}" data-a="cfPick" data-v="${u}">${av(u, 40)}<b class="grow ellip">${esc(dname(u))}</b><span class="tog ${sel.includes(u) ? 'on' : ''}" style="width:24px;height:24px;border-radius:8px" aria-hidden="true"></span></button>`).join('') : '<div class="empty">Add some friends first.</div>'}</div>
+      <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="${m.back ? 'cfBack' : 'closeModal'}">Done</button></div>`;
+  }
+  if (m.type === 'live') return head('Share live location', 'Your friend sees where you are on a map, updating while Nexa is open on this device.') + `
+      <div class="col" style="gap:6px">${[[15, 'For 15 minutes'], [60, 'For 1 hour'], [480, 'For 8 hours']].map(([n, l]) => `<button class="item" data-a="liveGo" data-v="${n}">${ic('map', 18)}<b class="grow">${l}</b>${ic('forward', 16)}</button>`).join('')}</div>
+      <div class="mute small" style="line-height:1.5">You can stop sharing any time. On phones, sharing pauses if you close Nexa.</div>`;
+  if (m.type === 'myQr') return head('Your invite code', 'Friends scan this with their phone camera to add you.') + `<div class="qlbox"><div class="qrsvg">${m.svg || '<div class="skel" style="width:100%;height:100%"></div>'}</div><div class="disp" style="font-size:22px;font-weight:700">@${esc(S.profile.handle)}</div><div class="mute small ellip" style="max-width:100%">${esc(profileLink().replace(/^https?:\/\//, ''))}</div></div><div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="copyHandle">${ic('link', 16)} Copy link</button><button class="btn pri" data-a="closeModal">Done</button></div>`;
+  return _vModal5v6(m, f, head);
+};
+
+/* ---- actions & files ---- */
+Object.assign(actions, {
+  voiceRate: () => { const r = { 1: 1.5, 1.5: 2, 2: 1 }[voiceRate()] || 1; lsSet('nexa.vrate', r); if (S.playing) S.playing.a.playbackRate = r; render(); },
+  moAud: d => { S.form.moClose = d.v === 'close'; if (S.form.moClose && !closeFriendIds().length) return actions.cfOpen({ back: 1 }); S.authErr = ''; render(); },
+  cfOpen: d => { S.modal = { type: 'closeFriends', back: S.modal?.type === 'moment' || d?.back ? 1 : 0 }; render(); },
+  cfPick: d => { const s = S.prefs.closeFriends || []; savePrefs({ closeFriends: s.includes(d.v) ? s.filter(x => x !== d.v) : [...s, d.v] }); },
+  cfBack: () => { S.modal = { type: 'moment' }; S.form.moClose = closeFriendIds().length > 0; render(); },
+  vnoteStart: () => vnoteStart(),
+  playVideo: d => openVideo((S.msgs[S.conv] || []).find(x => x.id === d.v)),
+  liveOpen: () => { S.attach = false; if (!navigator.geolocation) return toast('Location isn\'t available on this device.'); S.modal = { type: 'live' }; render(); },
+  liveGo: async d => {
+    const mins = +d.v; S.modal = null; render(); toast('Finding your location…');
+    let p; try { p = await new Promise((r, j) => navigator.geolocation.getCurrentPosition(r, j, { enableHighAccuracy: true, timeout: 15000 })); } catch { return toast('Location access was blocked. Allow it in your browser settings.'); }
+    if (LIVE) { await db().update(`conversations/${LIVE.conv}/messages/${LIVE.msg}`, { 'live.until': now() }).catch(() => {}); liveEnd(); }
+    const until = now() + mins * 60e3, conv = S.conv;
+    const id = await sendMessage({ live: { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5), acc: Math.round(p.coords.accuracy), at: now(), until } });
+    if (id) { LIVE = { conv, msg: id, until }; lsSet('nexa.live', { conv, msg: id, until }); liveWatch(); }
+  },
+  liveStop: async d => { await db().update(`conversations/${S.conv}/messages/${d.v}`, { 'live.until': now() }); if (LIVE?.msg === d.v) liveEnd(); toast('Stopped sharing your location'); },
+  myQr: async () => {
+    S.modal = { type: 'myQr' }; render();
+    try { const Q = (await import('./qr.js')).default; const q = Q(0, 'M'); q.addData(profileLink()); q.make(); if (S.modal?.type === 'myQr') { S.modal.svg = q.createSvgTag({ cellSize: 6, margin: 3, scalable: true }); render(); } } catch {}
+  }
+});
+Object.assign(files, {
+  sendVideo: async f => {
+    S.attach = false; render();
+    if (!f.type.startsWith('video/')) return toast('Pick a video file.');
+    if (f.size > 300e6) return toast('That video is too big.');
+    const probe = await videoThumb(URL.createObjectURL(f));
+    if (f.size <= MAX_VIDEO_BYTES && (probe.dur || 0) <= 30 && /mp4|webm|quicktime/.test(f.type)) return sendVideoBlob(f, probe.dur, false);
+    toast(`Preparing your video… <b id="vprog">0%</b>`);
+    try { const out = await shrinkVideo(f); if (out.trimmed) toast('Videos can be up to 20 seconds — sending the first 20.'); await sendVideoBlob(out.blob, out.dur, false); }
+    catch (e) { toast(esc(e.message || 'Couldn\'t prepare that video.')); }
+  }
+});

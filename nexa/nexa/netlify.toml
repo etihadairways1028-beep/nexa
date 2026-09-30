@@ -13,3 +13,9 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache"
+
+# Invite links like /@anisha open the app
+[[redirects]]
+  from = "/@*"
+  to = "/index.html"
+  status = 200
