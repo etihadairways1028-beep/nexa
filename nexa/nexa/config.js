@@ -10,7 +10,7 @@ export default {
     aiModel: 'gemini-2.5-flash',
     // Notifications when Nexa is closed: paste your Web Push key between the quotes
     // (Firebase → Project settings → Cloud Messaging → Web Push certificates → Generate key pair)
-    vapidKey: 'PASTE_YOUR_WEB_PUSH_KEY_HERE'
+    vapidKey: 'BIWbzV3JhpR5nDcwHX8UJ2bG7hft8TfTiRDuIfhSQ4FScgw-1TKV-dcmc540LLNMPxR2EirhUBJuywt6ymlCtK0'
   },
   tenorKey: ''
 };
