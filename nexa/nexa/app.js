@@ -80,7 +80,8 @@ const P = {
 };
 const ic = (n, s = 20, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
 let logoN = 0;
-const logo = (s = 34, frame = true, cls = '') => { const id = 'lg' + (logoN++); return `<svg class="${cls}" width="${s}" height="${s}" viewBox="0 0 64 64" fill="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="64" y2="64"><stop offset="0" stop-color="#7d96ff"/><stop offset=".6" stop-color="#ad86ff"/><stop offset="1" stop-color="#ff8a4c"/></linearGradient></defs>${frame ? '<rect x="2" y="2" width="60" height="60" rx="18" fill="rgba(255,255,255,.04)" stroke="rgba(160,180,255,.28)"/>' : ''}<path d="${frame ? 'M20 44V20l24 24V20' : 'M16 50V14l32 36V14'}" stroke="url(#${id})" stroke-width="${frame ? 5.5 : 6}" stroke-linecap="round" stroke-linejoin="round"/></svg>`; };
+// Nexa mark: a folded, glowing ribbon "N"
+const logo = (s = 34, frame = true, cls = '') => { const i = 'lg' + (logoN++); return `<svg class="nlogo ${cls}" width="${s}" height="${s}" viewBox="0 0 64 64" fill="none" aria-hidden="true"><defs><linearGradient id="${i}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#58c8ff"/><stop offset="1" stop-color="#2a6dff"/></linearGradient><linearGradient id="${i}c" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#3a6cff"/><stop offset="1" stop-color="#7fdcff"/></linearGradient><linearGradient id="${i}b" x1="14" y1="16" x2="50" y2="48" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8be4ff"/><stop offset=".5" stop-color="#4f86ff"/><stop offset="1" stop-color="#3159f0"/></linearGradient><filter id="${i}s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="1.2" flood-color="#000a30" flood-opacity=".75"/></filter></defs>${frame ? '<rect x="1.5" y="1.5" width="61" height="61" rx="17" fill="#0a1030" stroke="rgba(120,170,255,.35)"/>' : ''}<g ${frame ? 'transform="translate(9.6 9.6) scale(.7)"' : ''} stroke-linejoin="round" stroke-width="3.5"><path class="lg-l" d="M14 16H24V48H14Z" fill="url(#${i}a)" stroke="url(#${i}a)"/><path class="lg-r" d="M40 16H50V48H40Z" fill="url(#${i}c)" stroke="url(#${i}c)"/><path class="lg-d" d="M14 16L24 16L50 48L40 48Z" fill="url(#${i}b)" stroke="url(#${i}b)" filter="url(#${i}s)"/></g></svg>`; };
 
 /* ---------------- constants ---------------- */
 const BGS = [
@@ -104,7 +105,7 @@ const BGS = [
   { id: 'autumn', name: 'Autumn', css: 'radial-gradient(70% 60% at 80% 20%, rgba(255,150,60,.55), transparent 70%), linear-gradient(180deg,#2a1208,#5b2410)' }
 ];
 const ACCENTS = [
-  { a: '#5b7cff', b: '#9b6bff', n: 'Nexa blue' }, { a: '#9b6bff', b: '#d46bff', n: 'Violet' }, { a: '#ff8a4c', b: '#ff4d6d', n: 'Ember' },
+  { a: '#3d7bff', b: '#5aa2ff', n: 'Nexa blue' }, { a: '#9b6bff', b: '#d46bff', n: 'Violet' }, { a: '#ff8a4c', b: '#ff4d6d', n: 'Ember' },
   { a: '#ff4d6d', b: '#ff8a4c', n: 'Signal' }, { a: '#2fd4c4', b: '#5b7cff', n: 'Aqua' }, { a: '#3fbf6f', b: '#2fd4c4', n: 'Mint' }
 ];
 const GRADS = ['linear-gradient(135deg,#5b7cff,#9b6bff)', 'linear-gradient(135deg,#ff8a4c,#ff4d6d)', 'linear-gradient(135deg,#9b6bff,#ff8a4c)', 'linear-gradient(135deg,#2fd4c4,#5b7cff)', 'linear-gradient(135deg,#ff4d6d,#9b6bff)', 'linear-gradient(135deg,#3fbf6f,#2fd4c4)'];
@@ -133,6 +134,8 @@ const unsubs = { base: [], users: {}, msgs: null, msgsId: null };
 /* ---------------- tiny utils ---------------- */
 const hash = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
 const gradFor = id => GRADS[hash(id) % GRADS.length];
+const SOLIDS = ['#3d7bff', '#e8604c', '#2a9d8f', '#8a63d2', '#d9a441', '#d94f86', '#4f9d4a', '#5c6784'];
+const solidFor = id => SOLIDS[hash(id || '') % SOLIDS.length];
 const initials = n => (n || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 const pad = n => String(n).padStart(2, '0');
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -195,7 +198,7 @@ function av(uid, size = 40, withStatus = false) {
   const u = uid === S.me ? S.profile : U(uid);
   const img = safeImg((uid !== S.me && (S.pics || {})[uid]) || u?.avatar);
   const st = withStatus ? `<span class="st ${presence(uid)}"></span>` : '';
-  const col = /^#[0-9a-f]{6}$/i.test(u?.color || '') ? `linear-gradient(135deg,${u.color},color-mix(in oklab,${u.color} 55%,#ff8a4c))` : gradFor(uid);
+  const col = /^#[0-9a-f]{6}$/i.test(u?.color || '') ? u.color : solidFor(uid);
   return `<span class="av" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .36)}px;--grad:${col}">${img ? `<img src="${img}" alt="">` : esc(initials(u?.name))}${st}</span>`;
 }
 const friendIds = () => S.friends.map(f => f.members.find(m => m !== S.me)).filter(Boolean);
@@ -261,9 +264,17 @@ function confetti() {
     k < 1 ? requestAnimationFrame(f) : c.remove();
   })(t0);
 }
-function deviceNotify(title, body, onClick) {
+const nStack = {};
+function deviceNotify(title, body, onClick, tag) {
   if (!S.prefs.deviceNotifs || document.visibilityState === 'visible' || !('Notification' in window) || Notification.permission !== 'granted') return;
-  const opts = { body, icon: 'icon-192.png', badge: 'icon-192.png', tag: 'nexa-' + title };
+  // When closed-app alerts (push) are on, the push server already sends this one — don't show it twice.
+  if (S.be?.push && lsGet('nexa.pushToken', null) && tag) return;
+  tag = tag || 'nexa-' + title;
+  const st = nStack[tag] = nStack[tag] && now() - nStack[tag].at < 30 * 60e3 ? nStack[tag] : { lines: [], at: 0 };
+  st.lines = [...st.lines, body].slice(-6); st.at = now();
+  const n0 = st.lines.length;
+  if (n0 > 1) title = `${title} (${n0} new messages)`;
+  const opts = { body: st.lines.join('\n'), icon: 'icon-192.png', badge: 'icon-192.png', tag, renotify: true };
   try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); onClick && onClick(); n.close(); }; }
   catch { navigator.serviceWorker?.ready.then(r => r.showNotification(title, opts)).catch(() => {}); }
 }
@@ -329,7 +340,7 @@ function startData() {
           if (isRequestForMe(c)) { if (!old || !isRequestForMe(old) || !old.last) { toast(`<b>Message request</b> <span class="mute">from ${esc(dname(c.last.from))}</span>`, () => { S.convFilter = 'requests'; openConv(c.id); }, c.last.from); sound('ping'); } return; }
           playTone(toneFor(c.last.from)); buzz([12, 40, 12]);
           if (!viewing && S.prefs.notif.msg) toast(`<b>${esc(c.type !== 'dm' ? convName(c) : dname(c.last.from))}</b> <span class="mute ellip" style="max-width:260px">${esc(c.last.text || 'Photo')}</span>`, () => openConv(c.id), c.last.from);
-          if (S.prefs.notif.msg) deviceNotify(c.type !== 'dm' ? convName(c) : dname(c.last.from), (c.type !== 'dm' ? dname(c.last.from).split(' ')[0] + ': ' : '') + (c.last.text || 'Photo'), () => openConv(c.id));
+          if (S.prefs.notif.msg) deviceNotify(c.type !== 'dm' ? convName(c) : dname(c.last.from), (c.type !== 'dm' ? dname(c.last.from).split(' ')[0] + ': ' : '') + (c.last.text || 'Photo'), () => openConv(c.id), 'c_' + c.id);
         }
       });
     }
@@ -453,10 +464,9 @@ function vAuth() {
   const su = S.authMode === 'signup', f = S.form;
   return `<div class="auth${A('auth')}">
     <div class="col intro" style="gap:28px">
-      <div class="row" style="gap:16px">${logo(60, true, 'logo-glow')}<span class="disp" style="font-size:32px;font-weight:700;letter-spacing:.38em">NEXA</span></div>
+      <div class="brandhero">${logo(92, false, 'logo-glow')}<div><div class="brandword">NEXA</div><div class="brandtag">Connect · Chat · Share · Together</div></div></div>
       <h1>Every conversation, <span class="grad-text">a little closer.</span></h1>
       <p class="mute" style="margin:0;font-size:18px;line-height:1.55;max-width:470px">Messages, friends and plans in one calm, glassy place — built for the people you actually talk to.</p>
-      <div class="pills"><span class="chip">Chat</span><span class="chip">Share</span><span class="chip">Meet up</span><span class="chip">Together</span></div>
     </div>
     <form class="auth-card glass card" data-submit="auth" novalidate>
       <div class="seg" role="tablist"><button type="button" class="${su ? '' : 'on'}" data-a="authMode" data-v="login">Log in</button><button type="button" class="${su ? 'on' : ''}" data-a="authMode" data-v="signup">Sign up</button></div>
@@ -544,56 +554,65 @@ function vPage() {
 function vHome() {
   const hr = new Date().getHours();
   const greet = hr < 5 ? 'Good night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
-  const convs = sortedConvs().slice(0, 4);
+  const convs = sortedConvs().slice(0, 5);
   const evs = upcoming().slice(0, 3);
   const onl = friendIds().filter(u => presence(u) !== 'offline');
-  const acts = S.notifs.slice(0, 5);
-  return `<div class="home">
-    <div class="col">
-      <section class="hero glass card react"><div class="glow"></div>
-        <div class="sec">${new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-        <h1 class="disp" style="margin:8px 0 4px;font-size:clamp(26px,3vw,36px);font-weight:600">${greet}, ${esc(S.profile.name.split(' ')[0])}</h1>
-        <div class="mute">${counts().msg ? `You have ${counts().msg} unread conversation${counts().msg > 1 ? 's' : ''}.` : friendIds().length ? 'You\'re all caught up.' : 'Here\'s your space. Add a few friends to bring it to life.'}</div>
+  const acts = S.notifs.slice(0, 4);
+  const nUnread = counts().msg, today = evs.find(e => e.date === todayStr());
+  const subBits = [nUnread ? `<b>${nUnread} unread chat${nUnread > 1 ? 's' : ''}</b>` : '', today ? `<b>${esc(today.title)}</b>${today.time ? ' at ' + esc(today.time) : ' today'}` : ''].filter(Boolean);
+  const sub = subBits.length ? subBits.join(' · ') : friendIds().length ? 'You\'re all caught up.' : 'Here\'s your space. Add a few friends to bring it to life.';
+  const evThumb = e => safeImg(e.image) ? `background-image:url(${e.image})` : `background-position:${20 + hash(e.id) % 60}% ${55 + hash(e.id + 'y') % 35}%`;
+  const right = `
+      <section class="panel glass card">
+        <div class="row spread"><h2 class="h2">Online friends</h2><span class="small" style="color:var(--ac2);font-weight:800">${onl.length}</span></div>
+        ${onl.length ? `<div class="list">${onl.slice(0, 6).map(u => { const r = (S.rooms || []).find(x => roomLive(x.id).includes(u) && x.id !== S.room); return `<div class="item" style="min-height:52px">${av(u, 40, true)}<button class="grow" style="text-align:left" data-a="profile" data-v="${u}"><b class="ellip" style="display:block">${esc(dname(u).split(' ')[0])}</b><span class="mute small">${r ? 'In a voice room' : presLabel(presence(u))}</span></button>${r ? `<button class="btn sm" data-a="roomJoinId" data-v="${r.id}">Join</button>` : `<button class="ibtn sm" aria-label="Message ${esc(dname(u))}" data-a="dm" data-v="${u}">${ic('msg', 15)}</button>`}</div>`; }).join('')}</div>`
+          : `<div class="mute small" style="line-height:1.5">${friendIds().length ? 'No friends online right now.' : `Share <b style="color:var(--text)">@${esc(S.profile.handle)}</b> so friends can add you.`}</div>`}
+      </section>
+      <section class="panel glass card">
+        <div class="row spread"><h2 class="h2">Notifications</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="go" data-v="notifications">See all</button></div>
+        ${acts.length ? `<div class="list">${acts.map(n => notifRow(n, true)).join('')}</div>` : `<div class="mute small">Requests, invites and updates show up here.</div>`}
+      </section>
+      <section class="panel glass card">
+        <div class="row spread"><h2 class="h2">Moments</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="momentNew">+ Add</button></div>
         ${vMoments()}
+      </section>
+      ${suggestions().length ? `<section class="panel glass card"><h2 class="h2">People you may know</h2>${suggestions().slice(0, 2).map(sg => suggRow(sg)).join('')}</section>` : ''}`;
+  return `<div class="home v8">
+    <div class="h-main">
+      <section class="hero glass card">
+        <h1 class="disp hello">${greet}, ${esc(S.profile.name.split(' ')[0])}</h1>
+        <div class="mute hsub">${sub}</div>
         <div class="qa-grid">
-          <button class="qa" data-a="newChat"><span class="ic" style="background:color-mix(in oklab,var(--ac) 22%,transparent);color:var(--ac)">${ic('msg')}</span>New message</button>
-          <button class="qa" data-a="newEvent"><span class="ic" style="background:rgba(255,138,76,.18);color:#ff9a5c">${ic('cal')}</span>Create event</button>
-          <button class="qa" data-a="go" data-v="people"><span class="ic" style="background:rgba(155,107,255,.2);color:#b48bff">${ic('userplus')}</span>Add friend</button>
-          <button class="qa" data-a="aiOpen"><span class="ic" style="background:rgba(255,77,109,.16);color:#ff6d86">${ic('spark')}</span>Ask Nexa AI</button>
+          <button class="qa" data-a="newChat"><span class="ic">${ic('pen', 20)}</span>New message</button>
+          <button class="qa" data-a="newEvent"><span class="ic">${ic('cal', 20)}</span>Create event</button>
+          <button class="qa" data-a="go" data-v="people"><span class="ic">${ic('userplus', 20)}</span>Add friend</button>
+          <button class="qa" data-a="aiOpen"><span class="ic">${ic('spark', 20)}</span>Nexa AI</button>
         </div>
       </section>
-      ${vLiveCard()}
       ${vBirthdayCard()}
-      ${S.convs.some(c => c.last) ? `<button class="panel glass card react wrapcard" data-a="wrappedOpen"><span class="row" style="gap:14px"><span class="notif-ic" style="width:48px;height:48px;background:linear-gradient(135deg,var(--ac),var(--ac2) 60%,var(--warm))">${ic('spark', 22)}</span><span class="grow" style="text-align:left"><b class="disp" style="font-size:17px;display:block">Your ${new Date().toLocaleDateString([], { month: 'long' })} Wrapped</b><span class="mute small">Your top friends, busiest day and more</span></span>${ic('forward', 18)}</span></button>` : ''}
+      ${vLiveCard()}
       <div class="two">
-        <section class="panel glass card react">
-          <div class="row spread"><h2 class="h2">Recent conversations</h2><button class="btn sm" data-a="go" data-v="messages">Open</button></div>
-          ${!S.ready?.convs ? `<div class="list">${skelRows(3, 42)}</div>` : convs.length ? `<div class="list">${convs.map(c => `<button class="item" data-a="openConv" data-v="${c.id}">${convAv(c, 42)}<span class="grow"><span class="row spread"><b class="ellip">${esc(convName(c))}</b><span class="mute small">${fmtWhen(c.last?.at)}</span></span><span class="mute small ellip" style="display:block">${typers(c).length ? 'typing…' : esc(lastLine(c))}</span></span>${unread(c) ? '<span class="unread-dot"></span>' : ''}</button>`).join('')}</div>`
+        <section class="panel glass card">
+          <div class="row spread"><h2 class="h2">Recent conversations</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="go" data-v="messages">See all</button></div>
+          ${!S.ready?.convs ? `<div class="list">${skelRows(3, 42)}</div>` : convs.length ? `<div class="list">${convs.map(c => `<button class="item" data-a="openConv" data-v="${c.id}">${convAv(c, 42)}<span class="grow"><b class="ellip" style="display:block">${esc(convName(c))}</b><span class="small ellip ${unread(c) ? '' : 'mute'}" style="display:block;${unread(c) ? 'font-weight:700' : ''}">${typers(c).length ? '<span style="color:var(--ac2)">typing…</span>' : esc(lastLine(c))}</span></span><span class="col" style="align-items:flex-end;gap:5px;flex-shrink:0"><span class="mute small">${fmtWhen(c.last?.at)}</span>${unread(c) ? '<span class="unread-dot"></span>' : ''}</span></button>`).join('')}</div>`
             : `<div class="empty"><div class="ring">${ic('msg', 24)}</div><b>No conversations yet</b><span>Message a friend or start a group.</span><button class="btn sm pri" data-a="newChat">New message</button></div>`}
         </section>
-        <section class="panel glass card react">
-          <div class="row spread"><h2 class="h2">Upcoming events</h2><button class="btn sm" data-a="go" data-v="events">All</button></div>
-          ${evs.length ? `<div class="list">${evs.map(e => `<button class="item" data-a="eventOpen" data-v="${e.id}">${dateChip(e)}<span class="grow"><b class="ellip" style="display:block">${esc(e.title)}</b><span class="mute small">${esc(e.time || 'Time TBD')} · ${(e.attendees || []).length} going</span></span>${going(e) ? '<span class="nick" style="background:color-mix(in oklab,var(--ac) 22%,transparent);color:var(--ac)">Going</span>' : ''}</button>`).join('')}</div>`
-            : `<div class="empty"><div class="ring">${ic('cal', 24)}</div><b>Nothing planned yet</b><span>Plan a hangout and invite friends.</span><button class="btn sm pri" data-a="newEvent">Create event</button></div>`}
-        </section>
+        <div class="col" style="gap:16px;min-width:0">
+          <section class="panel glass card">
+            <div class="row spread"><h2 class="h2">Upcoming events</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="go" data-v="events">View all</button></div>
+            ${evs.length ? evs.map(e => `<button class="evrow" data-a="eventOpen" data-v="${e.id}"><span class="evthumb" style="${evThumb(e)}"></span><span class="grow" style="min-width:0;text-align:left"><b class="ellip" style="display:block">${esc(e.title)}</b><span class="mute small" style="display:block">${new Date(e.date + 'T00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}${e.time ? ' · ' + esc(e.time) : ''}</span><span class="mute small">${(e.attendees || []).length} going</span></span>${going(e) ? '<span class="btn sm pri" style="pointer-events:none">Going</span>' : '<span class="btn sm" style="pointer-events:none">RSVP</span>'}</button>`).join('')
+              : `<div class="empty" style="padding:14px 0"><b>Nothing planned yet</b><span>Plan a hangout and invite friends.</span><button class="btn sm pri" data-a="newEvent">Create event</button></div>`}
+          </section>
+          <section class="panel glass card">
+            <div class="row spread"><h2 class="h2">Friend requests</h2>${S.reqIn.length ? `<span class="small" style="color:var(--ac2);font-weight:800">${S.reqIn.length} new</span>` : ''}</div>
+            ${S.reqIn.length ? S.reqIn.slice(0, 3).map(r => reqRow(r)).join('') : `<div class="mute small" style="line-height:1.5">No requests right now. Share your link from People so friends can add you.</div>`}
+          </section>
+          ${S.convs.some(c => c.last) ? `<button class="panel glass card react wrapcard" data-a="wrappedOpen"><span class="row" style="gap:14px"><span class="notif-ic" style="width:44px;height:44px;background:var(--ac)">${ic('spark', 20)}</span><span class="grow" style="text-align:left"><b class="disp" style="font-size:15px;display:block">Your ${new Date().toLocaleDateString([], { month: 'long' })} Wrapped</b><span class="mute small">Top friends, busiest day and more</span></span>${ic('forward', 18)}</span></button>` : ''}
+        </div>
       </div>
+      <div class="h-right-inline">${right}</div>
     </div>
-    <div class="col">
-      <section class="panel glass card react">
-        <div class="row spread"><h2 class="h2">Friend requests</h2><span class="mute small">${S.reqIn.length} pending</span></div>
-        ${S.reqIn.length ? S.reqIn.slice(0, 3).map(r => reqRow(r)).join('') : `<div class="row" style="padding:6px 0"><span class="empty" style="flex:none;padding:0"><span class="ring" style="width:44px;height:44px;border-radius:14px">${ic('userplus')}</span></span><span class="mute small grow">No requests right now. Share <b style="color:var(--text)">@${esc(S.profile.handle)}</b> so friends can find you.</span></div>`}
-      </section>
-      <section class="panel glass card react">
-        <div class="row spread"><h2 class="h2">Online friends</h2><span class="row mute small" style="gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok)"></span>${onl.length} online</span></div>
-        ${onl.length ? `<div class="row" style="flex-wrap:wrap;gap:14px;padding-top:4px">${onl.slice(0, 8).map(u => `<button class="col" style="gap:6px;align-items:center;width:58px" data-a="profile" data-v="${u}" title="${esc(dname(u))}">${av(u, 48, true)}<span class="small ellip" style="max-width:58px">${esc(dname(u).split(' ')[0])}</span></button>`).join('')}</div>`
-          : `<div class="row" style="padding:4px 0"><div class="ghosts"><span></span><span></span><span></span><span></span></div><button class="btn sm" style="margin-left:auto" data-a="go" data-v="people">Find friends</button></div>`}
-      </section>
-      ${suggestions().length ? `<section class="panel glass card react"><div class="row spread"><h2 class="h2">People you may know</h2><button class="btn sm" data-a="go" data-v="people">More</button></div>${suggestions().slice(0, 2).map(sg => suggRow(sg)).join('')}</section>` : ''}
-      <section class="panel glass card react" style="flex:1">
-        <div class="row spread"><h2 class="h2">Activity</h2><button class="btn sm" data-a="go" data-v="notifications">View all</button></div>
-        ${acts.length ? `<div class="list scroll">${acts.map(n => notifRow(n, true)).join('')}</div>` : `<div class="empty"><div class="ring">${ic('bell', 24)}</div><b>All quiet</b><span>Requests, invites and updates will show up here.</span></div>`}
-      </section>
-    </div>
+    <aside class="h-right">${right}</aside>
   </div>`;
 }
 function vMoments() {
@@ -1284,10 +1303,16 @@ function toast(html, onClick, fromUid) {
   const t = document.createElement(onClick ? 'button' : 'div');
   t.className = 'toast glass';
   t.innerHTML = (fromUid ? av(fromUid, 28) : `<span class="unread-dot"></span>`) + `<span class="row" style="gap:6px;min-width:0">${html}</span>`;
-  if (onClick) t.onclick = () => { onClick(); t.remove(); };
+  let moved = false;
+  if (onClick) t.onclick = () => { if (moved) return; onClick(); t.remove(); };
+  // swipe up to dismiss
+  let y0 = null;
+  t.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; moved = false; }, { passive: true });
+  t.addEventListener('touchmove', e => { if (y0 == null) return; const dy = Math.min(0, e.touches[0].clientY - y0); if (dy < -6) moved = true; t.style.transform = `translateY(${dy}px)`; t.style.opacity = 1 + dy / 120; }, { passive: true });
+  t.addEventListener('touchend', () => { const dy = parseFloat((t.style.transform.match(/-?[\d.]+/) || [0])[0]); if (dy < -40) { t.classList.add('out'); setTimeout(() => t.remove(), 250); } else { t.style.transform = ''; t.style.opacity = ''; } y0 = null; });
   box.appendChild(t);
   while (box.children.length > 3) box.firstChild.remove();
-  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 3800);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 4200);
 }
 
 /* =====================================================================
@@ -1305,6 +1330,7 @@ function openConv(id) {
   S.keepBottom = null;
   S.picker = false; S.attach = false; S.sugg = null; if (S.rec) stopRec(false);
   S.page = 'messages'; S.conv = id; S.replyTo = null; S.editing = null; S.findOpen = false; S.find = ''; S.bgPop = false; S.modal = null; S.palette = false; S.menu = null; S.selMsg = null;
+  delete nStack['c_' + id]; try { navigator.serviceWorker?.controller?.postMessage({ type: 'clear', tag: 'c_' + id }); } catch {}
   watchMsgs(id); render(); setTimeout(() => { markRead(); if (innerWidth > 700) $('#composer')?.focus(); }, 60);
 }
 async function ensureDM(uid) {
@@ -2049,9 +2075,9 @@ async function boot() {
   if (look) { Object.assign(S.prefs, look); applyTheme(); }
   const splash = document.createElement('div');
   splash.className = 'splash';
-  splash.innerHTML = `${logo(96, false, 'draw logo-glow')}<div class="word">NEXA</div>`;
+  splash.innerHTML = `<div class="splash-mark">${logo(112, false, 'build')}</div><div class="word">NEXA</div><div class="tagline">Connect · Chat · Share · Together</div>`;
   document.body.appendChild(splash);
-  setTimeout(() => splash.remove(), 2000);
+  setTimeout(() => splash.remove(), 2700);
   try { S.be = await createBackend(CONFIG); }
   catch (e) { $('#app').innerHTML = `<div class="onb"><div class="card glass col" style="text-align:center;align-items:center">${logo(56)}<h2 class="h1" style="font-size:22px">Can't reach Nexa right now</h2><p class="mute">Check your internet connection and try again.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`; return; }
   S.be.auth.onChange(u => {
@@ -3609,7 +3635,7 @@ function vAuthCode() {
   const f = S.form, canScan = 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
   return `<div class="auth${A('auth')}">
     <div class="col intro" style="gap:28px">
-      <div class="row" style="gap:16px">${logo(60, true, 'logo-glow')}<span class="disp" style="font-size:32px;font-weight:700;letter-spacing:.38em">NEXA</span></div>
+      <div class="brandhero">${logo(92, false, 'logo-glow')}<div><div class="brandword">NEXA</div><div class="brandtag">Connect · Chat · Share · Together</div></div></div>
       <h1>Log in <span class="grad-text">instantly.</span></h1>
       <p class="mute" style="margin:0;font-size:17px;line-height:1.6;max-width:470px">On a device where you're already logged in, open <b style="color:var(--text)">Settings › Account › Log in on another device</b>. Then scan the QR code or type the code here.</p>
     </div>
