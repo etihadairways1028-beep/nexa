@@ -78,7 +78,7 @@ export default async (req) => {
 
   const method = sec.method || (sec.totp ? 'totp' : '');
   const active = !!(sec.active || sec.totp);
-  if (body.action === 'status') return json({ setup: active, method, locked: (sec.lockUntil || 0) > now ? sec.lockUntil : 0, emailReady: !!process.env.RESEND_API_KEY });
+  if (body.action === 'status') return json({ version: 3, setup: active, method, locked: (sec.lockUntil || 0) > now ? sec.lockUntil : 0, emailReady: !!process.env.RESEND_API_KEY });
 
   // first-time setup: choose a PIN, then how you get your second code
   if (body.action === 'setup') {
