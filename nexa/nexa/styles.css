@@ -1157,7 +1157,7 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 
 /* ============ v12 — Liquid Glass look (iOS 26 style) ============ */
 :root[data-look="liquid"]:not([data-theme="light"])[data-sky="atmosphere"] .sky .aur,:root[data-look="liquid"]:not([data-theme="light"]):not([data-sky]) .sky .aur{opacity:.5}
-:root[data-look="liquid"]:not([data-theme="light"]){--lg-hi:radial-gradient(150% 100% at var(--mx,25%) -20%,rgba(255,255,255,.22),transparent 46%);--lg-body:linear-gradient(165deg,rgba(255,255,255,.11),rgba(255,255,255,.02) 48%,rgba(255,255,255,.07));
+:root[data-look="liquid"]:not([data-theme="light"]){--lg-hi:radial-gradient(150% 100% at 25% -20%,rgba(255,255,255,.22),transparent 46%);--lg-body:linear-gradient(165deg,rgba(255,255,255,.11),rgba(255,255,255,.02) 48%,rgba(255,255,255,.07));
   --lg-rim:inset 1.5px 1.5px 0 rgba(255,255,255,.55),inset -1px -1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.10),inset 0 -16px 26px -20px rgba(255,255,255,.38),inset 0 12px 22px -18px rgba(255,255,255,.42)}
 :root[data-look="liquid"]:not([data-theme="light"]) .glass,:root[data-look="liquid"]:not([data-theme="light"]) .card.glass,:root[data-look="liquid"]:not([data-theme="light"]) .panel.glass{background:var(--lg-hi),var(--lg-body),rgba(16,20,48,.16);border:0;backdrop-filter:blur(9px) saturate(1.9) brightness(1.06);-webkit-backdrop-filter:blur(9px) saturate(1.9) brightness(1.06);box-shadow:var(--lg-rim),0 24px 46px -24px rgba(0,0,0,.65)}
 :root[data-look="liquid"]:not([data-theme="light"]) .card,:root[data-look="liquid"]:not([data-theme="light"]) .panel{border-radius:30px}
@@ -1207,7 +1207,7 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 /* ============ v13 — "very liquid" glass ============ */
 .side{position:relative}
 .lens,.navlens{display:none}
-:root[data-look="liquid"]:not([data-theme="light"]){--lg-glare:linear-gradient(112deg,transparent 40%,rgba(255,255,255,.16) 47%,rgba(255,255,255,.05) 52%,transparent 60%) var(--gx,70%) 0/260% 100% fixed;
+:root[data-look="liquid"]:not([data-theme="light"]){--lg-glare:radial-gradient(circle 90px at var(--px,-999px) var(--py,-999px),rgba(255,255,255,.24),rgba(255,255,255,.07) 45%,transparent 72%) fixed;
   --lg-rim2:inset 2px 2px 1px -1px rgba(255,255,255,.9),inset -2px -2px 1px -1px rgba(255,255,255,.42),inset 0 0 0 1px rgba(255,255,255,.14),inset 5px 0 9px -6px rgba(255,140,220,.5),inset -5px 0 9px -6px rgba(90,220,255,.55),inset 0 -18px 30px -22px rgba(255,255,255,.5),inset 0 14px 24px -18px rgba(255,255,255,.55);
   --lg-clear:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,0) 50%,rgba(255,255,255,.06))}
 :root[data-look="liquid"]:not([data-theme="light"]) .glass,:root[data-look="liquid"]:not([data-theme="light"]) .card.glass,:root[data-look="liquid"]:not([data-theme="light"]) .panel.glass{background:var(--lg-hi),var(--lg-glare),var(--lg-clear),rgba(10,14,36,.10);backdrop-filter:blur(3.5px) saturate(2) brightness(1.1) contrast(1.04);-webkit-backdrop-filter:blur(3.5px) saturate(2) brightness(1.1) contrast(1.04);box-shadow:var(--lg-rim2),0 26px 50px -26px rgba(0,0,0,.6);text-shadow:0 1px 3px rgba(0,0,0,.45)}
@@ -1232,3 +1232,33 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 /* real lens edges on every glass surface where supported */
 :root.refract[data-look="liquid"]:not([data-theme="light"]) :is(.card.glass,.panel.glass,.side.glass,.top.glass,.mtop,.them .bub){backdrop-filter:url(#lgc) blur(3px) saturate(2) brightness(1.1)}
 :root.refract[data-look="liquid"]:not([data-theme="light"]) :is(.tabbar,.ibtn,.btn:not(.pri),.helpbtn,.composer.glass,.pill,.inp,.search){backdrop-filter:url(#lgf) blur(1.5px) saturate(2) brightness(1.12)}
+
+/* ============ v14 — speed: no constant redraws behind the glass ============ */
+.sky .photo,:root[data-sky="atmosphere"] .sky .photo{animation:none!important;transform:scale(1.04)}
+.sky .aur i,.sky .blob,.sky .cloud{animation:none!important}
+.shell .logo-glow,.chat .logo-glow{animation:none}
+:root[data-look="liquid"]:not([data-theme="light"]){--lg-glare:linear-gradient(transparent,transparent)}
+:root.refract[data-look="liquid"]:not([data-theme="light"]) :is(.card.glass,.panel.glass,.side.glass,.top.glass,.mtop,.them .bub){backdrop-filter:blur(3.5px) saturate(2) brightness(1.1)}
+:root.refract[data-look="liquid"]:not([data-theme="light"]) :is(.ibtn,.btn:not(.pri),.helpbtn,.pill,.inp,.search){backdrop-filter:blur(3px) saturate(2) brightness(1.12)}
+#cursorGlow{position:fixed;left:0;top:0;width:180px;height:180px;border-radius:50%;pointer-events:none;z-index:9000;background:radial-gradient(circle,rgba(255,255,255,.09),rgba(255,255,255,.03) 45%,transparent 70%);will-change:transform;transition:opacity .3s}
+:root:not([data-look="liquid"]) #cursorGlow{display:none}
+/* Smooth mode: less see-through glass, much lighter on slower phones */
+:root[data-lite="1"] .glass,:root[data-lite="1"] .them .bub,:root[data-lite="1"] .ibtn,:root[data-lite="1"] .btn,:root[data-lite="1"] .pill,:root[data-lite="1"] .inp,:root[data-lite="1"] .search{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+:root[data-lite="1"] .glass,:root[data-lite="1"] .card.glass,:root[data-lite="1"] .panel.glass{background-color:rgba(22,28,64,.82)!important}
+:root[data-lite="1"] .them .bub{background-color:rgba(40,48,96,.9)!important}
+:root[data-lite="1"] .sky .aur{display:none}
+:root[data-lite="1"] #cursorGlow{display:none}
+.sky{filter:brightness(var(--skyB,1))}
+.brightrow{display:flex;align-items:center;gap:12px;margin:6px 0 4px}
+.brightrow input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:8px;border-radius:999px;background:linear-gradient(90deg,#05070f,#3d7bff 55%,#e8f1ff);outline:none}
+.brightrow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#dfe8ff 60%,#b7c7ff);box-shadow:inset 0 1px 0 #fff,0 4px 12px rgba(0,0,0,.45);cursor:pointer}
+.brightrow input[type=range]::-moz-range-thumb{width:26px;height:26px;border:0;border-radius:50%;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+
+@media (hover:hover){:root[data-look="liquid"]:not([data-theme="light"]) .card.glass:hover{box-shadow:var(--lg-rim2),0 26px 50px -26px rgba(0,0,0,.6)}}
+/* brighter sky → slightly deeper glass so text stays readable */
+:root[data-bright="hi"]:not([data-theme="light"]) :is(.card.glass,.panel.glass,.side.glass,.top.glass,.mtop,.tabbar,.composer.glass,.them .bub){background-color:rgba(8,12,34,calc(.12 + var(--dimA,0)))!important}
+:root[data-bright="hi"]:not([data-theme="light"]) .glass{text-shadow:0 1px 3px rgba(0,0,0,.55)}
+/* speed: chat bubbles and message toolbar don't need live blur (the chat background behind them is smooth) */
+.bub,.them .bub,.me .bub,.tools{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+:root[data-look="liquid"]:not([data-theme="light"]) .them .bub{background-color:rgba(40,50,100,.45)!important}
+:root[data-look="liquid"]:not([data-theme="light"]) .tools{background:linear-gradient(160deg,rgba(70,86,150,.92),rgba(18,22,52,.95))!important}
