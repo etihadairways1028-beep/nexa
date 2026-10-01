@@ -29,7 +29,9 @@ service cloud.firestore {
     // Unique @handles.
     match /handles/{handle} {
       allow get: if signedIn();
-      allow create: if signedIn() && request.resource.data.uid == me();
+      // @owner, @admin, @nexa, @support… can only be taken by the owner's email
+      allow create: if signedIn() && request.resource.data.uid == me()
+        && (!(handle in ['owner', 'admin', 'nexa', 'support', 'help', 'official', 'moderator', 'mod', 'staff', 'team']) || request.auth.token.email == 'etihadairways1028@gmail.com');
       allow update, delete: if signedIn() && resource.data.uid == me();
     }
 

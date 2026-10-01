@@ -72,6 +72,7 @@ const P = {
   forward: '<path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0-6 6v5"/>',
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   help: '<circle cx="12" cy="12" r="9.5"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.3-2.6 3.9M12 17.2h.01"/>',
   game: '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3M15 12h.01M18 13h.01"/>',
   cake: '<path d="M4 21h16v-7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2zM4 16c2 1 4 1 6 0s4-1 6 0 3 1 4 0M12 12V8M12 5.5a1 1 0 1 1 0-.01"/>',
@@ -645,7 +646,7 @@ function vShell() {
   const c = counts();
   const navs = [['home', 'home', 'Home', 0], ['messages', 'msg', 'Messages', c.msg], ['people', 'people', 'People', c.req], ['events', 'cal', 'Events', 0], ['explore', 'compass', 'Explore', 0], ['memories', 'clock', 'Memories', 0], ['notifications', 'bell', 'Notifications', c.notif], ['settings', 'gear', 'Settings', 0]].concat(S.isAdmin ? [['admin', 'shield', 'Moderation', S.reports.length]] : []);
   const pg = S.page;
-  const titles = { explore: 'Explore', memories: 'Memories', admin: 'Moderation', home: 'Home', messages: 'Messages', people: 'People', events: 'Events', notifications: 'Notifications', settings: 'Settings', profile: 'Profile' };
+  const titles = { owner: 'Dashboard', explore: 'Explore', memories: 'Memories', admin: 'Moderation', home: 'Home', messages: 'Messages', people: 'People', events: 'Events', notifications: 'Notifications', settings: 'Settings', profile: 'Profile' };
   return `<div class="shell">
     <nav class="side glass" aria-label="Main">
       <div class="brand">${logo(36)}<span class="word">NEXA</span></div>
@@ -678,7 +679,7 @@ function vShell() {
 }
 function vPage() {
   const k = S.page + (S.page === 'profile' ? S.profileUid : '');
-  const m = { explore: vExplore, memories: vMemories, admin: vAdmin, home: vHome, messages: vMessages, people: vPeople, events: vEvents, notifications: vNotifs, profile: vProfile, settings: vSettings }[S.page] || vHome;
+  const m = { owner: vOwner, explore: vExplore, memories: vMemories, admin: vAdmin, home: vHome, messages: vMessages, people: vPeople, events: vEvents, notifications: vNotifs, profile: vProfile, settings: vSettings }[S.page] || vHome;
   return `<main class="page${A('page:' + k)} ${['home', 'people', 'profile', 'explore', 'memories'].includes(S.page) ? 'pad-scroll' : ''}" data-keep-scroll="page">${m()}</main>`;
 }
 
@@ -838,6 +839,7 @@ function vMsgBody(m, q, quote) {
     const on = S.playing?.id === m.id;
     return `<div class="bub voice-bub">${quote}<div class="voice" id="vp-${m.id}"><button class="vplay" aria-label="${on && S.playing.on ? 'Pause' : 'Play'} voice message" data-a="playVoice" data-v="${m.id}">${ic(on && S.playing.on ? 'pause' : 'play', 16, 2)}</button><span class="bars">${(peaks.length ? peaks : Array(32).fill(30)).map(h => `<i style="height:${Math.max(12, Math.min(100, +h || 0))}%"></i>`).join('')}</span><span class="vt">${fmtDur(m.audio.dur || 0)}</span><button class="vrate" data-a="voiceRate" aria-label="Playback speed ${voiceRate()}×">${voiceRate()}×</button></div>${src ? '' : '<span class="small">Audio unavailable</span>'}${m.transcript ? `<div class="transcript">${esc(m.transcript)}</div>` : src ? `<button class="tlink" data-a="transcribe" data-v="${m.id}">${(S.transcribing || {})[m.id] ? 'Transcribing…' : 'Transcribe'}</button>` : ''}</div>`;
   }
+  if (m.planEvent && !m.deleted) return vPlanBubble(m, quote);
   if (m.todo && !m.deleted) return vTodo(m, quote);
   if (m.bdayCard && !m.deleted) return vCardBubble(m, quote);
   if (m.video && !m.deleted) return vVideoBubble(m, quote);
@@ -982,7 +984,7 @@ function vChat(c) {
       ${reqIn && !cantSend ? `<div class="reqbanner glass${A('reqb' + c.id)}"><div>${av(other, 44)}</div><div class="grow"><b>${esc(dname(other))} wants to message you</b><div class="mute small">@${esc(U(other)?.handle || '')} · Not your friend yet. Accept to reply — they won't know you've seen this until you do.</div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm danger" data-a="reqBlock">Block</button><button class="btn sm" data-a="reqDelete">Delete</button><button class="btn sm pri" data-a="reqAccept">Accept</button></div></div>`
       : cantSend ? `<div class="ctx glass mute">${dmBlocked(c) ? `You blocked this person. <button class="btn sm" data-a="unblock" data-v="${other}">Unblock</button>` : 'This account no longer exists.'}</div>`
       : rec ? `<div class="composer glass recbar${A('rec')}"><button class="ibtn" style="border:0" aria-label="Cancel recording" data-a="recCancel">${ic('trash', 18)}</button><span class="recdot"></span><span id="recTime" class="vt" style="min-width:40px" data-morph-skip="1">0:00</span><span class="bars live grow" id="recBars" data-morph-skip="1"></span><button class="send" aria-label="Send voice message" data-a="recSend">${ic('send', 20, 2)}</button></div>`
-      : `${vMentionPop(c)}<div class="composer glass">
+      : `${vPlanSugg(c)}${vMentionPop(c)}<div class="composer glass">
         <button class="ibtn ${S.attach ? 'on' : ''}" style="border:0" aria-label="Attach" title="Photos, poll, link" data-a="attach">${ic('plus', 20, 2)}</button>
         <label class="ibtn hide-xs" style="cursor:pointer;border:0" aria-label="Send photos" title="Send photos">${ic('photo')}<input type="file" accept="image/*" multiple class="sr" data-file="sendPhotos"></label>
         <button class="ibtn ${S.picker ? 'on' : ''}" style="border:0" aria-label="Emoji, stickers and GIFs" title="Emoji, stickers & GIFs" data-a="picker">${ic('smile')}</button>
@@ -1220,6 +1222,7 @@ function vSettings() {
     <div class="setrow"><span><b>Bigger buttons</b><div class="mute small">Larger tap targets and text across the app.</div></span>${tog(p.bigTargets, 'prefTog', 'bigTargets', 'Bigger buttons')}</div>
     <div class="setrow"><span><b>Screen readers</b><div class="mute small">Nexa labels every button and reads new messages aloud with VoiceOver, TalkBack and NVDA.</div></span></div></div>`;
   if (s === 'chats') body = `<h2 class="h1" style="font-size:24px">Chats</h2>
+    <div class="setrow"><span><b>Smart plans</b><div class="mute small">When you type something like "meet at school at 1", Nexa offers to turn it into an event with everyone in the chat.</div></span>${tog(p.smartPlans !== false, 'prefFlagInv', 'smartPlans', 'Smart plans')}</div>
     <div class="field">Default chat background<div class="swatches">${BGS.map(b => `<button class="sw ${b.cls || ''} ${p.defaultBg === b.id ? 'on' : ''}" style="background:${b.css}" data-a="pref" data-k="defaultBg" data-v="${b.id}">${b.name}</button>`).join('')}</div><span style="font-weight:500">Change a single conversation from its palette button.</span></div>
     <div class="field">Message text size<div class="pills">${[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, l]) => `<button class="pill ${p.textSize === k ? 'on' : ''}" data-a="pref" data-k="textSize" data-v="${k}">${l}</button>`).join('')}</div></div>
     <div><div class="setrow"><span><b>Read receipts</b><div class="mute small">Let people see when you've read their messages.</div></span>${tog(pr.receipts !== false, 'profTog', 'receipts', 'Read receipts')}</div>
@@ -1257,7 +1260,7 @@ function vSettings() {
     <div class="setrow"><span><b>Download your data</b><div class="mute small">Your profile, friends, chats and events in one file.</div></span><button class="btn sm" data-a="exportOpen">${ic('download', 14)} Download</button></div>
     <div class="row" style="gap:10px"><button class="btn" data-a="logout">${ic('logout', 18)} Log out</button></div>
     <div style="padding:18px;border-radius:18px;border:1px solid rgba(255,77,109,.35);background:rgba(255,77,109,.06)"><b>Delete account</b><div class="mute small" style="margin:4px 0 12px">Removes your profile and signs you out. Messages you sent stay visible to people you sent them to.</div><button class="btn sm danger" data-a="deleteAccount">Delete my account</button></div>`;
-  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'You\'re the owner — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats.' : 'Message the owner of Nexa (@' + OWNER_HANDLE + ') and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Message the owner</button>`}</div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
+  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the owner of Nexa (@' + OWNER_HANDLE + ') and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Message the owner</button>`}</div><div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
   return `<div class="settings">
     <aside class="setnav glass card">${`<div class="disp hide-m" style="font-size:20px;font-weight:600;padding:6px 10px 12px">Settings</div>`}${secs.map(([k, i, l]) => `<button class="${s === k ? 'on' : ''}" data-a="setSec" data-v="${k}">${ic(i, 18)}${l}</button>`).join('')}</aside>
     <section class="setbody glass card scroll" data-keep-scroll="set"><div class="${A('set' + s)}">${body}</div></section>
@@ -1299,6 +1302,7 @@ function vMenu() {
       ['pinConv', 'pin', isPinnedConv(c.id) ? 'Unpin chat' : 'Pin chat to top'],
       ['archiveConv', 'archive', isArchived(c.id) ? 'Unarchive' : 'Archive'],
       c.pinned ? ['unpin', 'pin', 'Unpin message'] : null,
+      ['albumOpen', 'album', isG ? 'Group album' : 'Photo album'],
       ['mediaOpen', 'images', 'Photos, links & voice'],
       ['ttlOpen', 'timer', c.ttl ? 'Disappearing: ' + (TTL_OPTS.find(o => o[0] === c.ttl)?.[1] || 'on') : 'Disappearing messages'],
       ['hideConv', 'trash', 'Delete conversation', '', 'danger'],
@@ -1368,6 +1372,7 @@ function vModal() {
   };
   if (m.type === 'newChat') return head('New message', 'Choose a friend') + pickFriends([], false) + `<button class="btn" data-a="newGroup">${ic('group', 18)} Create a group instead</button>`;
   if (m.type === 'newGroup') { const sel = f.pick || []; return head(m.addTo ? 'Add members' : 'New group', m.addTo ? '' : 'Name it and pick at least two friends') + (m.addTo ? '' : `<label class="field">Group name<input class="inp" id="g-name" data-model="form.gName" value="${esc(f.gName || '')}" placeholder="Weekend crew" maxlength="40"></label>`) + pickFriends(sel, true) + `${S.authErr ? `<div class="err">${esc(S.authErr)}</div>` : ''}<div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn pri" data-a="${m.addTo ? 'addMembers' : 'createGroup'}">${m.addTo ? 'Add' : 'Create group'}${sel.length ? ` (${sel.length})` : ''}</button></div>`; }
+  if (m.type === 'album') return vAlbum(m, head);
   if (m.type === 'guide') {
     const i = m.step || 0, [icn, col, t, body] = GUIDE[i], last = i === GUIDE.length - 1;
     return `<div class="guide"><div class="gico" style="background:${col}">${ic(icn, 34, 2)}</div><div class="sec" style="text-align:center">How to use Nexa · ${i + 1} of ${GUIDE.length}</div><h2 class="disp" style="margin:0;text-align:center;font-size:26px">${t}</h2><p style="text-align:center;line-height:1.6;margin:0" class="gbody">${body}</p>
@@ -1573,6 +1578,7 @@ async function sendMessage(payload, convId) {
   if (!payload.system && !payload.bot) bumpStreak(c);
   if (!payload.system && id) pushNotify('message', { conv: c.id, msg: id });
   if (!payload.bot && /(^|\s)@nexa\b/i.test(payload.text || '')) nexaInChat(c, payload.text);
+  if (!payload.system && !payload.bot && payload.text && S.prefs.smartPlans !== false) { const pl = detectPlan(payload.text); if (pl) { S.planSugg = { ...pl, conv: c.id, key: id }; render(); } }
   return id;
 }
 const previewCache = {};
@@ -1620,6 +1626,7 @@ const actions = {
       if (!/^[a-z0-9_.]{3,24}$/.test(handle)) { S.authErr = 'Usernames are 3–24 letters, numbers, dots or underscores.'; return render(); }
       S.busy = true; render();
       try {
+        if (handleReserved(handle)) throw new Error('@' + handle + ' is reserved. Try another.');
         const h = await db().get('handles/' + handle);
         if (h && h.uid !== S.me) throw new Error('@' + handle + ' is taken. Try another.');
         const mine = await db().get('users/' + S.me);
@@ -1660,6 +1667,7 @@ const actions = {
     S.busy = true; S.authErr = ''; render();
     try {
       if (handle !== S.profile.handleLower) {
+        if (handleReserved(handle)) throw new Error('@' + handle + ' is reserved.');
         const h = await db().get('handles/' + handle);
         if (h && h.uid !== S.me) throw new Error('@' + handle + ' is taken.');
         await db().set('handles/' + handle, { uid: S.me });
@@ -1712,6 +1720,30 @@ const actions = {
   guideStep: d => { S.modal.step = Math.max(0, Math.min(GUIDE.length - 1, (S.modal.step || 0) + +d.v)); render(); },
   guideDone: () => { lsSet('nexa.guideDone', true); S.modal = null; savePrefs({ guideDone: true, tourDone: true }); },
   guideTour: () => { lsSet('nexa.guideDone', true); S.modal = null; savePrefs({ guideDone: true }); actions.tourStart(); },
+  testCalls: () => testCalls(),
+  albumOpen: async () => { const cid = S.conv; if (!cid) return; S.menu = null; S.modal = { type: 'album', cid, loading: true }; render(); const items = await loadAlbum(cid); if (S.modal?.type === 'album') { S.modal = { type: 'album', cid, items }; render(); } },
+  albumView: d => { S.modal.view = +d.v; render(); },
+  albumBack: () => { S.modal.view = null; render(); },
+  albumStep: d => { S.modal.view = Math.max(0, Math.min((S.modal.items || []).length - 1, (S.modal.view || 0) + +d.v)); render(); },
+  planDismiss: () => { S.planSugg = null; render(); },
+  planEdit: () => { const p = S.planSugg, c = convOf(p?.conv); if (!p || !c) return; actions.newEvent(); Object.assign(S.form, { evTitle: p.title, evDate: p.date, evTime: p.time, evPlace: p.place, evAud: 'invite', pick: others(c).filter(u => u !== 'nexa-bot') }); S.planSugg = null; render(); },
+  planMake: async () => {
+    const p = S.planSugg, c = convOf(p?.conv); if (!p || !c || S.busy) return; S.busy = true; render();
+    try {
+      const invitees = others(c).filter(u => u !== 'nexa-bot' && !blocked(u));
+      const id = await makeEvent({ title: p.title, date: p.date, time: p.time, place: p.place, invitees });
+      S.planSugg = null;
+      await sendMessage({ text: `📅 ${p.title} — ${planWhen(p)}`, planEvent: { id, title: p.title, date: p.date, time: p.time, place: p.place } }, c.id);
+      confetti(); toast('Event made — everyone in this chat is invited');
+    } catch (e) { toast(esc(e.message || 'Couldn\'t make the event')); }
+    S.busy = false; render();
+  },
+  ownerRefresh: () => loadOwner(true),
+  ownerCsv: () => {
+    const rows = [['Name', 'Username', 'Email', 'Joined', 'Last active'], ...(S.ownerData?.users || []).map(u => [u.name, u.handle ? '@' + u.handle : '', u.email, u.joined ? new Date(u.joined).toISOString() : '', u.lastActive ? new Date(u.lastActive).toISOString() : ''])];
+    const csv = rows.map(r => r.map(x => '"' + String(x || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'nexa-users-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
+  },
   dmOwner: async () => {
     S.menu = null; S.palette = false;
     if (isOwner()) return toast('You\'re the owner — people\'s help messages come to your Chats.');
@@ -2407,7 +2439,7 @@ function vBanned() {
 // Relay (TURN) servers: fetched from the Nexa server (netlify/functions/turn) so calls connect on phone networks
 // and strict routers, where a direct connection is impossible. Falls back to STUN only.
 let iceCache = lsGet('nexa.ice', null);
-const ICE = () => ({ iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, ...(CONFIG.turn || []), ...(iceCache && iceCache.exp > now() ? iceCache.servers : [])] });
+const ICE = (relayOnly) => ({ iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, ...(CONFIG.turn || []), ...(iceCache && iceCache.exp > now() ? iceCache.servers : [])], iceTransportPolicy: relayOnly || lsGet('nexa.forceRelay', false) ? 'relay' : 'all', bundlePolicy: 'max-bundle' });
 const hasRelay = () => !!((CONFIG.turn || []).length || (iceCache && iceCache.exp > now() && iceCache.servers.length));
 let iceLoading = null;
 function loadIce() {
@@ -2446,7 +2478,9 @@ function newPC(callId, mine, theirs) {
     if (!S.call || S.call.pc !== pc) return;
     S.call.state = pc.connectionState;
     if (pc.connectionState === 'connected' && !S.call.startedAt) { S.call.startedAt = now(); clearTimeout(S.call.timeout); }
-    if (pc.connectionState === 'failed') { toast(hasRelay() ? 'The call couldn\'t connect. Check your internet and try again.' : 'The call couldn\'t connect — your networks block direct calls. Nexa needs its call relay turned on (see README › Calls).'); hangUp(); }
+    if (pc.connectionState === 'connected') { S.call.retries = S.call.retries || 0; clearTimeout(S.call.watch); }
+    if (pc.connectionState === 'disconnected') { clearTimeout(S.call.watch); S.call.watch = setTimeout(() => { if (S.call?.pc === pc && pc.connectionState !== 'connected') retryCall('drop'); }, 3500); }
+    if (pc.connectionState === 'failed') { if (!retryCall('failed')) { toast(hasRelay() ? 'The call couldn\'t connect. Try Settings › Help & guide › Test calls.' : 'The call couldn\'t connect — your networks block direct calls and the call relay isn\'t set up yet.'); hangUp(); } }
     paintCall();
   };
   const seen = new Set();
@@ -2456,6 +2490,22 @@ function newPC(callId, mine, theirs) {
     pc.remoteDescription ? pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {}) : pending.push(cand);
   }));
   return P;
+}
+// If a call doesn't connect (or drops), restart the connection — the second time through the relay only.
+function retryCall(why) {
+  const call = S.call; if (!call || !hasRelay()) return false;
+  call.retries = (call.retries || 0) + 1; if (call.retries > 2) return false;
+  call.state = 'reconnecting'; paintCall();
+  try { call.pc.setConfiguration(ICE(true)); } catch {}
+  if (call.role === 'caller') renegotiate(call); else db().update('calls/' + call.id, { restartReq: now() }).catch(() => {});
+  return true;
+}
+async function renegotiate(call) {
+  try { const offer = await call.pc.createOffer({ iceRestart: true }); await call.pc.setLocalDescription(offer); await db().update('calls/' + call.id, { offer2: { type: offer.type, sdp: offer.sdp, n: (call.retries || 1) } }); } catch (e) { console.warn('restart failed', e); }
+}
+function armWatchdog(call) {
+  clearTimeout(call.watch);
+  call.watch = setTimeout(() => { if (S.call === call && call.pc.connectionState !== 'connected' && (call.role === 'callee' || call.answered)) retryCall('slow'); }, 9000);
 }
 async function getMedia(kind) {
   return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: kind === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false });
@@ -2481,8 +2531,18 @@ async function onCallDoc(d) {
   const call = S.call; if (!call) return;
   if (!d) return endLocal();
   if (call.role === 'caller' && d.answer && !call.pc.currentRemoteDescription) {
-    try { await call.pc.setRemoteDescription(new RTCSessionDescription(d.answer)); call.flushIn(); call.state = 'connecting'; paintCall(); } catch {}
+    try { await call.pc.setRemoteDescription(new RTCSessionDescription(d.answer)); call.flushIn(); call.state = 'connecting'; call.answered = true; armWatchdog(call); paintCall(); } catch {}
   }
+  // connection restarts
+  if (call.role === 'callee' && d.offer2 && d.offer2.n !== call.seenOffer2) {
+    call.seenOffer2 = d.offer2.n;
+    try { call.pc.setConfiguration(ICE(true)); await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.offer2.type, sdp: d.offer2.sdp })); const a = await call.pc.createAnswer(); await call.pc.setLocalDescription(a); await db().update('calls/' + call.id, { answer2: { type: a.type, sdp: a.sdp, n: d.offer2.n } }); } catch (e) { console.warn(e); }
+  }
+  if (call.role === 'caller' && d.answer2 && d.answer2.n !== call.seenAnswer2 && call.pc.signalingState === 'have-local-offer') {
+    call.seenAnswer2 = d.answer2.n;
+    try { await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.answer2.type, sdp: d.answer2.sdp })); } catch (e) { console.warn(e); }
+  }
+  if (call.role === 'caller' && d.restartReq && d.restartReq !== call.seenRestart) { call.seenRestart = d.restartReq; call.retries = (call.retries || 0); if (call.pc.connectionState !== 'connected') { call.retries++; try { call.pc.setConfiguration(ICE(true)); } catch {} renegotiate(call); } }
   if (['ended', 'declined', 'missed', 'busy'].includes(d.status)) {
     if (call.role === 'caller' && d.status === 'declined') toast(`${esc(dname(call.peer))} declined the call`);
     if (call.role === 'caller' && d.status === 'busy') toast(`${esc(dname(call.peer))} is on another call`);
@@ -2503,6 +2563,7 @@ async function acceptCall() {
   const ans = await P.pc.createAnswer(); await P.pc.setLocalDescription(ans);
   await db().update('calls/' + inc.id, { answer: { type: ans.type, sdp: ans.sdp }, status: 'accepted', acceptedAt: now() });
   P.flushOut();
+  armWatchdog(S.call);
   S.call.unDoc = db().listenDoc('calls/' + inc.id, x => onCallDoc(x));
 }
 function declineCall() { const inc = S.incoming; if (!inc) return; ring(false); S.incoming = null; paintCall(); db().update('calls/' + inc.id, { status: 'declined' }).catch(() => {}); }
@@ -2517,7 +2578,7 @@ async function hangUp() {
 function endLocal() {
   const call = S.call; if (!call) return;
   S.call = null;
-  clearTimeout(call.timeout);
+  clearTimeout(call.timeout); clearTimeout(call.watch);
   try { call.local.getTracks().forEach(t => t.stop()); } catch {}
   try { call.pc.close(); } catch {}
   try { call.unC && call.unC(); call.unDoc && call.unDoc(); } catch {}
@@ -2553,7 +2614,7 @@ function paintCall() {
   }
   layer.classList.toggle('has-video', video && hasRemoteVideo);
   document.getElementById('callLocal').style.display = video && !call.camOff ? '' : 'none';
-  const status = call.startedAt ? `<span id="callTime">${fmtDur((now() - call.startedAt) / 1000)}</span>` : call.state === 'ringing' ? 'Ringing…' : 'Connecting…';
+  const status = call.state === 'reconnecting' ? 'Reconnecting through the relay…' : call.startedAt ? `<span id="callTime">${fmtDur((now() - call.startedAt) / 1000)}</span>` : call.state === 'ringing' ? 'Ringing…' : 'Connecting…';
   document.getElementById('callCenter').innerHTML = `${video && hasRemoteVideo ? '' : `<div class="call-ring ${call.startedAt ? '' : 'pulse'}">${av(call.peer, 120)}</div>`}<b class="disp" style="font-size:24px">${esc(dname(call.peer))}</b><span class="mute">${status}</span>`;
   document.getElementById('callCtl').innerHTML = `<button class="cbtn ${call.muted ? 'on' : ''}" data-call="mute" aria-label="${call.muted ? 'Unmute' : 'Mute'}">${ic(call.muted ? 'micOff' : 'mic', 22, 2)}</button>${video ? `<button class="cbtn ${call.camOff ? 'on' : ''}" data-call="cam" aria-label="${call.camOff ? 'Turn camera on' : 'Turn camera off'}">${ic(call.camOff ? 'videoOff' : 'video', 22, 2)}</button>` : ''}<button class="cbtn red" data-call="hang" aria-label="Hang up">${ic('hangup', 24, 2)}</button>`;
   attachMedia();
@@ -3332,8 +3393,147 @@ Object.assign(files, {
 /* ---------------- message requests ---------------- */
 const isRequestForMe = c => !!(c.request && c.request.from && c.request.from !== S.me && !isFriend(c.request.from));
 const isRequestFromMe = c => !!(c.request && c.request.from === S.me && !others(c).every(isFriend));
+/* ---------- smart plans: "we meet at school at 1" → a plan you can turn into an event ---------- */
+const PLAN_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const PLAN_NOT_PLACE = /^(?:\d|the moment|the same time|once|all|least|most|night|noon|midnight|lunch|dinner|breakfast|first|last|home time|that time|this|next|today|tonight|tomorrow|tmrw|tmr|sunday|monday|tuesday|wednesday|thursday|friday|saturday|weekend|my turn|it|you|me|us|him|her|them|ur|your|a sec|5|ok|least)\b/;
+function detectPlan(text, at = Date.now()) {
+  const raw = String(text || '').trim(); if (raw.length < 6 || raw.length > 220 || /https?:\/\//.test(raw)) return null;
+  const t = ' ' + raw.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ') + ' ';
+  if (/\b(was|were|went|had|did|yesterday|last (?:night|week|time)|used to)\b/.test(t)) return null;
+  const intent = /\b(meet|meeting|hang ?out|hang|link up|linkup|see (?:you|u|ya)|come (?:to|over)|go to|going to|let'?s|lets|wanna|want to|gonna|we'?re|we are|we'?ll|catch up|play|study|chill|grab|pick (?:you|u) up|join)\b/.test(t);
+  // time
+  let h = null, mi = 0, ap = '';
+  let mm = t.match(/\b(?:at|@|by|around|from|for)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?(?=[^\d:]|$)/) || t.match(/\b(\d{1,2})[:.](\d{2})\s*(am|pm)?\b/) || t.match(/\b(\d{1,2})\s*(am|pm)\b/);
+  if (mm) { h = +mm[1]; mi = +(mm[2] || 0); ap = (mm[3] || '').replace(/\./g, ''); if (h > 23 || mi > 59) h = null; }
+  if (h == null) { if (/\bnoon\b/.test(t)) h = 12; else if (/\bmidnight\b/.test(t)) h = 0; else if (/\bafter school\b/.test(t)) { h = 15; mi = 30; } else if (/\blunch ?time|\bat lunch\b/.test(t)) h = 12; else if (/\btonight\b/.test(t)) { h = 19; } else if (/\bthis evening\b/.test(t)) h = 18; else if (/\bthis morning\b/.test(t)) h = 10; else if (/\bthis afternoon\b/.test(t)) h = 15; }
+  if (h != null && mm) { if (ap === 'pm' && h < 12) h += 12; else if (ap === 'am' && h === 12) h = 0; else if (!ap && h >= 1 && h <= 7) h += 12; else if (!ap && /\btonight\b/.test(t) && h < 12) h += 12; }
+  // day
+  const base = new Date(at); let day = null, dayWord = '';
+  if (/\b(tomorrow|tmrw|tmr|tmw)\b/.test(t)) { day = 1; dayWord = 'tomorrow'; }
+  else if (/\b(today|tonight|this evening|this morning|this afternoon)\b/.test(t)) { day = 0; dayWord = 'today'; }
+  else if (/\b(?:this )?weekend\b/.test(t)) { day = (6 - base.getDay() + 7) % 7 || 7; dayWord = 'saturday'; }
+  else { const dm = t.match(/\b(?:on |this |next )?(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|sday|urday)?\b/); if (dm) { const idx = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].findIndex(p => dm[1].startsWith(p)); let diff = (idx - base.getDay() + 7) % 7; if (diff === 0 || /\bnext\b/.test(dm[0])) diff += diff === 0 ? 7 : 0; day = diff; dayWord = PLAN_DAYS[idx]; } }
+  // place
+  let place = '';
+  const pm = t.match(/\b(?:meet|meeting|see (?:you|u|ya)|hang(?: ?out)?|chill|link up|go|going|come|let'?s go|be|study|play|grab \w+|pick (?:you|u) up)\s+(?:up\s+)?(?:at|in|to|by|outside|near)\s+(?:the\s+)?([a-z][a-z0-9'&\- ]{1,28}?)(?=\s+(?:at|on|by|around|from|tomorrow|tmrw|tmr|today|tonight|this|next|after|before|for|and|then|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday|\d)\b|\s*[.,!?]|\s*$)/)
+    || t.match(/\b(?:at|in|to)\s+(?:the\s+)?(school|park|mall|library|cafe|café|gym|beach|cinema|movies|station|stadium|church|mosque|temple|pool|field|court|club|restaurant|mcdonalds|mcdonald's|starbucks|kfc|subway|my house|my place|your house|your place|ur house|ur place|home|dubai mall|bus stop|canteen|cafeteria|playground)\b/);
+  if (pm) { const cand = pm[1].trim().replace(/\s+(?:then|and|so|ok|okay|pls|please|bro|lol)$/, ''); if (!PLAN_NOT_PLACE.test(cand) && cand.split(' ').length <= 4) place = cand; }
+  const hasTime = h != null, hasDay = day != null;
+  if (!((hasTime || hasDay) && (place || (intent && hasTime)))) return null;
+  if (!intent && !place) return null;
+  // when
+  const when = new Date(at); when.setSeconds(0, 0);
+  if (hasDay) when.setDate(when.getDate() + day);
+  if (hasTime) when.setHours(h, mi); else when.setHours(16, 0);
+  if (!hasDay && when.getTime() < at - 15 * 60e3) when.setDate(when.getDate() + 1);
+  const P = place ? place.replace(/\b\w/g, c => c.toUpperCase()).replace(/\bMy\b/, 'My').replace(/'S\b/g, "'s") : '';
+  const pad = n => String(n).padStart(2, '0');
+  return { title: P ? (/^(my|your|ur) /i.test(place) ? 'Meet at ' + P : 'Meet at ' + P) : 'Hangout', place: P, date: `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`, time: hasTime ? `${pad(when.getHours())}:${pad(when.getMinutes())}` : '', at: when.getTime(), timeKnown: hasTime };
+}
+
+const planWhen = p => { const d = new Date(p.date + 'T' + (p.time || '16:00')); const today = new Date(); today.setHours(0, 0, 0, 0); const diff = Math.round((new Date(p.date + 'T00:00') - today) / 864e5); const day = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); return day + (p.time ? ' · ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''); };
+function vPlanSugg(c) {
+  const p = S.planSugg; if (!p || p.conv !== c.id) return '';
+  const ppl = others(c).filter(u => u !== 'nexa-bot');
+  return `<div class="plansugg glass${A('plan' + p.key)}"><span class="pic">${ic('cal', 20)}</span><span class="grow" style="min-width:0"><span class="mute small" style="display:block">Sounds like a plan</span><b class="ellip" style="display:block">${esc(p.title)}</b><span class="small ellip" style="display:block">${esc(planWhen(p))}${p.place ? ' · ' + esc(p.place) : ''}</span>${ppl.length ? `<span class="row small" style="gap:6px;margin-top:4px"><span class="stack">${ppl.slice(0, 4).map(u => av(u, 20)).join('')}</span>with ${esc(ppl.slice(0, 3).map(u => dname(u).split(' ')[0]).join(', '))}${ppl.length > 3 ? ' +' + (ppl.length - 3) : ''}</span>` : ''}</span>
+    <span class="col" style="gap:6px;flex-shrink:0"><button class="btn sm pri" data-a="planMake">${S.busy ? 'Making…' : 'Make it an event'}</button><span class="row" style="gap:6px"><button class="btn sm" data-a="planEdit">Edit</button><button class="ibtn sm" aria-label="Not now" data-a="planDismiss">${ic('x', 14)}</button></span></span></div>`;
+}
+function vPlanBubble(m, quote) {
+  const e = allEvents().find(x => x.id === m.planEvent.id), p = m.planEvent;
+  const going = e ? (e.attendees || []).length : 1, mine = e && (e.attendees || []).includes(S.me);
+  return `<div class="bub plancard">${quote}<span class="row" style="gap:10px"><span class="pic">${ic('cal', 18)}</span><span class="grow"><b style="display:block">${esc(p.title)}</b><span class="small" style="opacity:.85">${esc(planWhen(p))}${p.place ? ' · ' + esc(p.place) : ''}</span></span></span>
+    <span class="row spread" style="gap:8px"><span class="small" style="opacity:.85">${going} going</span><span class="row" style="gap:6px">${e && !mine ? `<button class="btn sm pri" data-a="rsvp" data-v="${e.id}" data-r="going">I'm in</button>` : mine ? '<span class="small" style="font-weight:700">You\'re going ✓</span>' : ''}<button class="btn sm" data-a="eventOpen" data-v="${p.id}">Open</button></span></span></div>`;
+}
+async function makeEvent({ title, date, time, place, invitees }) {
+  const code = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
+  const id = await db().add('events', { title, desc: '', date, time: time || '', image: '', place: place || '', creator: S.me, audience: 'invite', public: false, viewers: [S.me, ...invitees], attendees: [S.me], maybe: [], declined: [], inviteCode: code, createdAt: now() });
+  const convId = await db().add('conversations', { type: 'event', eventId: id, name: title, members: [S.me], roles: { [S.me]: 'owner' }, createdAt: now(), reads: {}, typing: {}, last: { text: 'Event chat created', from: S.me, at: now() } });
+  await db().update('events/' + id, { convId });
+  await db().set('eventInvites/' + code, { eventId: id, title, date, time: time || '', host: S.me, image: '' });
+  invitees.forEach(u => notify(u, { type: 'event_invite', title: `${S.profile.name} invited you to ${title}`, body: new Date(date + 'T00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) + (time ? ' · ' + time : ''), link: { page: 'events', id } }));
+  return id;
+}
+
+/* ---------- chat albums: every photo & video in one place ---------- */
+async function loadAlbum(cid) {
+  let list = []; try { list = await db().query(`conversations/${cid}/messages`, [], { order: ['at', 'desc'], limit: 500 }); } catch {}
+  const items = [];
+  list.filter(m => !m.deleted && !(m.expiresAt && m.expiresAt < now())).forEach(m => {
+    (m.images || (m.image ? [m.image] : [])).map(safeImg).filter(Boolean).forEach(src => items.push({ kind: 'photo', src, from: m.from, at: m.at }));
+    if (m.video && !m.video.round && m.video.src) items.push({ kind: 'video', src: m.video.src, thumb: safeImg(m.video.thumb), from: m.from, at: m.at, dur: m.video.dur });
+  });
+  return items.sort((a, b) => b.at - a.at);
+}
+function vAlbum(m, head) {
+  const c = convOf(m.cid), items = m.items || [];
+  if (m.view != null && items[m.view]) {
+    const it = items[m.view];
+    return `<div class="albview"><div class="row spread" style="gap:8px"><button class="btn sm" data-a="albumBack">${ic('back', 14)} All</button><span class="small mute">${m.view + 1} of ${items.length}</span><a class="btn sm" href="${esc(it.src)}" download="nexa-${it.kind}-${it.at}.${it.kind === 'video' ? 'webm' : 'jpg'}">${ic('download', 14)} Save</a></div>
+      <div class="albstage">${it.kind === 'video' ? `<video src="${esc(it.src)}" controls autoplay playsinline data-key="albv${m.view}"></video>` : `<img src="${esc(it.src)}" alt="">`}
+        ${m.view > 0 ? `<button class="albnav l" aria-label="Previous" data-a="albumStep" data-v="-1">${ic('back', 20)}</button>` : ''}${m.view < items.length - 1 ? `<button class="albnav r" aria-label="Next" data-a="albumStep" data-v="1">${ic('back', 20)}</button>` : ''}</div>
+      <div class="row" style="gap:8px">${av(it.from, 26)}<span class="small">Shared by <b>${esc(it.from === S.me ? 'you' : dname(it.from))}</b> · ${new Date(it.at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></div></div>`;
+  }
+  const days = {}; items.forEach((it, i) => { const k = new Date(it.at).toDateString(); (days[k] = days[k] || []).push([it, i]); });
+  const nP = items.filter(x => x.kind === 'photo').length, nV = items.length - nP;
+  return head((c && c.type !== 'dm' ? 'Group album' : 'Photo album'), m.loading ? 'Collecting photos…' : `${nP} photo${nP === 1 ? '' : 's'}${nV ? ` · ${nV} video${nV === 1 ? '' : 's'}` : ''} · added automatically when anyone shares one`) +
+    (m.loading ? '<div class="empty">Loading…</div>' : !items.length ? '<div class="empty">No photos yet. Every photo or video sent in this chat shows up here.</div>' :
+    `<div class="col scroll" style="gap:14px;max-height:62vh">${Object.entries(days).map(([d, arr]) => `<div><div class="sec">${new Date(d).toDateString() === new Date().toDateString() ? 'Today' : new Date(d).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div><div class="albgrid">${arr.map(([it, i]) => `<button class="albtile" data-a="albumView" data-v="${i}" aria-label="Open ${it.kind}"><img src="${esc(it.kind === 'video' ? it.thumb || '' : it.src)}" alt="" loading="lazy">${it.kind === 'video' ? `<span class="albplay">${ic('play', 14)}</span>` : ''}</button>`).join('')}</div></div>`).join('')}</div>`);
+}
+/* ---------- Test calls: can this device reach the call relay? ---------- */
+async function testCalls() {
+  S.callTest = { running: true }; render();
+  const out = { relayServers: 0, relay: false, direct: false, error: '' };
+  try {
+    iceCache = null; await loadIce(); out.relayServers = (iceCache?.servers || []).filter(x => /turns?:/.test([].concat(x.urls).join(' '))).length;
+    const pc = new RTCPeerConnection(ICE());
+    pc.createDataChannel('t');
+    const got = new Promise(res => { const types = new Set(); pc.onicecandidate = e => { if (!e.candidate) return res(types); const m = / typ (\w+)/.exec(e.candidate.candidate); if (m) types.add(m[1]); if (types.has('relay')) res(types); }; setTimeout(() => res(types), 9000); });
+    await pc.setLocalDescription(await pc.createOffer());
+    const types = await got; pc.close();
+    out.relay = types.has('relay'); out.direct = types.has('srflx') || types.has('host');
+  } catch (e) { out.error = e.message || String(e); }
+  S.callTest = out; render();
+}
+function vCallTest() {
+  const t = S.callTest; if (!t) return '';
+  if (t.running) return '<div class="small mute" style="margin-top:8px">Testing… (up to 10 seconds)</div>';
+  const good = t.relay;
+  return `<div class="calltest ${good ? 'ok' : 'bad'}">${good ? '✅ <b>Calls are ready.</b> The call relay works, so calls will connect even between different Wi-Fi and phone networks.' : t.relayServers ? '⚠️ <b>The relay is set up but this device can\'t reach it.</b> This network may block it (school or office Wi-Fi). Try mobile data.' : '❌ <b>The call relay isn\'t set up.</b> Calls only work when both people are on the same Wi-Fi. In Netlify › Environment variables, add METERED_USERNAME and METERED_PASSWORD (from dashboard.metered.ca), then redeploy.'}${t.error ? `<div class="small mute">${esc(t.error)}</div>` : ''}</div>`;
+}
+/* ---------- owner dashboard: who uses Nexa ---------- */
+async function loadOwner(force) {
+  if (S.ownerData && !force) return; S.ownerErr = ''; S.ownerLoading = true; render();
+  try {
+    const tok = await S.be.auth.idToken();
+    const r = await fetch((CONFIG.ownerEndpoint || '/.netlify/functions/owner'), { headers: { authorization: 'Bearer ' + tok } });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Couldn\'t load');
+    S.ownerData = j;
+  } catch (e) { S.ownerErr = e.message || 'Couldn\'t load the dashboard'; }
+  S.ownerLoading = false; render();
+}
+function vOwner() {
+  if (!isOwner()) return `<div class="panel glass card"><div class="empty">Only the owner can see this page.</div></div>`;
+  if (!S.ownerData && !S.ownerLoading && !S.ownerErr) setTimeout(() => loadOwner(), 0);
+  const d = S.ownerData, st = d?.stats || {}, q = (S.form.ownQ || '').toLowerCase().trim();
+  const fmt = t => t ? new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+  const ago = t => !t ? '—' : Date.now() - t < 3 * 60e3 ? 'Online now' : fmtWhen(t);
+  const tile = (n, l, ic2) => `<div class="otile glass"><span class="mute small">${ic(ic2, 16)} ${l}</span><b>${n ?? '—'}</b></div>`;
+  const users = (d?.users || []).filter(u => !q || [u.name, u.handle, u.email].some(x => (x || '').toLowerCase().includes(q)));
+  const max = Math.max(1, ...(d?.signups || []).map(x => x.n));
+  return `<div class="owner col" style="gap:16px">
+    <section class="panel glass card"><div class="row spread" style="flex-wrap:wrap;gap:10px"><div><h1 class="h1">Dashboard</h1><div class="mute small">Only you can see this. Emails, usernames and handles — never passwords.</div></div><span class="row" style="gap:8px"><button class="btn sm" data-a="ownerRefresh">${ic('clock', 14)} ${S.ownerLoading ? 'Loading…' : 'Refresh'}</button>${d ? `<button class="btn sm pri" data-a="ownerCsv">${ic('download', 14)} Export CSV</button>` : ''}</span></div>
+      ${S.ownerErr ? `<div class="err" style="margin-top:10px">${esc(S.ownerErr)}</div>` : ''}</section>
+    ${d ? `<div class="otiles">${tile(st.users, 'People on Nexa', 'people')}${tile(st.onlineNow, 'Online now', 'spark')}${tile(st.active24h, 'Active today', 'clock')}${tile(st.new7d, 'New this week', 'userplus')}${tile(st.messages, 'Messages sent', 'msg')}${tile(st.chats, 'Chats', 'group')}${tile(st.events, 'Events', 'cal')}${tile(st.moments, 'Moments', 'images')}</div>
+    <section class="panel glass card"><h2 class="h2">New people · last 14 days</h2><div class="obars">${d.signups.map(x => `<div class="obar" title="${new Date(x.day).toLocaleDateString()}: ${x.n}"><i style="height:${Math.round(x.n / max * 100)}%"></i><span>${x.n || ''}</span><small>${new Date(x.day).toLocaleDateString([], { day: 'numeric' })}</small></div>`).join('')}</div></section>
+    <section class="panel glass card"><div class="row spread" style="gap:10px;flex-wrap:wrap"><h2 class="h2">Everyone (${users.length})</h2><label class="search" style="max-width:320px;height:40px">${ic('search', 16)}<input id="ownQ" data-model="form.ownQ" data-rerender="1" value="${esc(S.form.ownQ || '')}" placeholder="Search name, @handle or email"></label></div>
+      <div class="otable"><div class="orow ohead"><span>Name</span><span>Username</span><span>Email</span><span>Joined</span><span>Last active</span></div>
+      ${users.map(u => `<div class="orow"><span class="ellip"><b>${esc(u.name || '(didn\'t finish sign-up)')}</b></span><span class="ellip">${u.handle ? '@' + esc(u.handle) : '—'}</span><span class="ellip">${esc(u.email || '—')}${u.verified ? ' ' + ic('check', 12) : ''}</span><span>${fmt(u.joined)}</span><span class="${Date.now() - u.lastActive < 3 * 60e3 ? 'on' : ''}">${ago(u.lastActive)}</span></div>`).join('') || '<div class="empty">No one matches that search.</div>'}</div></section>` : S.ownerLoading ? '<section class="panel glass card"><div class="empty">Loading your dashboard…</div></section>' : ''}
+  </div>`;
+}
 /* ---------- help: message the owner of Nexa ---------- */
-const OWNER_HANDLE = 'shiv';
+const OWNER_HANDLE = 'owner', OWNER_EMAIL = 'etihadairways1028@gmail.com';
+const RESERVED_HANDLES = ['owner', 'admin', 'nexa', 'support', 'help', 'official', 'moderator', 'mod', 'staff', 'team'];
+const handleReserved = h => RESERVED_HANDLES.includes(h) && (S.be?.auth?.user?.()?.email || '').toLowerCase() !== OWNER_EMAIL;
 let ownerUid = null;
 const isOwner = () => (S.profile?.handle || '').toLowerCase() === OWNER_HANDLE;
 async function findOwner() {
@@ -4462,7 +4662,7 @@ vModal5 = function (m, f, head) {
     if (!m.loading && tab === 'voice') body = it.voice.length ? it.voice.map(v => `<button class="item" data-a="mediaVoice" data-v="${v.id}">${av(v.from, 36)}<span class="grow"><b class="small">${esc(dname(v.from))}</b><span class="mute small" style="display:block">${fmtDur(v.dur || 0)} · ${fmtWhen(v.at)}</span></span>${ic('play', 16)}</button>`).join('') : '<div class="empty">No voice messages yet.</div>';
     if (tab === 'members') body = c.members.map(u => `<button class="item" data-a="profile" data-v="${u}">${av(u, 40, true)}<b class="grow ellip">${esc(u === S.me ? 'You' : dname(u))}</b>${(c.roles || {})[u] === 'owner' ? '<span class="mute small">Owner</span>' : ''}</button>`).join('');
     return `<div class="cihead">${convAv(c, 84, false)}<div class="disp" style="font-size:22px;font-weight:700;margin-top:10px">${esc(convName(c))}</div><div class="mute small">${isG ? `${c.members.length} members` : '@' + esc(U(o)?.handle || '')}</div><button class="ibtn" style="position:absolute;right:0;top:0" aria-label="Close" data-a="closeModal">${ic('x', 18)}</button></div>
-      <div class="ciacts">${!isG && !cantCall(c) ? act('ciCall', 'phone', 'Call', 'audio') + act('ciCall', 'video', 'Video', 'video') : isG ? act('ciGroupCall', 'video', 'Group call') : ''}${act('muteConv', isMuted(c.id) ? 'bell' : 'bellOff', isMuted(c.id) ? 'Unmute' : 'Mute')}${act('ciFind', 'search', 'Search')}${act('ciTheme', 'palette', 'Theme')}${!isG ? act('pinFriend', 'pin', (S.prefs.pinnedFriends || []).includes(o) ? 'Unpin' : 'Pin to Home', o) : act('groupInfo', 'gear', 'Settings', c.id)}</div>
+      <div class="ciacts">${!isG && !cantCall(c) ? act('ciCall', 'phone', 'Call', 'audio') + act('ciCall', 'video', 'Video', 'video') : isG ? act('ciGroupCall', 'video', 'Group call') : ''}${act('muteConv', isMuted(c.id) ? 'bell' : 'bellOff', isMuted(c.id) ? 'Unmute' : 'Mute')}${act('albumOpen', 'album', 'Album')}${act('ciFind', 'search', 'Search')}${act('ciTheme', 'palette', 'Theme')}${!isG ? act('pinFriend', 'pin', (S.prefs.pinnedFriends || []).includes(o) ? 'Unpin' : 'Pin to Home', o) : act('groupInfo', 'gear', 'Settings', c.id)}</div>
       ${c.pinned?.text != null ? `<button class="item" data-a="ciJumpPin" style="background:rgba(255,255,255,.04)">${ic('pin', 16)}<span class="grow ellip"><b class="small">Pinned</b> <span class="mute small">${esc(c.pinned.text || 'Attachment')}</span></span></button>` : ''}
       <div class="tabs">${[['photos', 'Photos', it.photos.length], ['videos', 'Videos', it.videos.length], ['links', 'Links', it.links.length], ['voice', 'Voice', it.voice.length]].concat(isG ? [['members', 'Members', c.members.length]] : []).map(([k, l, n]) => `<button class="tab ${tab === k ? 'on' : ''}" data-a="ciTab" data-v="${k}">${l}${n ? ` <span class="mute">${n}</span>` : ''}</button>`).join('')}</div>
       <div class="col scroll" style="max-height:44vh;gap:4px">${body}</div>`;
