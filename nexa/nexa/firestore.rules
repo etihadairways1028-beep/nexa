@@ -105,6 +105,12 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
             && onlySelfChange('members')
             && me() in get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data.members));
+      // Shared chat wallpaper photo (kept out of the chat doc so messages stay fast)
+      match /meta/{doc} {
+        function mconv() { return get(/databases/$(database)/documents/conversations/$(cid)).data; }
+        allow read: if signedIn() && me() in mconv().members;
+        allow create, update: if signedIn() && me() in mconv().members && request.resource.data.size() < 5;
+      }
       // Shared drawing board strokes
       match /board/{sid} {
         function bconv() { return get(/databases/$(database)/documents/conversations/$(cid)).data; }
@@ -120,7 +126,7 @@ service cloud.firestore {
         allow create: if signedIn() && notBanned() && member() && request.resource.data.from == me() && !dmBlocked();
         // Authors can edit/delete and attach link previews; members can react, vote and play; moderators can remove.
         allow update: if signedIn() && ((member() && (resource.data.from == me()
-          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'poll', 'game', 'transcript']))) || isAdmin());
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactImgs', 'poll', 'game', 'transcript', 'todo']))) || isAdmin());
         allow delete: if signedIn() && resource.data.from == me();
       }
     }
@@ -150,14 +156,14 @@ service cloud.firestore {
     // Communities with channels
     match /communities/{cid} {
       function role(u) { return resource.data.roles.get(u, 'member'); }
-      allow read: if signedIn() && me() in resource.data.members;
+      allow read: if signedIn() && (me() in resource.data.members || resource.data.get('public', false) == true);
       allow create: if signedIn() && notBanned() && request.resource.data.owner == me() && request.resource.data.members == [me()];
       allow delete: if signedIn() && resource.data.owner == me();
       allow update: if signedIn() && (
         // owner and admins manage channels and members; only the owner changes roles or ownership
         (me() in resource.data.members && role(me()) in ['owner', 'admin']
           && request.resource.data.owner == resource.data.owner
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'roles', 'channels', 'name', 'desc'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'roles', 'channels', 'name', 'desc', 'public'])
           // admins can only remove people's roles (when removing them); the owner can change roles
           && (role(me()) == 'owner' || (request.resource.data.roles.diff(resource.data.roles).addedKeys().size() == 0
               && request.resource.data.roles.diff(resource.data.roles).changedKeys().size() == 0)))
@@ -165,6 +171,10 @@ service cloud.firestore {
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'lastJoin'])
             && onlySelfChange('members') && !(me() in resource.data.members)
             && get(/databases/$(database)/documents/communityInvites/$(request.resource.data.lastJoin)).data.communityId == cid)
+        // joining a public community from Explore
+        || (resource.data.get('public', false) == true && notBanned()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+            && onlySelfChange('members') && !(me() in resource.data.members))
         // leaving
         || (me() in resource.data.members && !(me() in request.resource.data.members)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'roles'])
@@ -190,6 +200,18 @@ service cloud.firestore {
       }
     }
 
+    // Group birthday cards: only the people invited to sign can see them (never the birthday person)
+    match /cards/{cid} {
+      allow read: if signedIn() && me() in resource.data.audience;
+      allow create: if signedIn() && notBanned() && request.resource.data.by == me() && me() in request.resource.data.audience
+        && !(request.resource.data.for in request.resource.data.audience);
+      allow update: if signedIn() && me() in resource.data.audience && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sigs'])
+          && request.resource.data.sigs.diff(resource.data.sigs).affectedKeys().hasOnly([me()]))
+        || (resource.data.by == me() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sent', 'sentAt'])));
+      allow delete: if signedIn() && resource.data.by == me();
+    }
+
     // Group invite links
     match /groupInvites/{code} {
       allow get: if signedIn();
@@ -212,7 +234,15 @@ service cloud.firestore {
       allow create: if signedIn() && notBanned() && request.resource.data.author == me();
       allow delete: if signedIn() && resource.data.author == me();
       allow update: if signedIn() && me() in resource.data.audience
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen']) && onlySelfChange('seen');
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen', 'votes']) && onlySelfChange('seen')
+        && request.resource.data.get('votes', {}).diff(resource.data.get('votes', {})).affectedKeys().hasOnly([me()]);
+    }
+
+    // Video for a moment (kept separate so the moments list stays light)
+    match /momentMedia/{id} {
+      allow read: if signedIn() && me() in resource.data.audience;
+      allow create: if signedIn() && notBanned() && request.resource.data.author == me() && request.resource.data.src is string && request.resource.data.src.size() < 1000000;
+      allow delete: if signedIn() && resource.data.author == me();
     }
 
     match /notifications/{nid} {

@@ -3,6 +3,7 @@
 // It checks the caller really is that sender, then sends a push to the other people through Firebase Cloud Messaging,
 // so they get it on their phone / iPad / laptop even when Nexa is closed.
 import admin from 'firebase-admin';
+import { avatarSig } from './avatar.mjs';
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 const ID = /^[\w-]{1,200}$/;
@@ -13,7 +14,14 @@ function init() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT is not set');
   const sa = JSON.parse(raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8'));
+  KEY = sa.private_key || '';
   return admin.initializeApp({ credential: admin.credential.cert(sa) });
+}
+let KEY = '';
+// A signed link to the sender's profile photo, shown as the big picture on the notification.
+function iconFor(req, uid, user) {
+  if (!user || !user.avatar || !KEY) return '';
+  try { const o = new URL(req.url).origin; return `${o}/.netlify/functions/avatar?u=${encodeURIComponent(uid)}&s=${avatarSig(uid, KEY)}&v=${(user.avatar.length % 99991).toString(36)}`; } catch { return ''; }
 }
 
 const label = m => m.video ? (m.video.round ? 'Video message' : 'Video') : m.live ? 'Shared live location' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.audio ? 'Voice message' : m.stickerImg || m.sticker ? 'Sticker' : m.gif ? 'GIF'
@@ -24,10 +32,10 @@ async function once(db, key) {
   try { await db.doc('pushLog/' + key).create({ at: Date.now() }); return true; } catch { return false; }
 }
 
-async function deliver(db, uid, data, ttl) {
+async function deliver(db, uid, data, ttl, exclude) {
   const pdoc = db.doc(`users/${uid}/private/push`);
   const push = (await pdoc.get()).data() || {};
-  const tokens = [...new Set(push.tokens || [])].slice(0, 20);
+  const tokens = [...new Set([...Object.values(push.devices || {}), ...(push.tokens || [])])].filter(t => typeof t === 'string' && t && !(exclude || []).includes(t)).slice(0, 20);
   if (!tokens.length) return 0;
   const res = await admin.messaging().sendEachForMulticast({
     tokens,
@@ -53,6 +61,8 @@ export default async (req) => {
   let body; try { body = await req.json(); } catch { return json({ error: 'Bad request' }, 400); }
   const sender = (await db.doc(`users/${uid}`).get()).data() || {};
   const name = sender.name || 'Someone';
+  if (!KEY) { try { const raw = process.env.FIREBASE_SERVICE_ACCOUNT; KEY = JSON.parse(raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8')).private_key || ''; } catch {} }
+  const icon = iconFor(req, uid, sender);
   if ((await db.doc('bans/' + uid).get()).exists) return json({ ok: false, skip: 'banned' });
 
   // ---------- a new chat message
@@ -71,10 +81,20 @@ export default async (req) => {
     let sent = 0;
     await Promise.all((conv.members || []).filter(u => u !== uid).map(async u => {
       const prefs = (await db.doc(`users/${u}/private/prefs`).get()).data() || {};
-      if (prefs.deviceNotifs === false || (prefs.muted || {})[cid] || (prefs.blocked || []).includes(uid) || (prefs.notif && prefs.notif.msg === false)) return;
+      const mentioned = !isDm && (msg.mentions || []).includes(u);
+      if (prefs.deviceNotifs === false || ((prefs.muted || {})[cid] && !mentioned) || (prefs.blocked || []).includes(uid) || (prefs.notif && prefs.notif.msg === false)) return;
       const text = prefs.pushPreview === false ? 'New message' : label(msg).slice(0, 140);
-      sent += await deliver(db, u, { kind: 'message', title, body: isDm ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid }, 86400);
+      sent += await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon }, 86400);
     }));
+    return json({ ok: true, sent });
+  }
+
+  // ---------- you read a chat on one device → clear its notifications on your other devices
+  if (body.kind === 'read') {
+    const cid = String(body.conv || ''); if (!ID.test(cid)) return json({ error: 'Bad request' }, 400);
+    const conv = (await db.doc(`conversations/${cid}`).get()).data();
+    if (!conv || !(conv.members || []).includes(uid)) return json({ ok: false, skip: 'invalid' });
+    const sent = await deliver(db, uid, { kind: 'clear', tag: 'c_' + cid }, 300, [String(body.self || '')]);
     return json({ ok: true, sent });
   }
 
@@ -89,7 +109,7 @@ export default async (req) => {
     if (prefs.deviceNotifs === false || (prefs.blocked || []).includes(uid)) return json({ ok: true, skip: 'off' });
     if ((t.startsWith('friend') && prefs.notif && prefs.notif.friend === false) || (t.startsWith('event') && prefs.notif && prefs.notif.event === false)) return json({ ok: true, skip: 'off' });
     const link = n.link || {};
-    const sent = await deliver(db, n.to, { kind: 'notification', title: n.title || 'Nexa', body: n.body || '', chat: link.page === 'conv' ? link.id || '' : '', page: link.page && link.page !== 'conv' ? (link.page === 'profile' ? 'people' : link.page === 'community' ? 'notifications' : link.page) : 'notifications', tag: 'n_' + nid }, 86400);
+    const sent = await deliver(db, n.to, { kind: 'notification', title: n.title || 'Nexa', body: n.body || '', chat: link.page === 'conv' ? link.id || '' : '', page: link.page && link.page !== 'conv' ? (link.page === 'profile' ? 'people' : link.page === 'community' ? 'notifications' : link.page) : 'notifications', tag: 'n_' + nid, icon }, 86400);
     return json({ ok: true, sent });
   }
 
@@ -101,7 +121,7 @@ export default async (req) => {
     if (!(await once(db, 'c_' + id))) return json({ ok: true, skip: 'duplicate' });
     const prefs = (await db.doc(`users/${c.to}/private/prefs`).get()).data() || {};
     if (prefs.deviceNotifs === false || (prefs.blocked || []).includes(uid)) return json({ ok: true, skip: 'off' });
-    const sent = await deliver(db, c.to, { kind: 'call', title: `${name} is calling`, body: c.kind === 'video' ? 'Video call on Nexa — tap to answer' : 'Voice call on Nexa — tap to answer', chat: c.conv || '', tag: 'call_' + id }, 60);
+    const sent = await deliver(db, c.to, { kind: 'call', title: `${name} is calling`, body: c.kind === 'video' ? 'Video call on Nexa — tap to answer' : 'Voice call on Nexa — tap to answer', chat: c.conv || '', tag: 'call_' + id, icon }, 60);
     return json({ ok: true, sent });
   }
 
