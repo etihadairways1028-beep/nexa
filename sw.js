@@ -1,6 +1,6 @@
 // Nexa service worker: makes Nexa installable, keeps the app shell available offline,
 // and focuses the app when a notification is tapped. Live data always comes from the network.
-const CACHE = 'nexa-shell-v24';
+const CACHE = 'nexa-shell-v25';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'icon-192-v3.png', 'icon-512-v3.png', 'apple-touch-icon-v3.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

@@ -6,6 +6,7 @@ import admin from 'firebase-admin';
 import crypto from 'node:crypto';
 
 const OWNER_EMAIL = 'etihadairways1028@gmail.com';
+const PERSONAL_HANDLE = 'shiv';   // your everyday Nexa account — sign-in codes can be sent here
 const SECRET_DOC = 'ownerSecrets/main';           // no Firestore rule allows clients to read this
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
@@ -75,32 +76,69 @@ export default async (req) => {
   const sec = (await ref.get()).data() || {};
   const now = Date.now();
 
-  if (body.action === 'status') return json({ setup: !!sec.totp, locked: (sec.lockUntil || 0) > now ? sec.lockUntil : 0 });
+  const method = sec.method || (sec.totp ? 'totp' : '');
+  const active = !!(sec.active || sec.totp);
+  if (body.action === 'status') return json({ setup: active, method, locked: (sec.lockUntil || 0) > now ? sec.lockUntil : 0, emailReady: !!process.env.RESEND_API_KEY });
 
-  // first-time setup: choose a PIN, scan the QR code, confirm one code
+  // first-time setup: choose a PIN, then how you get your second code
   if (body.action === 'setup') {
-    if (sec.totp) return json({ error: 'Already set up' }, 400);
+    if (active) return json({ error: 'Already set up' }, 400);
     const pin = String(body.pin || ''); if (!/^\d{6,12}$/.test(pin)) return json({ error: 'Your PIN must be 6 to 12 numbers.' }, 400);
-    const secret = b32enc(crypto.randomBytes(20)), salt = crypto.randomBytes(16).toString('hex');
-    await ref.set({ pendingTotp: secret, pinHash: hashPin(pin, salt), salt, sessionKey: crypto.randomBytes(32).toString('hex'), uid: tok.uid, fails: 0, lockUntil: 0, createdAt: now });
-    return json({ secret, otpauth: `otpauth://totp/Nexa%20Owner:${encodeURIComponent(OWNER_EMAIL)}?secret=${secret}&issuer=Nexa%20Owner&digits=6&period=30` });
+    const how = ['nexa', 'email', 'totp'].includes(body.method) ? body.method : 'totp';
+    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY in Netlify first (see the steps).' }, 400);
+    const salt = crypto.randomBytes(16).toString('hex');
+    const base = { pinHash: hashPin(pin, salt), salt, sessionKey: crypto.randomBytes(32).toString('hex'), uid: tok.uid, fails: 0, lockUntil: 0, createdAt: now, method: how };
+    if (how === 'totp') {
+      const secret = b32enc(crypto.randomBytes(20));
+      await ref.set({ ...base, pendingTotp: secret, active: false });
+      return json({ secret, otpauth: `otpauth://totp/Nexa%20Owner:${encodeURIComponent(OWNER_EMAIL)}?secret=${secret}&issuer=Nexa%20Owner&digits=6&period=30` });
+    }
+    await ref.set({ ...base, active: true });
+    return json({ ok: true, method: how });
   }
   if (body.action === 'confirm') {
-    if (sec.totp || !sec.pendingTotp) return json({ error: 'Nothing to confirm' }, 400);
+    if (active || !sec.pendingTotp) return json({ error: 'Nothing to confirm' }, 400);
     if (!codeOk(sec.pendingTotp, body.code)) return json({ error: 'That code didn\'t match. Check your authenticator app and try again.' }, 400);
-    await ref.update({ totp: sec.pendingTotp, pendingTotp: admin.firestore.FieldValue.delete ? admin.firestore.FieldValue.delete() : null });
+    await ref.update({ totp: sec.pendingTotp, active: true, method: 'totp', pendingTotp: admin.firestore.FieldValue.delete ? admin.firestore.FieldValue.delete() : null });
     return json({ ok: true });
   }
-  // sign in: PIN + code → 30-minute session
+  // send a one-time code (to @shiv in Nexa, or by email)
+  if (body.action === 'sendCode') {
+    if (!active || method === 'totp') return json({ error: 'Not needed' }, 400);
+    if ((sec.lockUntil || 0) > now) return json({ error: 'Locked for a few minutes after too many wrong tries.' }, 429);
+    if (now - (sec.codeSentAt || 0) < 30e3) return json({ error: 'Wait 30 seconds before asking for another code.' }, 429);
+    const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
+    await ref.update({ codeHash: hashPin(code, sec.salt), codeExp: now + 10 * 60e3, codeSentAt: now, codeTries: 0 });
+    if (method === 'email') {
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ from: process.env.RESEND_FROM || 'Nexa Owner <onboarding@resend.dev>', to: [OWNER_EMAIL], subject: `Your Nexa Owner code: ${code}`, html: `<div style="font-family:system-ui;padding:20px"><h2>Nexa Owner sign-in</h2><p>Your code is</p><p style="font-size:34px;font-weight:800;letter-spacing:8px">${code}</p><p style="color:#666">It works for 10 minutes. If you didn't try to open the owner page, change your password.</p></div>` }) });
+      if (!r.ok) return json({ error: 'The email couldn\'t be sent (' + r.status + '). Check RESEND_API_KEY in Netlify.' }, 502);
+      return json({ ok: true, to: OWNER_EMAIL.replace(/^(.).*(@.*)$/, '$1•••$2') });
+    }
+    // Nexa: notification + push to the @shiv account
+    const h = await db.doc('handles/' + PERSONAL_HANDLE).get(); const to = h.exists && h.data().uid;
+    if (!to) return json({ error: 'Couldn\'t find @' + PERSONAL_HANDLE + ' in Nexa.' }, 400);
+    await db.collection('notifications').add({ to, from: 'nexa-owner', type: 'owner_code', title: 'Nexa Owner code: ' + code, body: 'Someone is opening the owner page. Code works for 10 minutes.', at: now, read: false });
+    try {
+      const push = (await db.doc(`users/${to}/private/push`).get()).data() || {};
+      const tokens = [...new Set([...Object.values(push.devices || {}), ...(push.tokens || [])])].filter(Boolean).slice(0, 20);
+      if (tokens.length) await admin.messaging().sendEachForMulticast({ tokens, data: { kind: 'notification', title: 'Nexa Owner code: ' + code, body: 'Works for 10 minutes', tag: 'owner_code', page: 'notifications' }, webpush: { headers: { Urgency: 'high', TTL: '600' } } });
+    } catch {}
+    return json({ ok: true, to: '@' + PERSONAL_HANDLE + ' in Nexa' });
+  }
+  // sign in: PIN + second code → 30-minute session
   if (body.action === 'login') {
-    if (!sec.totp) return json({ error: 'Set up the owner console first.' }, 400);
+    if (!active) return json({ error: 'Set up the owner console first.' }, 400);
     if ((sec.lockUntil || 0) > now) return json({ error: 'Too many wrong tries. Locked until ' + new Date(sec.lockUntil).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' (UTC).', locked: sec.lockUntil }, 429);
-    if (!pinOk(body.pin, sec) || !codeOk(sec.totp, body.code)) {
+    const c = String(body.code || '').replace(/\D/g, '');
+    let second = false;
+    if (method === 'totp') second = codeOk(sec.totp, c);
+    else if (sec.codeHash && (sec.codeExp || 0) > now && c.length === 6) { const x = Buffer.from(hashPin(c, sec.salt), 'hex'), y = Buffer.from(sec.codeHash, 'hex'); second = x.length === y.length && crypto.timingSafeEqual(x, y); }
+    if (!pinOk(body.pin, sec) || !second) {
       const fails = (sec.fails || 0) + 1, lock = fails >= 5 ? now + 15 * 60e3 : 0;
       await ref.update({ fails: lock ? 0 : fails, lockUntil: lock });
-      return json({ error: lock ? 'Too many wrong tries — locked for 15 minutes.' : `Wrong PIN or code. ${5 - fails} ${5 - fails === 1 ? 'try' : 'tries'} left.` }, 401);
+      return json({ error: lock ? 'Too many wrong tries — locked for 15 minutes.' : (method !== 'totp' && (!sec.codeHash || (sec.codeExp || 0) <= now) ? 'Tap "Send code" first — codes last 10 minutes. ' : 'Wrong PIN or code. ') + `${5 - fails} ${5 - fails === 1 ? 'try' : 'tries'} left.` }, 401);
     }
-    await ref.update({ fails: 0, lockUntil: 0, lastLogin: now });
+    await ref.update({ fails: 0, lockUntil: 0, lastLogin: now, codeHash: '', codeExp: 0 });
     return json({ session: sign({ uid: tok.uid, exp: now + 30 * 60e3 }, sec.sessionKey), exp: now + 30 * 60e3 });
   }
   if (body.action === 'data') {
