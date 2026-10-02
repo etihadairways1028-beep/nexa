@@ -1,0 +1,9 @@
+{
+  "name": "nexa",
+  "private": true,
+  "type": "module",
+  "description": "Nexa — messages, friends and plans. Static site in /src plus a push server in /netlify/functions.",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

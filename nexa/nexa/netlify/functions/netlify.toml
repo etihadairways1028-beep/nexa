@@ -1,0 +1,29 @@
+# Netlify settings for Nexa.
+# The website is this folder; the push server lives in netlify/functions.
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["firebase-admin"]
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Invite links like /@anisha open the app
+[[redirects]]
+  from = "/@*"
+  to = "/index.html"
+  status = 200
+
+# Owner console: never indexed, never cached
+[[headers]]
+  for = "/owner/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+    X-Frame-Options = "DENY"
