@@ -1,6 +1,6 @@
 // Nexa service worker: makes Nexa installable, keeps the app shell available offline,
 // and focuses the app when a notification is tapped. Live data always comes from the network.
-const CACHE = 'nexa-shell-v23';
+const CACHE = 'nexa-shell-v27';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'icon-192-v3.png', 'icon-512-v3.png', 'apple-touch-icon-v3.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -18,6 +18,11 @@ self.addEventListener('notificationclick', e => {
   const d = e.notification.data || {};
   // Quick reply: browsers that support inline replies hand us the text in e.reply.
   const reply = e.action === 'reply' && typeof e.reply === 'string' ? e.reply.trim() : '';
+  if (d.url) { // e.g. a help message for the owner page
+    const target = new URL(d.url, self.registration.scope).href;
+    e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => { const c = cs.find(x => x.url.split('#')[0] === target.split('#')[0]); return c ? c.focus() : self.clients.openWindow(target); }));
+    return;
+  }
   let url = d.chat ? './?chat=' + encodeURIComponent(d.chat) : d.page ? './?page=' + encodeURIComponent(d.page) : './';
   if (reply && d.chat) url += '&reply=' + encodeURIComponent(reply.slice(0, 2000));
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
@@ -69,7 +74,7 @@ self.addEventListener('push', e => {
     }
     return self.registration.showNotification(count > 1 ? `${title} (${count} new messages)` : title, {
       body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : 'icon-192-v3.png', badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
-      data: { chat: x.chat || '', page: x.page || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : [80],
+      data: { chat: x.chat || '', page: x.page || '', url: x.url || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : [80],
       requireInteraction: x.kind === 'call',
       actions: x.kind === 'message' && x.chat ? [{ action: 'reply', title: 'Reply', type: 'text', placeholder: 'Reply…' }] : x.kind === 'call' ? [{ action: 'open', title: 'Answer' }] : []
     });

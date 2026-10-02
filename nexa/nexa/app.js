@@ -782,10 +782,11 @@ function reqRow(r) {
   return `<div class="person${A('req' + r.id)}">${av(r.from, 44, true)}<button class="grow" style="text-align:left" data-a="profile" data-v="${r.from}"><b class="ellip" style="display:block">${esc(dname(r.from))}</b><span class="mute small">@${esc(U(r.from)?.handle || '')}</span></button>
     <button class="btn sm pri" data-a="accept" data-v="${r.id}">Accept</button><button class="btn sm" data-a="decline" data-v="${r.id}">Decline</button></div>`;
 }
-const NIC = { card: ['gift', '#d94f86'], reminder: ['clock', '#3d7bff'], friend_request: ['userplus', 'linear-gradient(135deg,#9b6bff,#5b7cff)'], friend_accept: ['check', 'linear-gradient(135deg,#3fbf6f,#2fd4c4)'], event_invite: ['cal', 'linear-gradient(135deg,#ff8a4c,#ff4d6d)'], event_update: ['cal', 'linear-gradient(135deg,#ff8a4c,#9b6bff)'], event_join: ['cal', 'linear-gradient(135deg,#5b7cff,#2fd4c4)'], event_reminder: ['clock', 'linear-gradient(135deg,#ff4d6d,#ff8a4c)'], group_add: ['group', 'linear-gradient(135deg,#5b7cff,#9b6bff)'], security: ['lock', 'linear-gradient(135deg,#5b7cff,#2fd4c4)'], admin_warn: ['shield', 'linear-gradient(135deg,#ff4d6d,#ff8a4c)'], birthday: ['cake', 'linear-gradient(135deg,#ff8a4c,#ff4d6d)'], welcome: ['spark', 'linear-gradient(135deg,#5b7cff,#9b6bff 60%,#ff8a4c)'] };
+const NIC = { card: ['gift', '#d94f86'], reminder: ['clock', '#3d7bff'], friend_request: ['userplus', 'linear-gradient(135deg,#9b6bff,#5b7cff)'], friend_accept: ['check', 'linear-gradient(135deg,#3fbf6f,#2fd4c4)'], event_invite: ['cal', 'linear-gradient(135deg,#ff8a4c,#ff4d6d)'], event_update: ['cal', 'linear-gradient(135deg,#ff8a4c,#9b6bff)'], event_join: ['cal', 'linear-gradient(135deg,#5b7cff,#2fd4c4)'], event_reminder: ['clock', 'linear-gradient(135deg,#ff4d6d,#ff8a4c)'], group_add: ['group', 'linear-gradient(135deg,#5b7cff,#9b6bff)'], security: ['lock', 'linear-gradient(135deg,#5b7cff,#2fd4c4)'], admin_warn: ['shield', 'linear-gradient(135deg,#ff4d6d,#ff8a4c)'], birthday: ['cake', 'linear-gradient(135deg,#ff8a4c,#ff4d6d)'], welcome: ['spark', 'linear-gradient(135deg,#5b7cff,#9b6bff 60%,#ff8a4c)'], owner_help: ['help', 'linear-gradient(135deg,#2fd4c4,#5b7cff)'], owner_code: ['lock', 'linear-gradient(135deg,#5b7cff,#2fd4c4)'], announcement: ['spark', 'linear-gradient(135deg,#ff8a4c,#9b6bff)'] };
+const SYS_NOTIF = new Set(['admin_warn', 'owner_help', 'owner_code', 'announcement']);
 function notifRow(n, compact) {
   const [i, g] = NIC[n.type] || ['bell', GRADS[0]];
-  const who = n.from && n.from !== S.me && n.type !== 'admin_warn' ? av(n.from, compact ? 36 : 42) : `<span class="notif-ic" style="background:${g}">${ic(i, 18)}</span>`;
+  const who = n.from && n.from !== S.me && !SYS_NOTIF.has(n.type) ? av(n.from, compact ? 36 : 42) : `<span class="notif-ic" style="background:${g}">${ic(i, 18)}</span>`;
   return `<button class="item${A('n' + n.id)}" data-a="notif" data-v="${n.id}" style="${!compact && !n.read ? 'background:color-mix(in oklab,var(--ac) 8%,transparent)' : ''}">${who}<span class="grow"><b class="ellip" style="display:block;font-size:14px">${esc(n.title)}</b><span class="mute small" style="display:block">${esc(n.body || '')}</span></span><span class="mute small">${fmtWhen(n.at)}</span>${!n.read ? '<span class="unread-dot"></span>' : ''}</button>`;
 }
 
@@ -1280,6 +1281,7 @@ function vOverlays() {
     if (S.menu) o += vMenu();
   }
   if (S.lightbox) o += `<div class="lightbox" data-a="lightboxClose"><img src="${safeImg(S.lightbox)}" alt="Photo"></div>`;
+  if (S.onceView) o += `<div class="lightbox onceview" data-a="onceClose"><img src="${S.onceView.src}" alt="View-once photo" draggable="false" oncontextmenu="return false"><div class="oncebar">${ic('once', 16, 2)} View once · tap anywhere to close</div></div>`;
   return o;
 }
 function vMenu() {
@@ -1534,6 +1536,7 @@ async function ensureDM(uid, help) {
 function openNotif(n) {
   if (!n.read) db().update('notifications/' + n.id, { read: true });
   const l = n.link || {};
+  if (l.url) { window.open(l.url, '_blank', 'noopener'); return; }
   if (l.page === 'conv' && l.id) return openConv(l.id);
   if (l.page === 'profile') { S.profileUid = l.id; return go('profile'); }
   if (l.page === 'community' && l.id) { lsSet('nexa.community', l.id); return checkCommunityInvite(); }
@@ -1547,7 +1550,7 @@ function onTyping() {
   if (!c || S.profile?.typingOn === false) return;
   if (now() - typingSent > 2500) { typingSent = now(); db().update('conversations/' + c.id, { ['typing.' + S.me]: now() }).catch(() => {}); }
 }
-const msgLabel = m => m.todo ? 'To-do: ' + (m.todo.title || 'List') : m.bdayCard ? 'Birthday card' : m.video ? (m.video.round ? 'Video message' : 'Video') + (m.text ? ' · ' + m.text : '') : m.live ? 'Live location' : m.stickerImg ? 'Sticker' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.game ? ({ ttt: 'Tic-tac-toe', rps: 'Rock, paper, scissors', c4: 'Connect Four', word: 'Word guess', trivia: 'Trivia battle' }[m.game.t] || 'Game') : m.theme ? 'Chat theme' : m.audio ? 'Voice message' : m.sticker ? 'Sticker' : m.poll ? 'Poll: ' + m.poll.q : m.gif ? 'GIF' : (m.images && m.images.length > 1) ? m.images.length + ' photos' + (m.text ? ' · ' + m.text : '') : (m.images || m.image) ? 'Photo' + (m.text ? ' · ' + m.text : '') : (m.text || '');
+let msgLabel = m => m.todo ? 'To-do: ' + (m.todo.title || 'List') : m.bdayCard ? 'Birthday card' : m.video ? (m.video.round ? 'Video message' : 'Video') + (m.text ? ' · ' + m.text : '') : m.live ? 'Live location' : m.stickerImg ? 'Sticker' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.game ? ({ ttt: 'Tic-tac-toe', rps: 'Rock, paper, scissors', c4: 'Connect Four', word: 'Word guess', trivia: 'Trivia battle' }[m.game.t] || 'Game') : m.theme ? 'Chat theme' : m.audio ? 'Voice message' : m.sticker ? 'Sticker' : m.poll ? 'Poll: ' + m.poll.q : m.gif ? 'GIF' : (m.images && m.images.length > 1) ? m.images.length + ' photos' + (m.text ? ' · ' + m.text : '') : (m.images || m.image) ? 'Photo' + (m.text ? ' · ' + m.text : '') : (m.text || '');
 async function sendMessage(payload, convId) {
   const c = convOf(convId || S.conv); if (!c) return;
   const t = now();
@@ -4865,5 +4868,141 @@ Object.assign(actions, {
     render();
   }
 });
+
+/* ================= v15: Google Meet, view-once photos, invite links, announcements ================= */
+const MEET_RE = /(?:https?:\/\/)?meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})(?:[/?#][^\s]*)?/i;
+const meetOf = m => (m.meet && MEET_RE.test(m.meet.url || '') ? m.meet.url.match(MEET_RE) : null) || (typeof m.text === 'string' ? m.text.match(MEET_RE) : null);
+P.meet = '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.2 21.5 6v12l-6-4.2"/><path d="M6.5 12h5M9 9.5v5"/>';
+P.once = '<circle cx="12" cy="12" r="9.5"/><path d="M10.5 9 12 7.6V16.5"/>';
+const ONCE_SEEN = () => S.prefs.onceSeen || {};
+const onceOpened = m => m.once && (m.from === S.me ? Object.keys(m.opened || {}).some(u => u !== S.me) : !!(ONCE_SEEN()[m.id] || (m.opened || {})[S.me]));
+function vMeetCard(m, quote, mt) {
+  const url = 'https://meet.google.com/' + mt[1].toLowerCase(), extra = (m.text || '').replace(MEET_RE, '').trim();
+  return `<div class="bub meetcard">${quote}<span class="row" style="gap:10px"><span class="meetic">${ic('meet', 22, 2)}</span><span class="grow"><b style="display:block">Google Meet</b><span class="small" style="opacity:.8">${esc(mt[1].toLowerCase())}${m.from === S.me ? '' : ' · ' + esc(dname(m.from).split(' ')[0]) + ' started a meeting'}</span></span></span>${extra ? `<div style="margin-top:6px">${linkify(extra)}</div>` : ''}<a class="btn sm pri meetjoin" href="${url}" target="_blank" rel="noopener noreferrer">${ic('video', 15)} Join meeting</a></div>`;
+}
+function vOnceBubble(m, quote) {
+  const mine = m.from === S.me, opened = onceOpened(m);
+  if (mine) return `<div class="bub oncebub">${quote}<span class="row" style="gap:10px"><span class="onceic ${opened ? 'done' : ''}">${ic('once', 20, 2)}</span><span><b style="display:block">${opened ? 'Opened' : 'View-once photo'}</b><span class="small" style="opacity:.75">${opened ? 'It\'s gone now' : 'They can open it one time'}</span></span></span></div>`;
+  if (opened || !(m.images || []).length) return `<div class="bub oncebub">${quote}<span class="row" style="gap:10px"><span class="onceic done">${ic('once', 20, 2)}</span><span><b style="display:block">Opened</b><span class="small" style="opacity:.75">View-once photo</span></span></span></div>`;
+  return `<button class="bub oncebub tap" data-a="onceOpen" data-v="${m.id}">${quote}<span class="row" style="gap:10px"><span class="onceic">${ic('once', 20, 2)}</span><span style="text-align:left"><b style="display:block">Photo · view once</b><span class="small" style="opacity:.75">Tap to view. It disappears after.</span></span></span></button>`;
+}
+const _vMsgBodyV15 = vMsgBody;
+vMsgBody = function (m, q, quote) {
+  if (!m.deleted && !(m.from !== S.me && blocked(m.from))) {
+    if (m.once) return vOnceBubble(m, quote);
+    const mt = meetOf(m); if (mt && !m.images && !m.image && !m.poll && !m.audio && !m.video) return vMeetCard(m, quote, mt);
+  }
+  return _vMsgBodyV15(m, q, quote);
+};
+const _msgLabelV15 = msgLabel;
+msgLabel = m => m.once ? 'View-once photo' : m.meet ? 'Google Meet' + (m.text && !MEET_RE.test(m.text) ? ' · ' + m.text : '') : _msgLabelV15(m);
+const _vAttachV15 = vAttach;
+vAttach = function () {
+  let h = _vAttachV15();
+  if ((S.attachTab || 'share') === 'share') {
+    const tile = `<button class="atile" data-a="meetOpen"><span class="aic" style="background:linear-gradient(135deg,#00ac47,#00832d)">${ic('meet', 20, 2)}</span><span>Google Meet</span></button><label class="atile"><span class="aic" style="background:#d94f86">${ic('once', 20, 2)}</span><span>View once</span><input type="file" accept="image/*" class="sr" data-file="sendOnce"></label>`;
+    h = h.replace('<div class="agrid">', '<div class="agrid">' + tile);
+  }
+  return h;
+};
+Object.assign(files, {
+  sendOnce: async f => {
+    if (!f.type.startsWith('image/')) return toast('Pick a photo.');
+    S.attach = false; render();
+    const url = await compress(f, 1280, .8);
+    await sendMessage({ images: [url], once: true, text: '' });
+    toast('View-once photo sent');
+  }
+});
+let meetWatch = null;
+Object.assign(actions, {
+  meetOpen: () => { S.attach = false; S.form.meetUrl = ''; S.authErr = ''; S.modal = { type: 'meet' }; render(); },
+  meetStart: () => {
+    window.open('https://meet.google.com/new', '_blank', 'noopener');
+    S.meetStarted = true; render();
+    // when you come back from Google Meet, grab the link you copied
+    clearTimeout(meetWatch);
+    const back = async () => { window.removeEventListener('focus', back); try { const t = await navigator.clipboard.readText(); const mt = (t || '').match(MEET_RE); if (mt && S.modal?.type === 'meet') { S.form.meetUrl = 'https://meet.google.com/' + mt[1].toLowerCase(); render(); toast('Got your Meet link — tap Send'); } } catch {} };
+    setTimeout(() => window.addEventListener('focus', back), 800);
+  },
+  meetPaste: async () => { try { const t = await navigator.clipboard.readText(); const mt = (t || '').match(MEET_RE); if (!mt) return toast('No Google Meet link copied yet.'); S.form.meetUrl = 'https://meet.google.com/' + mt[1].toLowerCase(); render(); } catch { toast('Long-press the box and tap Paste.'); } },
+  meetSend: async () => {
+    const raw = ($('#meetUrl')?.value ?? S.form.meetUrl ?? '').trim();
+    const mt = raw.match(MEET_RE) || (/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/i.test(raw) ? [raw, raw] : null);
+    if (!mt) { S.authErr = 'Paste a Google Meet link, like meet.google.com/abc-defg-hij'; return render(); }
+    const url = 'https://meet.google.com/' + mt[1].toLowerCase();
+    S.modal = null; S.meetStarted = false; render();
+    await sendMessage({ meet: { url }, text: url });
+  },
+  onceOpen: d => {
+    const m = (S.msgs[S.conv] || []).find(x => x.id === d.v); if (!m || !m.once || m.from === S.me || onceOpened(m)) return;
+    const src = safeImg((m.images || [])[0]); if (!src) return;
+    S.onceView = { id: m.id, src, conv: S.conv }; render();
+  },
+  onceClose: () => {
+    const v = S.onceView; S.onceView = null; if (!v) return render();
+    savePrefs({ onceSeen: { ...ONCE_SEEN(), [v.id]: now() } });
+    db().update(`conversations/${v.conv}/messages/${v.id}`, { ['opened.' + S.me]: now() }).catch(() => {});
+    render();
+  },
+  inviteShare: async () => {
+    const url = location.origin + '/@' + (S.profile?.handle || '');
+    const text = `Come chat with me on Nexa — add me: @${S.profile?.handle}`;
+    try { if (navigator.share) { await navigator.share({ title: 'Nexa', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(url); toast('Invite link copied — paste it to your friends'); } catch { toast(esc(url)); }
+  },
+  annDismiss: d => { savePrefs({ annSeen: d.v }); }
+});
+// the sender cleans up a view-once photo after it's been opened, so the picture is really gone
+const _onceClean = new Set();
+function cleanOnce() {
+  for (const [cid, list] of Object.entries(S.msgs || {})) (list || []).forEach(m => {
+    if (m.once && m.from === S.me && (m.images || []).length && Object.keys(m.opened || {}).some(u => u !== S.me) && !_onceClean.has(m.id)) { _onceClean.add(m.id); db().update(`conversations/${cid}/messages/${m.id}`, { images: [] }).catch(() => {}); }
+  });
+}
+setInterval(cleanOnce, 4000);
+const _vModal5V15 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'meet') return head('Google Meet', 'Start a meeting and send the link here') + `
+    <div class="col" style="gap:12px">
+      <div class="meetstep"><span class="n">1</span><span class="grow"><b>Start a new meeting</b><div class="mute small">Opens Google Meet in a new tab. Copy the meeting link it shows you.</div></span><button class="btn sm pri" data-a="meetStart">${ic('meet', 15)} ${S.meetStarted ? 'Open again' : 'Start'}</button></div>
+      <div class="meetstep"><span class="n">2</span><span class="grow"><b>Send the link</b><div class="mute small">Come back here — we'll paste it for you.</div></span></div>
+      <div class="row" style="gap:8px"><input class="inp grow" id="meetUrl" data-model="form.meetUrl" placeholder="meet.google.com/abc-defg-hij" value="${esc(f.meetUrl || '')}" autocomplete="off"><button class="btn sm" data-a="meetPaste">Paste</button></div>
+      ${S.authErr ? `<div class="err small">${esc(S.authErr)}</div>` : ''}
+      <div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn pri" data-a="meetSend">${ic('send', 16)} Send to chat</button></div>
+      <div class="mute small">Or use Nexa's own calls: the ${ic('video', 13)} button at the top of the chat.</div>
+    </div>`;
+  return _vModal5V15(m, f, head);
+};
+// home: latest announcement + invite friends
+const _vHomeV15 = vHome;
+vHome = function () {
+  let h = _vHomeV15();
+  const ann = (S.notifs || []).filter(n => n.type === 'announcement' && now() - (n.at || 0) < 7 * 864e5 && S.prefs.annSeen !== n.id).sort((a, b) => b.at - a.at)[0];
+  const cards = (ann ? `<section class="panel glass card anncard"><div class="row spread"><b>${esc(ann.title || 'News from Nexa')}</b><button class="ibtn sm" aria-label="Dismiss" data-a="annDismiss" data-v="${ann.id}">${ic('x', 14)}</button></div><div style="line-height:1.5">${esc(ann.body || '')}</div><span class="mute small">From the Nexa team · ${fmtWhen(ann.at)}</span></section>` : '')
+    + (S.profile?.handle ? `<section class="panel glass card invcard"><div class="row" style="gap:12px"><span class="notif-ic" style="background:linear-gradient(135deg,#5b7cff,#9b6bff 60%,#ff8a4c)">${ic('userplus', 18)}</span><span class="grow"><b style="display:block">Invite friends</b><span class="mute small">They tap your link and you're friends in one go</span></span><button class="btn sm pri" data-a="inviteShare">${ic('send', 14)} Share</button></div><div class="mute small ellip" style="margin-top:8px">${esc(location.host + '/@' + S.profile.handle)}</div></section>` : '');
+  if (!cards) return h;
+  // the friends column appears twice (side column on big screens, inline on phones) — add the cards to both
+  const mark = '<h2 class="h2">Online friends</h2>'; let out = '', rest = h, done = false;
+  for (let i = rest.indexOf(mark); i > 0; i = rest.indexOf(mark)) { const s = rest.lastIndexOf('<section', i); if (s < 0) break; out += rest.slice(0, s) + cards + rest.slice(s, i + mark.length); rest = rest.slice(i + mark.length); done = true; }
+  return done ? out + rest : cards + h;
+};
+// invite links: remember who brought a new person in, and make them friends
+async function claimInvite() {
+  const h = lsGet('nexa.addHandle', null); if (!h || !S.me) return;
+  const rec = await db().get('handles/' + h).catch(() => null); if (!rec?.uid || rec.uid === S.me) return;
+  await db().update('users/' + S.me, { ref: rec.uid }).catch(() => {});
+  if (!isFriend(rec.uid) && actions.addFriend) await actions.addFriend({ v: rec.uid }).catch(() => {});
+  notify(rec.uid, { type: 'invite_joined', title: `${S.profile?.name || 'Someone'} joined Nexa from your invite 🎉`, body: 'Accept their friend request to start chatting.', link: { page: 'people' } });
+}
+const _onbNextV15 = actions.onbNext;
+actions.onbNext = async (...a) => {
+  const finishing = S.onbStep >= 2;
+  const r = await _onbNextV15(...a);
+  if (finishing && S.view === 'app' && S.profile) { await claimInvite().catch(() => {}); checkAddHandle(); }
+  return r;
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.onceView) actions.onceClose(); });
+
 // Test hook: only on a local dev server, never on the live site.
 if (location.hostname === 'localhost') Object.assign(window, { S, actions });

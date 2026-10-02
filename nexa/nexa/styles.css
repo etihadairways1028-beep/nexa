@@ -1296,3 +1296,17 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 .calltest{margin-top:10px;padding:12px 14px;border-radius:16px;font-size:13.5px;line-height:1.5}
 .calltest.ok{background:rgba(63,209,122,.14);border:1px solid rgba(63,209,122,.4)}
 .calltest.bad{background:rgba(255,170,60,.12);border:1px solid rgba(255,170,60,.4)}
+
+/* ===== v15: Google Meet, view once, invite, announcements ===== */
+.meetcard{display:flex;flex-direction:column;gap:8px;min-width:230px}
+.meetic{width:42px;height:42px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,#00ac47,#00832d);box-shadow:0 6px 16px -6px rgba(0,172,71,.7);flex:none}
+.meetjoin,.meetjoin:hover{align-self:flex-start;text-decoration:none!important}
+.meetstep{display:flex;gap:12px;align-items:center;padding:12px;border-radius:18px;background:color-mix(in oklab,var(--text,#fff) 6%,transparent)}
+.meetstep .n{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:linear-gradient(135deg,#00ac47,#3d7bff);color:#fff;flex:none}
+.oncebub{min-width:200px;text-align:left;border:0;font:inherit;color:inherit}
+.oncebub.tap{cursor:pointer}
+.onceic{width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,#d94f86,#9b6bff);flex:none}
+.onceic.done{background:rgba(127,127,127,.35)}
+.onceview img{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.oncebar{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:10px 16px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-weight:700;font-size:14px;white-space:nowrap}
+.anncard{display:flex;flex-direction:column;gap:8px;background-image:linear-gradient(135deg,color-mix(in oklab,#ff8a4c 18%,transparent),color-mix(in oklab,#9b6bff 18%,transparent))!important}
