@@ -3,7 +3,14 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>Nexa Owner</title>
-<link rel="icon" href="../icon-192-v3.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#05070f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nexa Owner">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 :root{--ac:#3d7bff;--ac2:#5aa2ff;--mint:#5ff2c8;--text:#eef2ff;--mute:rgba(220,228,255,.68);--line:rgba(255,255,255,.14)}
 *{box-sizing:border-box;margin:0}
@@ -25,7 +32,7 @@ h1{font-size:28px;letter-spacing:-.02em}h2{font-size:17px;margin-bottom:10px}
 label{display:flex;flex-direction:column;gap:8px;font-weight:700;font-size:14px}
 .err{color:#ff9aa8;font-weight:600;font-size:14px}.ok{color:var(--mint);font-weight:600;font-size:14px}
 .gate{max-width:440px;margin:8vh auto 0;display:flex;flex-direction:column;gap:16px}
-.logo{width:56px;height:56px;border-radius:16px;background:url(../icon-192-v3.png) center/cover;box-shadow:0 0 40px rgba(80,140,255,.6)}
+.logo{width:56px;height:56px;border-radius:16px;background:url(icon-192.png) center/cover;box-shadow:0 0 40px rgba(80,140,255,.6)}
 .steps{display:flex;gap:6px}.steps i{height:5px;flex:1;border-radius:3px;background:rgba(255,255,255,.18)}.steps i.on{background:var(--mint)}
 .qr{background:#fff;border-radius:18px;padding:10px;width:220px;align-self:center}.qr svg{display:block;width:100%;height:auto}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
@@ -198,6 +205,9 @@ function vSettings() {
     ${(d.bans || []).length ? d.bans.map(b => { const p = d.users.find(x => x.id === b.id) || {}; return `<div class="setrow"><span><b>${esc(p.name || 'Nexa user')}</b> <span class="mute small">${p.handle ? '@' + esc(p.handle) : ''}</span><div class="mute small">${fmtD(b.at)}${b.reason ? ' · ' + esc(b.reason) : ''}</div></span><button class="btn sm" data-unban="${b.id}" data-name="${esc(p.name || '')}">Unban</button></div>`; }).join('') : '<div class="mute small">No one is banned. Ban people from <b>Overview → Everyone</b> or inside a chat.</div>'}
     <div class="mute small">Banned people can't send messages, friend requests, events or moments.</div>
   </section>
+  <section class="glass card"><h2>📲 Install Nexa Owner</h2>
+    ${standalone ? '<div class="fixed">✅ You\'re using the installed Nexa Owner app.</div>' : S.installEvt ? '<div class="mute small">Get Nexa Owner as its own app with the gold-crown icon — separate from Nexa.</div><button class="btn pri" id="installOwner" style="align-self:flex-start">Install Nexa Owner</button>' : isIOS ? '<ol class="mute small" style="padding-left:18px;line-height:1.8"><li>Open this page in <b>Safari</b></li><li>Tap <b>Share</b> (square with arrow)</li><li>Tap <b>Add to Home Screen</b> → <b>Add</b></li></ol>' : '<ol class="mute small" style="padding-left:18px;line-height:1.8"><li><b>Chrome / Edge:</b> click the install icon (screen with ↓) at the right of the address bar, or <b>⋮ → Cast, save and share → Install page as app</b></li><li><b>Android:</b> <b>⋮ → Add to Home screen → Install</b></li><li><b>iPhone:</b> Safari → Share → Add to Home Screen</li></ol>'}
+  </section>
   <section class="glass card"><h2>🔒 Security</h2>
     <form id="f-pin" style="display:flex;flex-direction:column;gap:10px"><b class="small">Change owner PIN</b><input class="inp code" id="op" type="password" inputmode="numeric" placeholder="Current PIN" required style="font-size:18px"><input class="inp code" id="np1" type="password" inputmode="numeric" placeholder="New PIN" minlength="6" maxlength="12" required style="font-size:18px"><input class="inp code" id="np2" type="password" inputmode="numeric" placeholder="New PIN again" required style="font-size:18px"><button class="btn" style="align-self:flex-start">Change PIN</button></form>
     <b class="small">Where your sign-in code goes</b>
@@ -267,6 +277,12 @@ async function route() {
   catch (e) { if (e.code === 'verify-email') { S.uid = u.uid; S.err = ''; S.step = 'verify'; return render(); } S.err = e.message; S.step = 'signin'; render(); }
 }
 A.onAuthStateChanged(auth, () => route());
+// installable as its own app ("Nexa Owner") — uses the same Nexa service worker
+try { navigator.serviceWorker?.register('/sw.js'); } catch {}
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; if (S.step === 'dash') renderKeep(); });
+window.addEventListener('appinstalled', () => { S.installEvt = null; S.flash = '✅ Nexa Owner is installed — find it on your home screen / apps.'; if (S.step === 'dash') renderKeep(); });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const id = e.target.id; const v = Object.fromEntries([...e.target.querySelectorAll('input')].map(i => [i.id, i.value])); S.err = ''; S.okMsg = ''; S.busy = true; render();
   try {
@@ -298,6 +314,7 @@ document.addEventListener('click', async e => {
   if (t.id === 'saveAuto') { await savePrefs({ autoReply: $('#autoReply').value }); S.flash = '✅ Auto-reply saved.'; renderKeep(); return; }
   if (t.id === 'announce') { const text = $('#annText').value.trim(), title = $('#annTitle').value.trim(); if (!text) return alert('Write your announcement first.'); if (!confirm('Send this to EVERYONE on Nexa?\n\n' + (title ? title + '\n' : '') + text)) return; t.disabled = true; t.textContent = 'Sending…'; try { const r = await api('announce', { title, text }); $('#annText').value = ''; $('#annTitle').value = ''; S.flash = `📣 Sent to ${r.people} people (${r.pushed} phone notifications).`; } catch (er) { alert(er.message); } renderKeep(); return; }
   if (t.dataset.setmethod) { const m = t.dataset.setmethod; if (m === S.method && !S.newTotp) return; try { const r = await api('setMethod', { method: m }); if (r.secret) { const Q = (await import('../qr.js')).default; const q = Q(0, 'M'); q.addData(r.otpauth); q.make(); S.newTotp = { secret: r.secret, qr: q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }) }; } else { S.method = r.method; S.newTotp = null; S.flash = '✅ Codes will now go to ' + (r.method === 'email' ? 'your email' : 'your @shiv account in Nexa') + '.'; } renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (t.id === 'installOwner' && S.installEvt) { S.installEvt.prompt(); await S.installEvt.userChoice.catch(() => {}); S.installEvt = null; renderKeep(); return; }
   if (t.id === 'logoutAll') { if (!confirm('Sign out of the owner page on every device?')) return; try { await api('logoutAll'); } catch {} lockOut('Signed out everywhere. Unlock again to continue.'); return; }
   if (t.id === 'out') { S.session = ''; sessionStorage.removeItem('nexa.owner.session'); S.data = null; await A.signOut(auth); }
   if (t.id === 'refresh') { t.textContent = 'Refreshing…'; loadData(); if (S.cid) loadThread(); }
