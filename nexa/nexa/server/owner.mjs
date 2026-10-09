@@ -3,6 +3,7 @@
 // (3) a 6-digit code from an authenticator app (2-step verification). 5 wrong tries = locked for 15 minutes.
 // Shows how many people use Nexa and who they are (name, @username, email) — never passwords.
 import admin from './fbadmin.js';
+import { sendMail, mailReady, emailHtml } from './mail.mjs';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 
@@ -186,14 +187,14 @@ export default async (req) => {
 
   const method = sec.method || (sec.totp ? 'totp' : '');
   const active = !!(sec.active || sec.totp) && sec.hv === 2;
-  if (body.action === 'status') { ensureOwnerHandle(db, tok.uid).catch(() => {}); return json({ version: 4, setup: active, method, locked: (sec.lockUntil || 0) > now ? sec.lockUntil : 0, emailReady: !!process.env.RESEND_API_KEY }); }
+  if (body.action === 'status') { ensureOwnerHandle(db, tok.uid).catch(() => {}); return json({ version: 4, setup: active, method, locked: (sec.lockUntil || 0) > now ? sec.lockUntil : 0, emailReady: await mailReady(db) }); }
 
   // first-time setup: choose a PIN, then how you get your second code
   if (body.action === 'setup') {
     if (active) return json({ error: 'Already set up' }, 400);
     const pin = String(body.pin || ''); if (!/^\d{6,12}$/.test(pin)) return json({ error: 'Your PIN must be 6 to 12 numbers.' }, 400);
     const how = ['nexa', 'email', 'totp'].includes(body.method) ? body.method : 'totp';
-    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY (Cloudflare settings) first (see the steps).' }, 400);
+    if (how === 'email' && !(await mailReady(db))) return json({ error: 'Email codes need an email server first — add one in Nexa Support → Settings → Email.' }, 400);
     const salt = crypto.randomBytes(16).toString('hex');
     const base = { hv: 2, pinHash: hashPin(pin, salt), salt, sessionKey: crypto.randomBytes(32).toString('hex'), uid: tok.uid, fails: 0, lockUntil: 0, createdAt: now, method: how };
     if (how === 'totp') {
@@ -218,8 +219,8 @@ export default async (req) => {
     const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
     await ref.update({ codeHash: hashPin(code, sec.salt), codeExp: now + 10 * 60e3, codeSentAt: now, codeTries: 0 });
     if (method === 'email') {
-      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ from: process.env.RESEND_FROM || 'Nexa Owner <onboarding@resend.dev>', to: [OWNER_EMAIL], subject: `Your Nexa Owner code: ${code}`, html: `<div style="font-family:system-ui;padding:20px"><h2>Nexa Owner sign-in</h2><p>Your code is</p><p style="font-size:34px;font-weight:800;letter-spacing:8px">${code}</p><p style="color:#666">It works for 10 minutes. If you didn't try to open the owner page, change your password.</p></div>` }) });
-      if (!r.ok) return json({ error: 'The email couldn\'t be sent (' + r.status + '). Check RESEND_API_KEY (Cloudflare settings).' }, 502);
+      try { await sendMail(db, { to: OWNER_EMAIL, subject: `Your Nexa Owner code: ${code}`, text: `Your Nexa Owner sign-in code is ${code}. It works for 10 minutes. If this wasn't you, change your password.`, html: emailHtml('Nexa Owner sign-in', `Your code is<div style="font-size:34px;font-weight:800;letter-spacing:8px;color:#fff;padding:10px 0">${code}</div>It works for 10 minutes. If you didn't try to open the owner page, change your password.`) }); }
+      catch (e) { return json({ error: 'The email couldn\'t be sent: ' + e.message }, 502); }
       return json({ ok: true, to: OWNER_EMAIL.replace(/^(.).*(@.*)$/, '$1•••$2') });
     }
     // Nexa: notification + push to the @shiv account
@@ -335,7 +336,7 @@ export default async (req) => {
     const how = body.method;
     if (how === 'totp') { const secret = b32enc(crypto.randomBytes(20)); await ref.update({ pendingTotp: secret }); return ok({ secret, otpauth: `otpauth://totp/Nexa%20Owner:${encodeURIComponent(OWNER_EMAIL)}?secret=${secret}&issuer=Nexa%20Owner&digits=6&period=30` }); }
     if (!['nexa', 'email'].includes(how)) return json({ error: 'Pick a method' }, 400);
-    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY (Cloudflare settings) first.' }, 400);
+    if (how === 'email' && !(await mailReady(db))) return json({ error: 'Email codes need an email server first — add one in Nexa Support → Settings → Email.' }, 400);
     await ref.update({ method: how });
     return ok({ method: how });
   }

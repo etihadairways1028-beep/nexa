@@ -4,6 +4,7 @@
 // Agents can read & answer help chats as @support, see flagged (offensive) messages and reports,
 // warn, ban/unban, and message anyone (with or without letting them reply).
 import admin from './fbadmin.js';
+import { sendMail, smtpSettings, emailHtml } from './mail.mjs';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { deliver, sendAs, warnUser, setReply, startStaffChat, ensureStaffHandle } from './owner.mjs';
@@ -225,16 +226,37 @@ export default async (req) => {
   if (body.action === 'askUpdate') {
     const ids = [...new Set((Array.isArray(body.uids) ? body.uids : []).filter(uidOk))].slice(0, 400);
     const v = String(body.version || '').slice(0, 12);
-    let n = 0;
+    let n = 0, emailed = 0;
     for (const u of ids) {
       try {
         const nd = await db.collection('notifications').add({ to: u, from: me, type: 'update_ask', title: '🚀 Update Nexa', body: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready — open Nexa and tap Update now.`, at: now, read: false });
         await db.doc('users/' + u).update({ updateAskedAt: now }).catch(() => {});
         await deliver(db, u, { kind: 'notification', title: '🚀 Update Nexa', body: 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd_' + nd.id }, 86400).catch(() => 0);
+        if (body.email && n < 100) { try { const au = await admin.auth().getUser(u); if (au.email) await sendMail(db, { to: au.email, subject: '🚀 A new Nexa update is ready', text: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready. Open Nexa and tap "Update now". ${new URL(req.url).origin}`, html: emailHtml('A new Nexa update is ready 🚀', `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready with new features and fixes.<br><br>Open Nexa and tap <b style="color:#fff">Update now</b>.`, { url: new URL(req.url).origin, label: 'Open Nexa' }) }); emailed++; } catch {} }
         n++;
       } catch {}
     }
-    return ok({ asked: n });
+    return ok({ asked: n, emailed });
+  }
+  // ---------- email (SMTP) settings for every email Nexa sends — changeable here
+  if (body.action === 'smtpGet') {
+    const s = sec.smtp || {}, srv = await smtpSettings(db).catch(() => null);
+    return ok({ smtp: { host: s.host || '', port: s.port || 587, security: s.security || 'starttls', user: s.user || '', hasPass: !!s.pass, from: s.from || '', fromName: s.fromName || 'Nexa', enabled: s.enabled !== false, updatedBy: s.updatedBy || '', updatedAt: s.updatedAt || 0 }, active: srv ? srv.source : (process.env.RESEND_API_KEY ? 'resend' : '') });
+  }
+  if (body.action === 'smtpSave') {
+    const x = body.smtp || {}, cur = sec.smtp || {};
+    const host = String(x.host || '').trim().slice(0, 200);
+    if (host && !/^[a-z0-9.-]+$/i.test(host)) return json({ error: 'The server name looks wrong (like smtp.gmail.com).' }, 400);
+    const port = Math.round(+x.port || 0); if (host && (port < 1 || port > 65535)) return json({ error: 'The port should be a number like 587 or 465.' }, 400);
+    const from = String(x.from || '').trim().slice(0, 200); if (host && from && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(from)) return json({ error: 'The "From" email address looks wrong.' }, 400);
+    const smtp = { host, port: port || 587, security: ['starttls', 'ssl', 'none'].includes(x.security) ? x.security : 'starttls', user: String(x.user || '').trim().slice(0, 200), pass: x.pass ? String(x.pass).slice(0, 300) : (cur.pass || ''), from, fromName: String(x.fromName || 'Nexa').trim().slice(0, 80), enabled: x.enabled !== false, updatedBy: agent.name, updatedAt: now };
+    await ref.update({ smtp: host ? smtp : admin.firestore.FieldValue.delete() });
+    return ok({ saved: true });
+  }
+  if (body.action === 'smtpTest') {
+    const to = String(body.to || '').trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return json({ error: 'Type the email address to send the test to.' }, 400);
+    try { const r = await sendMail(db, { to, subject: 'Nexa test email ✅', text: `This is a test from Nexa Support (sent by ${agent.name}). Your email settings work!`, html: emailHtml('It works! ✅', `This is a test email from Nexa Support, sent by <b style="color:#fff">${agent.name}</b>.<br>Nexa can now send emails from your own email server.`) }); return ok({ sent: true, via: r.via }); }
+    catch (e) { return json({ error: e.message }, 502); }
   }
   if (body.action === 'logoutAll') { await ref.update({ sessionsFrom: now + 1 }); return json({ done: true }); }
   return json({ error: 'Unknown action' }, 400);

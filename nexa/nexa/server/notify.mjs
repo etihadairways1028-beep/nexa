@@ -3,6 +3,7 @@
 // It checks the caller really is that sender, then sends a push to the other people through Firebase Cloud Messaging,
 // so they get it on their phone / iPad / laptop even when Nexa is closed.
 import admin from './fbadmin.js';
+import { sendMail, mailReady, emailHtml } from './mail.mjs';
 import { Buffer } from 'node:buffer';
 import { avatarSig } from './avatar.mjs';
 import { sendAs, pushAgents, dayKey } from './owner.mjs';
@@ -115,6 +116,18 @@ export default async (req) => {
   if (!KEY) { try { const raw = process.env.FIREBASE_SERVICE_ACCOUNT; KEY = JSON.parse(raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8')).private_key || ''; } catch {} }
   const icon = iconFor(req, uid, sender);
   if ((await db.doc('bans/' + uid).get()).exists) return json({ ok: false, skip: 'banned' });
+
+  // ---------- welcome email, once per account (only if an email server is set up)
+  if (body.kind === 'welcome') {
+    try {
+      const tok = await admin.auth().getUser(uid); const email = tok.email;
+      if (!email || !(await mailReady(db))) return json({ ok: false, skip: 'no-mail' });
+      try { await db.doc('mailLog/welcome_' + uid).create({ to: email, at: Date.now() }); } catch { return json({ ok: true, skip: 'already-sent' }); }
+      const site = new URL(req.url).origin, first = String(sender.name || '').split(' ')[0] || 'there';
+      await sendMail(db, { to: email, subject: 'Welcome to Nexa 💙', text: `Hi ${first}! Welcome to Nexa — a messaging app like never before. Your username is @${sender.handle || ''}. Add friends by their full @username, share moments, make groups and call. Open Nexa: ${site}`, html: emailHtml(`Welcome to Nexa, ${first.replace(/[<>&]/g, '')}! 💙`, `You're all set. Your username is <b style="color:#fff">@${String(sender.handle || '').replace(/[<>&]/g, '')}</b>.<br><br>✨ Add friends by their full @username<br>📸 Share moments with songs<br>👥 Make groups and call your friends<br><br>Need help? Tap <b>Help</b> in Nexa to reach Nexa Support.`, { url: site, label: 'Open Nexa' }) });
+      return json({ ok: true, sent: true });
+    } catch (e) { return json({ ok: false, error: e.message }); }
+  }
 
   // ---------- a new chat message
   if (body.kind === 'message') {
