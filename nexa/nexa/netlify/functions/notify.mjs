@@ -4,7 +4,7 @@
 // so they get it on their phone / iPad / laptop even when Nexa is closed.
 import admin from 'firebase-admin';
 import { avatarSig } from './avatar.mjs';
-import { sendAs } from './owner.mjs';
+import { sendAs, pushAgents, dayKey } from './owner.mjs';
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 const ID = /^[\w-]{1,200}$/;
@@ -47,6 +47,31 @@ async function deliver(db, uid, data, ttl, exclude) {
   res.responses.forEach((r, i) => { const code = r.error && r.error.code || ''; if (!r.success && /registration-token-not-registered|invalid-registration-token|invalid-argument/.test(code)) dead.push(tokens[i]); });
   if (dead.length) await pdoc.update({ tokens: admin.firestore.FieldValue.arrayRemove(...dead) }).catch(() => {});
   return res.successCount;
+}
+
+// ---------- offensive message detection → flagged for the support team
+const BAD = ['fuck', 'fck', 'fuk', 'fking', 'fcking', 'fukin', 'fucker', 'fucking', 'motherfucker', 'shit', 'bullshit', 'bitch', 'bastard', 'asshole', 'arsehole', 'dick', 'dickhead', 'cunt', 'pussy', 'whore', 'slut', 'wanker', 'twat', 'prick', 'retard', 'retarded', 'faggot', 'fag', 'nigger', 'nigga', 'chink', 'spic', 'kike', 'paki', 'tranny', 'dyke', 'cock', 'cocksucker', 'douchebag', 'stfu', 'kys'];
+const PHRASES = ['kill yourself', 'kill urself', 'go die', 'you should die', 'i will kill you', 'ill kill you', 'hope you die', 'neck yourself'];
+const LEET = { '0': 'o', '1': 'i', '!': 'i', '3': 'e', '4': 'a', '@': 'a', '5': 's', '$': 's', '7': 't', '+': 't' };
+const BAD_RE = new RegExp('\\b(' + BAD.map(w => w.split('').map(c => c + '+').join('')).join('|') + ')(s|es|ed|ing|er|ers)?\\b', 'i');
+export function offensive(text) {
+  const t = String(text || '').toLowerCase().replace(/[01!34@5$7+]/g, c => LEET[c] || c).replace(/[*_.\-]/g, '').replace(/\s+/g, ' ');
+  const hits = []; const m = t.match(BAD_RE); if (m) hits.push(m[1]);
+  PHRASES.forEach(p => { if (t.includes(p)) hits.push(p); });
+  return hits;
+}
+async function checkMessage(db, uid, name, cid, conv, mid, msg) {
+  const hits = offensive(msg.text); if (!hits.length) return;
+  const id = 'f_' + cid + '_' + mid; const ref = db.doc('flags/' + id);
+  try { await ref.create({ conv: cid, msg: mid, from: uid, fromName: name, text: String(msg.text || '').slice(0, 400), words: hits.slice(0, 5), at: Date.now(), status: 'open', convType: conv.type || 'dm', convName: conv.name || '' }); } catch { return; }
+  await pushAgents(db, { title: '🚩 Offensive message', body: `${name}: ${String(msg.text || '').slice(0, 120)}`, url: '/support/#flags', tag: 'flag_' + id });
+}
+async function supportForward(db, uid, name, cid, conv, msg) {
+  const sec = (await db.doc('supportSecrets/main').get()).data() || {};
+  const sup = (process.env.SUPPORT_UID || '').trim() || sec.uid;
+  if (!sup || uid === sup || !(conv.members || []).includes(sup)) return;
+  await pushAgents(db, { title: `💬 ${name} needs help`, body: label(msg).slice(0, 140), url: '/support/#inbox', tag: 'sup_' + cid });
+  if (sec.autoReply && !conv.autoReplied) { await db.doc('conversations/' + cid).update({ autoReplied: true }); await sendAs(db, sup, cid, conv, sec.autoReply, null, { agent: 'Nexa Support', staff: 'support', auto: true }); }
 }
 
 async function ownerForward(db, uid, name, cid, conv, msg, icon, req) {
@@ -105,10 +130,12 @@ export default async (req) => {
       const mentioned = !isDm && (msg.mentions || []).includes(u);
       if (prefs.deviceNotifs === false || ((prefs.muted || {})[cid] && !mentioned) || (prefs.blocked || []).includes(uid) || (prefs.notif && prefs.notif.msg === false)) return;
       const text = prefs.pushPreview === false ? 'New message' : label(msg).slice(0, 140);
-      sent += await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon }, 86400);
+      sent += await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon, vibe: (prefs.alerts || {}).vibe || '', silent: (prefs.alerts || {}).push === 'silent' ? '1' : '' }, 86400);
     }));
     // Someone messaged @owner → tell your everyday @shiv account, and send the auto-reply if you set one.
-    if (isDm) { try { await ownerForward(db, uid, name, cid, conv, msg, icon, req); } catch {} }
+    if (isDm) { try { await ownerForward(db, uid, name, cid, conv, msg, icon, req); } catch {} try { await supportForward(db, uid, name, cid, conv, msg); } catch {} }
+    try { await checkMessage(db, uid, name, cid, conv, mid, msg); } catch {}
+    try { await db.doc('stats/' + dayKey()).set({ day: dayKey(), messages: admin.firestore.FieldValue.increment(1) }, { merge: true }); } catch {}
     return json({ ok: true, sent });
   }
 
@@ -133,6 +160,17 @@ export default async (req) => {
     if ((t.startsWith('friend') && prefs.notif && prefs.notif.friend === false) || (t.startsWith('event') && prefs.notif && prefs.notif.event === false)) return json({ ok: true, skip: 'off' });
     const link = n.link || {};
     const sent = await deliver(db, n.to, { kind: 'notification', title: n.title || 'Nexa', body: n.body || '', chat: link.page === 'conv' ? link.id || '' : '', page: link.page && link.page !== 'conv' ? (link.page === 'profile' ? 'people' : link.page === 'community' ? 'notifications' : link.page) : 'notifications', tag: 'n_' + nid, icon }, 86400);
+    return json({ ok: true, sent });
+  }
+
+  // ---------- someone reported a person → tell the support team
+  if (body.kind === 'report') {
+    const id = String(body.id || ''); if (!ID.test(id)) return json({ error: 'Bad request' }, 400);
+    const r = (await db.doc('reports/' + id).get()).data();
+    if (!r || r.reporter !== uid || Date.now() - (r.at || 0) > FRESH_MS) return json({ ok: false, skip: 'invalid' });
+    if (!(await once(db, 'r_' + id))) return json({ ok: true, skip: 'duplicate' });
+    const t = (await db.doc('users/' + (r.target || 'x')).get()).data() || {};
+    const sent = await pushAgents(db, { title: '🚩 New report', body: `${name} reported ${t.name || 'someone'}${r.reason ? ' — ' + r.reason : ''}`, url: '/support/#reports', tag: 'rep_' + id });
     return json({ ok: true, sent });
   }
 

@@ -71,18 +71,68 @@ export async function deliver(db, uid, data, ttl) {
 }
 
 // Send a chat message as the owner account (used by replies from the owner page and auto-replies).
-export async function sendAs(db, me, cid, conv, text, req) {
+export async function sendAs(db, me, cid, conv, text, req, extra = {}) {
   const at = Date.now();
-  const ref = await db.collection(`conversations/${cid}/messages`).add({ from: me, at, text });
+  const ref = await db.collection(`conversations/${cid}/messages`).add({ from: me, at, text, ...extra });
   await db.doc('conversations/' + cid).update({ last: { text: text.slice(0, 140), from: me, at, exp: 0 }, ['reads.' + me]: at, ['typing.' + me]: 0 });
   const prof = (await db.doc('users/' + me).get()).data() || {};
   await Promise.all((conv.members || []).filter(u => u !== me).map(async u => {
     const prefs = (await db.doc(`users/${u}/private/prefs`).get()).data() || {};
     if (prefs.deviceNotifs === false || (prefs.muted || {})[cid]) return;
-    await deliver(db, u, { kind: 'message', title: prof.name || 'Nexa Owner', body: prefs.pushPreview === false ? 'New message' : text.slice(0, 140), chat: cid, tag: 'c_' + cid, msg: ref.id }, 86400).catch(() => 0);
+    await deliver(db, u, { kind: 'message', title: (extra.agent ? extra.agent + ' · ' : '') + (prof.name || 'Nexa'), body: prefs.pushPreview === false ? 'New message' : text.slice(0, 140), chat: cid, tag: 'c_' + cid, msg: ref.id }, 86400).catch(() => 0);
   }));
   return ref.id;
 }
+
+// ---------- shared staff tools (used by the owner page and the support page)
+// An official, numbered warning: shows as a big "Warning" screen in Nexa until they tap "I understand".
+export async function warnUser(db, uid, reason, by, byName) {
+  const at = Date.now(), text = String(reason || '').trim().slice(0, 300) || 'Please keep Nexa friendly and respectful.';
+  let n = 1; try { n = (await db.collection('warnings').where('to', '==', uid).count().get()).data().count + 1; } catch {}
+  await db.collection('warnings').add({ to: uid, by, byName: byName || '', reason: text, at });
+  const nd = await db.collection('notifications').add({ to: uid, from: by, type: 'admin_warn', title: `⚠️ Official warning${n > 1 ? ' #' + n : ''} from Nexa`, body: text, warnNo: n, at, read: false });
+  await deliver(db, uid, { kind: 'notification', title: `⚠️ Warning from Nexa${n > 1 ? ' (#' + n + ')' : ''}`, body: text, page: 'notifications', tag: 'n_' + nd.id }, 86400).catch(() => 0);
+  return n;
+}
+// Let the other person reply in a staff chat, or make it announcement-style (only staff can write).
+export async function setReply(db, cid, conv, me, allow) {
+  const others = (conv.members || []).filter(u => u !== me);
+  await db.doc('conversations/' + cid).update({ readOnlyFor: allow ? [] : others });
+}
+export async function startStaffChat(db, me, u, allowReply) {
+  const cid = 'dm_' + [me, u].sort().join('__'); const r = db.doc('conversations/' + cid);
+  const ex = await r.get();
+  if (!ex.exists) await r.set({ type: 'dm', members: [me, u].sort(), createdAt: Date.now(), reads: {}, typing: {}, help: true, readOnlyFor: allowReply === false ? [u] : [] });
+  else if (allowReply != null) await r.update({ readOnlyFor: allowReply === false ? [u] : [] });
+  return cid;
+}
+// Makes sure an official account (@support) points at the right login.
+export async function ensureStaffHandle(db, uid, handle, name, bio) {
+  const fixed = [];
+  const [h, p] = await Promise.all([db.doc('handles/' + handle).get(), db.doc('users/' + uid).get()]);
+  if (!h.exists || h.data().uid !== uid) { await db.doc('handles/' + handle).set({ uid }); fixed.push('@' + handle + ' now points to this account'); }
+  const prof = p.data();
+  if (!prof) { await db.doc('users/' + uid).set({ name, nameLower: name.toLowerCase(), handle, handleLower: handle, bio, avatar: '', status: 'online', createdAt: Date.now(), lastSeen: Date.now(), showOnline: true, receipts: true, typingOn: true, discoverable: true, allowRequests: 'everyone', allowMessages: 'everyone', staff: handle }); fixed.push('created the @' + handle + ' profile'); }
+  else {
+    const patch = {};
+    if ((prof.handleLower || '') !== handle) { if (prof.handleLower) { const old = await db.doc('handles/' + prof.handleLower).get(); if (old.exists && old.data().uid === uid) await db.doc('handles/' + prof.handleLower).delete(); } Object.assign(patch, { handle, handleLower: handle }); fixed.push('username set to @' + handle); }
+    if (prof.allowMessages === 'friends') patch.allowMessages = 'everyone';
+    if (prof.staff !== handle) patch.staff = handle;
+    if (Object.keys(patch).length) await db.doc('users/' + uid).update(patch);
+  }
+  return { handle, fixed, name: (prof && prof.name) || name };
+}
+// Push to everyone signed in on the support app (Shiv, Arrick, Yaseen…)
+export async function pushAgents(db, data) {
+  const sec = (await db.doc('supportSecrets/main').get()).data() || {};
+  const tokens = Object.keys(sec.devices || {}).filter(Boolean).slice(0, 40);
+  if (!tokens.length) return 0;
+  const res = await admin.messaging().sendEachForMulticast({ tokens, data: Object.fromEntries(Object.entries({ kind: 'notification', page: 'notifications', ...data }).map(([k, v]) => [k, String(v ?? '')])), webpush: { headers: { Urgency: 'high', TTL: '86400' } } });
+  const dead = []; res.responses.forEach((r, i) => { const c = r.error && r.error.code || ''; if (!r.success && /not-registered|invalid-registration|invalid-argument/.test(c)) dead.push(tokens[i]); });
+  if (dead.length) { const devs = { ...(sec.devices || {}) }; dead.forEach(t => delete devs[t]); await db.doc('supportSecrets/main').update({ devices: devs }).catch(() => {}); }
+  return res.successCount;
+}
+export const dayKey = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 
 async function dashboard(db) {
   const accounts = {};
@@ -92,7 +142,7 @@ async function dashboard(db) {
     for (const u of page.users) accounts[u.uid] = { email: u.email || '', verified: !!u.emailVerified, created: ms(u.metadata && u.metadata.creationTime), lastSignIn: ms(u.metadata && u.metadata.lastSignInTime), disabled: !!u.disabled };
   } while (page.pageToken && Object.keys(accounts).length < 20000);
   const profiles = {};
-  (await db.collection('users').get()).forEach(d => { const p = d.data() || {}; profiles[d.id] = { name: p.name || '', handle: p.handle || '', lastSeen: ms(p.lastSeen), createdAt: ms(p.createdAt), deleted: !!p.deleted, bio: p.bio || '', ref: typeof p.ref === 'string' ? p.ref : '' }; });
+  (await db.collection('users').get()).forEach(d => { const p = d.data() || {}; profiles[d.id] = { name: p.name || '', handle: p.handle || '', lastSeen: ms(p.lastSeen), createdAt: ms(p.createdAt), deleted: !!p.deleted, bio: p.bio || '', ref: typeof p.ref === 'string' ? p.ref : '', avatar: typeof p.avatar === 'string' && p.avatar.length < 40000 ? p.avatar : '' }; });
   const ids = [...new Set([...Object.keys(accounts), ...Object.keys(profiles)])];
   const users = ids.map(id => { const ac = accounts[id] || {}, pr = profiles[id] || {}; return { id, name: pr.name || '', handle: pr.handle || '', email: ac.email || '', verified: !!ac.verified, joined: pr.createdAt || ac.created || 0, lastActive: Math.max(pr.lastSeen || 0, ac.lastSignIn || 0), finishedSignup: !!profiles[id], deleted: !!pr.deleted, ref: pr.ref || '' }; }).sort((x, y) => y.joined - x.joined);
   const now = Date.now(), day = 864e5;
@@ -105,6 +155,10 @@ async function dashboard(db) {
   return {
     stats: { users: users.filter(u => !u.deleted).length, unfinished: users.filter(u => !u.finishedSignup).length, new24h: users.filter(u => now - u.joined < day).length, new7d: users.filter(u => now - u.joined < 7 * day).length, active24h: users.filter(u => now - u.lastActive < day).length, active7d: users.filter(u => now - u.lastActive < 7 * day).length, onlineNow: users.filter(u => now - u.lastActive < 3 * 60e3).length, chats, groups, messages, events, moments, reports, bans, friendships },
     signups, users, at: now,
+    msgDays: await (async () => { const out = []; for (let i = 29; i >= 0; i--) { const k = dayKey(now - i * day); out.push({ day: k, n: 0 }); } try { const qs = await db.collection('stats').where('day', '>=', out[0].day).get(); const m = {}; qs.docs.forEach(d => { const v = d.data(); m[v.day] = v.messages || 0; }); out.forEach(o => { o.n = m[o.day] || 0; }); } catch {} return out; })(),
+    safety: await (async () => { const c = async q => { try { return (await q.count().get()).data().count; } catch { return null; } }; return { flagsOpen: await c(db.collection('flags').where('status', '==', 'open')), warnings: await c(db.collection('warnings')) }; })(),
+    newest: users.filter(u => u.finishedSignup && !u.deleted).slice(0, 8).map(u => ({ id: u.id, name: u.name, handle: u.handle, joined: u.joined, avatar: (profiles[u.id] || {}).avatar || '' })),
+    online: users.filter(u => now - u.lastActive < 3 * 60e3).slice(0, 12).map(u => ({ id: u.id, name: u.name, handle: u.handle, avatar: (profiles[u.id] || {}).avatar || '' })),
     inviters: Object.entries(users.reduce((o, u) => { if (u.ref) o[u.ref] = (o[u.ref] || 0) + 1; return o; }, {})).map(([id, n]) => { const u = users.find(x => x.id === id) || {}; return { id, n, name: u.name || 'Nexa user', handle: u.handle || '' }; }).sort((a, b) => b.n - a.n).slice(0, 10)
   };
 }
@@ -119,7 +173,7 @@ export default async (req) => {
   if ((tok.email || '').toLowerCase() !== OWNER_EMAIL) return json({ error: 'This page is only for the owner of Nexa.' }, 403);
   // Proof it's really the owner: either the account's ID is saved in Netlify (OWNER_UID), or the email is verified.
   const ownerUid = (process.env.OWNER_UID || '').trim();
-  if (ownerUid ? tok.uid !== ownerUid : !tok.email_verified) return json({ error: 'verify-email', message: ownerUid ? 'This account isn\'t the one saved as OWNER_UID in Netlify.' : 'Confirm it\'s you: add OWNER_UID in Netlify (see the steps), or verify your email.', uid: tok.uid }, 403);
+  if (ownerUid ? tok.uid !== ownerUid : !tok.email_verified) return json({ error: 'verify-email', message: ownerUid ? 'This account isn\'t the one saved as OWNER_UID (Netlify or secrets.json).' : 'Confirm it\'s you: add OWNER_UID (Netlify or secrets.json) (see the steps), or verify your email.', uid: tok.uid }, 403);
   let body = {}; try { body = await req.json(); } catch {}
   const ref = db.doc(SECRET_DOC);
   const sec = (await ref.get()).data() || {};
@@ -134,7 +188,7 @@ export default async (req) => {
     if (active) return json({ error: 'Already set up' }, 400);
     const pin = String(body.pin || ''); if (!/^\d{6,12}$/.test(pin)) return json({ error: 'Your PIN must be 6 to 12 numbers.' }, 400);
     const how = ['nexa', 'email', 'totp'].includes(body.method) ? body.method : 'totp';
-    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY in Netlify first (see the steps).' }, 400);
+    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY (Netlify or secrets.json) first (see the steps).' }, 400);
     const salt = crypto.randomBytes(16).toString('hex');
     const base = { pinHash: hashPin(pin, salt), salt, sessionKey: crypto.randomBytes(32).toString('hex'), uid: tok.uid, fails: 0, lockUntil: 0, createdAt: now, method: how };
     if (how === 'totp') {
@@ -160,7 +214,7 @@ export default async (req) => {
     await ref.update({ codeHash: hashPin(code, sec.salt), codeExp: now + 10 * 60e3, codeSentAt: now, codeTries: 0 });
     if (method === 'email') {
       const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ from: process.env.RESEND_FROM || 'Nexa Owner <onboarding@resend.dev>', to: [OWNER_EMAIL], subject: `Your Nexa Owner code: ${code}`, html: `<div style="font-family:system-ui;padding:20px"><h2>Nexa Owner sign-in</h2><p>Your code is</p><p style="font-size:34px;font-weight:800;letter-spacing:8px">${code}</p><p style="color:#666">It works for 10 minutes. If you didn't try to open the owner page, change your password.</p></div>` }) });
-      if (!r.ok) return json({ error: 'The email couldn\'t be sent (' + r.status + '). Check RESEND_API_KEY in Netlify.' }, 502);
+      if (!r.ok) return json({ error: 'The email couldn\'t be sent (' + r.status + '). Check RESEND_API_KEY (Netlify or secrets.json).' }, 502);
       return json({ ok: true, to: OWNER_EMAIL.replace(/^(.).*(@.*)$/, '$1•••$2') });
     }
     // Nexa: notification + push to the @shiv account
@@ -206,18 +260,18 @@ export default async (req) => {
   }
   if (body.action === 'inbox') {
     const qs = await db.collection('conversations').where('members', 'array-contains', me).get();
-    const convs = qs.docs.map(x => ({ id: x.id, ...x.data() })).filter(c => c.type === 'dm' && c.last);
+    const convs = qs.docs.map(x => ({ id: x.id, ...x.data() })).filter(c => c.type === 'dm' && (c.last || c.help));
     const others = [...new Set(convs.map(c => (c.members || []).find(u => u !== me)).filter(Boolean))];
     const profs = {}; await Promise.all(others.map(async u => { profs[u] = (await db.doc('users/' + u).get()).data() || {}; }));
     const bans = new Set((await db.collection('bans').get()).docs.map(b => b.id));
-    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = profs[u] || {}; const last = c.last || {}; return { id: c.id, uid: u, name: p.name || 'Nexa user', handle: p.handle || '', avatar: typeof p.avatar === 'string' && p.avatar.length < 80000 ? p.avatar : '', online: Date.now() - ms(p.lastSeen) < 3 * 60e3, help: !!c.help, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || 0 }, unread: last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u) }; }).sort((a, b) => b.last.at - a.last.at);
+    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = profs[u] || {}; const last = c.last || {}; return { id: c.id, uid: u, name: p.name || 'Nexa user', handle: p.handle || '', avatar: typeof p.avatar === 'string' && p.avatar.length < 80000 ? p.avatar : '', online: Date.now() - ms(p.lastSeen) < 3 * 60e3, help: !!c.help, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u) }; }).sort((a, b) => b.last.at - a.last.at);
     return ok({ list, unread: list.filter(c => c.unread).length });
   }
   const myConv = async cid => { if (!/^[\w-]{1,200}$/.test(String(cid || ''))) return null; const c = (await db.doc('conversations/' + cid).get()).data(); return c && (c.members || []).includes(me) ? c : null; };
   if (body.action === 'thread') {
     const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
     const qs = await db.collection(`conversations/${body.cid}/messages`).orderBy('at', 'desc').limit(80).get();
-    const msgs = qs.docs.map(x => { const m = x.data(); const imgs = (m.images || (m.image ? [m.image] : [])).filter(i => typeof i === 'string' && i.length < 600000).slice(0, 4); return { id: x.id, mine: m.from === me, at: m.at || 0, text: m.deleted ? '' : String(m.text || ''), label: m.deleted ? 'Message deleted' : m.text ? '' : label(m), imgs: m.deleted ? [] : imgs, system: !!m.system }; }).reverse();
+    const msgs = qs.docs.map(x => { const m = x.data(); const imgs = (m.images || (m.image ? [m.image] : [])).filter(i => typeof i === 'string' && i.length < 600000).slice(0, 4); return { id: x.id, mine: m.from === me, agent: m.agent || '', at: m.at || 0, text: m.deleted ? '' : String(m.text || ''), label: m.deleted ? 'Message deleted' : m.text ? '' : label(m), imgs: m.deleted ? [] : imgs, system: !!m.system }; }).reverse();
     if (c.last && c.last.from !== me) await db.doc('conversations/' + body.cid).update({ ['reads.' + me]: Math.max(now, (c.last.at || 0) + 1) }).catch(() => {});
     return ok({ msgs, typing: Object.entries(c.typing || {}).some(([u, t]) => u !== me && now - (t || 0) < 6000) });
   }
@@ -229,9 +283,7 @@ export default async (req) => {
   }
   if (body.action === 'startChat') {
     const u = String(body.uid || ''); if (!/^[\w-]{1,128}$/.test(u) || u === me) return json({ error: 'Bad user' }, 400);
-    const cid = 'dm_' + [me, u].sort().join('__'); const ref2 = db.doc('conversations/' + cid);
-    if (!(await ref2.get()).exists) await ref2.set({ type: 'dm', members: [me, u].sort(), createdAt: now, reads: {}, typing: {}, help: true });
-    return ok({ cid });
+    return ok({ cid: await startStaffChat(db, me, u, body.allowReply === undefined ? null : body.allowReply !== false) });
   }
   if (body.action === 'ban' || body.action === 'unban') {
     const u = String(body.uid || ''); if (!/^[\w-]{1,128}$/.test(u)) return json({ error: 'Bad user' }, 400);
@@ -242,10 +294,12 @@ export default async (req) => {
   }
   if (body.action === 'warn') {
     const u = String(body.uid || ''); if (!/^[\w-]{1,128}$/.test(u)) return json({ error: 'Bad user' }, 400);
-    const t = String(body.text || '').trim().slice(0, 300) || 'Please keep Nexa friendly and respectful.';
-    const n = await db.collection('notifications').add({ to: u, from: me, type: 'admin_warn', title: 'A message from the Nexa team', body: t, at: now, read: false });
-    await deliver(db, u, { kind: 'notification', title: 'A message from the Nexa team', body: t, page: 'notifications', tag: 'n_' + n.id }, 86400).catch(() => 0);
-    return ok({ done: true });
+    const n = await warnUser(db, u, body.text, me, 'Nexa Owner');
+    return ok({ done: true, n });
+  }
+  if (body.action === 'setReply') {
+    const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
+    await setReply(db, body.cid, c, me, !!body.allow); return ok({ done: true });
   }
   if (body.action === 'announce') {
     const t = String(body.text || '').trim().slice(0, 300); if (!t) return json({ error: 'Write your announcement first' }, 400);
@@ -276,7 +330,7 @@ export default async (req) => {
     const how = body.method;
     if (how === 'totp') { const secret = b32enc(crypto.randomBytes(20)); await ref.update({ pendingTotp: secret }); return ok({ secret, otpauth: `otpauth://totp/Nexa%20Owner:${encodeURIComponent(OWNER_EMAIL)}?secret=${secret}&issuer=Nexa%20Owner&digits=6&period=30` }); }
     if (!['nexa', 'email'].includes(how)) return json({ error: 'Pick a method' }, 400);
-    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY in Netlify first.' }, 400);
+    if (how === 'email' && !process.env.RESEND_API_KEY) return json({ error: 'Email codes need RESEND_API_KEY (Netlify or secrets.json) first.' }, 400);
     await ref.update({ method: how });
     return ok({ method: how });
   }
