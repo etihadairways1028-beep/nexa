@@ -69,6 +69,18 @@ label{display:flex;flex-direction:column;gap:8px;font-weight:700;font-size:14px}
 .msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px}
 .b{max-width:72%;padding:9px 14px;border-radius:20px;font-size:15px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;background:rgba(255,255,255,.1);align-self:flex-start}
 .b.me{align-self:flex-end;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.kpi{padding:14px 16px;border-radius:22px;display:flex;flex-direction:column;gap:4px}.kpi b{font-size:30px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.kpi .up{color:var(--mint);font-weight:700}.kpi .down{color:#ff9aa8;font-weight:700}.kpi.hot b{color:#ff9aa8}
+.livedot{width:10px;height:10px;border-radius:50%;background:#3fdc8a;box-shadow:0 0 0 0 rgba(63,220,138,.6);animation:live 1.8s infinite;display:inline-block;flex:none}
+@keyframes live{70%{box-shadow:0 0 0 8px rgba(63,220,138,0)}100%{box-shadow:0 0 0 0 rgba(63,220,138,0)}}
+.chart{width:100%;height:auto;display:block;margin-top:6px}.chart .grid{stroke:rgba(255,255,255,.1)}.chart .ax{fill:rgba(220,228,255,.6);font-size:11px}.chart .barg:hover rect:first-child{filter:brightness(1.3)}
+.eng{display:grid;grid-template-columns:1fr 1fr;gap:10px}.eng>div{display:flex;flex-direction:column;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06)}.eng b{font-size:22px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.plist{display:flex;flex-direction:column;gap:8px}.prow{display:flex;align-items:center;gap:10px}
+.replytog{display:flex;align-items:center;gap:6px}.replytog .tog{transform:scale(.85)}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.grid3{grid-template-columns:1fr}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi b{font-size:24px}}
 .b img{max-width:240px;border-radius:12px;display:block;margin:2px 0}
 .b .t{display:block;font-size:11px;opacity:.6;margin-top:3px}.b.sys{align-self:center;background:none;color:var(--mute);font-size:13px}
 .comp{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.08);align-items:flex-end}
@@ -147,17 +159,54 @@ function dash() {
   const body = S.tab === 'messages' ? vMessages() : S.tab === 'settings' ? vSettings() : vOverview();
   return topbar() + (S.flash ? `<div class="fixed" style="margin-bottom:12px">${S.flash}</div>` : '') + body;
 }
+function pct(a, b) { if (!b) return a ? '+100%' : '±0%'; const v = Math.round((a - b) / b * 100); return (v > 0 ? '+' : v < 0 ? '' : '±') + v + '%'; }
+// line/area chart for one series; hover shows the value for each day
+function areaChart(pts, label) {
+  const W = 640, H = 170, P = 26, max = Math.max(1, ...pts.map(p => p.v)), min = Math.min(...pts.map(p => p.v)), lo = Math.max(0, min - (max - min) * .15);
+  const x = i => P + i * (W - P * 2) / Math.max(1, pts.length - 1), y = v => H - 22 - (v - lo) / Math.max(1, max - lo) * (H - 44);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+  const last = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ff2c8" stop-opacity=".45"/><stop offset="1" stop-color="#5ff2c8" stop-opacity="0"/></linearGradient></defs>
+    ${[0, .5, 1].map(f => { const v = Math.round(lo + (max - lo) * f); return `<line x1="${P}" x2="${W - P}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${P - 6}" y="${y(v) + 4}" class="ax" text-anchor="end">${v}</text>`; }).join('')}
+    <path d="${line}L${x(pts.length - 1)},${H - 22}L${x(0)},${H - 22}Z" fill="url(#ag)"/><path d="${line}" fill="none" stroke="#5ff2c8" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${x(pts.length - 1)}" cy="${y(last.v)}" r="4.5" fill="#5ff2c8" stroke="#0b1030" stroke-width="2"/>
+    <text x="${P}" y="${H - 5}" class="ax">${esc(pts[0].l)}</text><text x="${W - P}" y="${H - 5}" class="ax" text-anchor="end">${esc(last.l)}</text>
+    ${pts.map((p, i) => `<rect x="${x(i) - (W - P * 2) / pts.length / 2}" y="0" width="${(W - P * 2) / pts.length}" height="${H}" fill="transparent" class="hit"><title>${esc(p.l)}: ${p.v} ${esc(label)}</title></rect>`).join('')}</svg>`;
+}
+function barChart(pts, label, col = '#5aa2ff', W = 640) {
+  const H = 150, P = 26, max = Math.max(1, ...pts.map(p => p.v)), bw = (W - P * 2) / pts.length;
+  const y = v => H - 22 - v / max * (H - 40);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
+    <line x1="${P}" x2="${W - P}" y1="${H - 22}" y2="${H - 22}" class="grid"/><text x="${P - 6}" y="${y(max) + 4}" class="ax" text-anchor="end">${max}</text>
+    ${pts.map((p, i) => { const h = Math.max(p.v ? 3 : 0, H - 22 - y(p.v)); return `<g class="barg"><rect x="${P + i * bw + 1}" y="${H - 22 - h}" width="${Math.max(2, bw - 2)}" height="${h}" rx="3" fill="${col}"/><rect x="${P + i * bw}" y="0" width="${bw}" height="${H}" fill="transparent"><title>${esc(p.l)}: ${p.v} ${esc(label)}</title></rect></g>`; }).join('')}
+    <text x="${P}" y="${H - 5}" class="ax">${esc(pts[0].l)}</text><text x="${W - P}" y="${H - 5}" class="ax" text-anchor="end">${esc(pts[pts.length - 1].l)}</text></svg>`;
+}
 function vOverview() {
   const d = S.data, st = d.stats, q = S.q.toLowerCase().trim();
   const banned = new Set((d.bans || []).map(b => b.id));
   let users = d.users.filter(u => !q || [u.name, u.handle, u.email].some(x => (x || '').toLowerCase().includes(q)));
   const sorters = { joined: (a, b) => b.joined - a.joined, active: (a, b) => b.lastActive - a.lastActive, name: (a, b) => (a.name || 'zz').localeCompare(b.name || 'zz'), handle: (a, b) => (a.handle || 'zz').localeCompare(b.handle || 'zz'), email: (a, b) => a.email.localeCompare(b.email) };
   users = users.sort(sorters[S.sort] || sorters.joined);
-  const tile = (n, l) => `<div class="tile glass"><span class="mute small">${l}</span><b>${n ?? '—'}</b></div>`;
-  const max = Math.max(1, ...d.signups.map(x => Math.max(x.n, x.active)));
-  return `<div class="tiles">${tile(st.users, 'People on Nexa')}${tile(st.onlineNow, 'Online now')}${tile(st.active24h, 'Active today')}${tile(st.active7d, 'Active this week')}${tile(st.new24h, 'Joined today')}${tile(st.new7d, 'Joined this week')}${tile(st.messages, 'Messages sent')}${tile(st.chats, 'Chats')}${tile(st.groups, 'Group chats')}${tile(st.friendships, 'Friendships')}${tile(st.events, 'Events')}${tile(st.moments, 'Moments')}</div>
-  <div class="grid2" style="margin-top:16px"><section class="glass card"><div class="row spread"><h2>Last 30 days</h2><div class="legend mute"><span>Joined</span><span class="a">Active</span></div></div><div class="bars">${d.signups.map(x => `<div class="bar" title="${new Date(x.day).toLocaleDateString()} · ${x.n} joined · ${x.active} active"><span>${x.n || ''}</span><div style="display:flex;gap:1px;align-items:flex-end;height:100%;width:100%"><i style="height:${x.n / max * 100}%"></i><i class="act" style="height:${x.active / max * 100}%"></i></div></div>`).join('')}</div></section>
-  <section class="glass card"><h2>Safety</h2><div style="display:flex;flex-direction:column;gap:10px"><div class="row spread"><span class="mute">Reports</span><b>${st.reports ?? '—'}</b></div><div class="row spread"><span class="mute">Banned accounts</span><b>${(d.bans || []).length}</b></div><div class="row spread"><span class="mute">Didn't finish sign-up</span><b>${st.unfinished}</b></div><div class="row spread"><span class="mute">Help chats waiting</span><b>${S.inbox?.unread ?? '—'}</b></div></div><button class="btn sm" data-tab="messages" style="margin-top:12px">Open messages</button>${(d.inviters || []).length ? `<h2 style="margin-top:18px">Top inviters</h2><div style="display:flex;flex-direction:column;gap:8px">${d.inviters.map(x => `<div class="row spread"><span class="ellip">${esc(x.name)} <span class="mute small">${x.handle ? '@' + esc(x.handle) : ''}</span></span><b>${x.n}</b></div>`).join('')}</div>` : ''}</section></div>
+  const sg = d.signups || [], md = d.msgDays || [];
+  const lastWeek = sg.slice(-14, -7).reduce((a, x) => a + x.n, 0), thisWeek = sg.slice(-7).reduce((a, x) => a + x.n, 0);
+  const msgToday = md.length ? md[md.length - 1].n : null, msgYest = md.length > 1 ? md[md.length - 2].n : null;
+  const dl = t => new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' });
+  let total = st.users - sg.reduce((a, x) => a + x.n, 0); const growth = sg.map(x => { total += x.n; return { l: dl(x.day), v: Math.max(0, total) }; });
+  const kpi = (v, l, sub, cls = '') => `<div class="kpi glass ${cls}"><span class="mute small">${l}</span><b>${v ?? '—'}</b><span class="small ${/^\+/.test(sub || '') ? 'up' : /^-/.test(sub || '') ? 'down' : 'mute'}">${sub || '&nbsp;'}</span></div>`;
+  const people = (list, empty) => list.length ? `<div class="plist">${list.map(u => `<div class="prow">${avatar({ ...u, online: false }, 34)}<span class="grow ellip"><b>${esc(u.name || 'Nexa user')}</b> <span class="mute small">${u.handle ? '@' + esc(u.handle) : ''}</span></span>${u.joined ? `<span class="mute small">${dl(u.joined)}</span>` : '<span class="livedot"></span>'}</div>`).join('')}</div>` : `<div class="mute small">${empty}</div>`;
+  const dau = st.users ? Math.round(st.active24h / st.users * 100) : 0, wau = st.users ? Math.round(st.active7d / st.users * 100) : 0;
+  return `<div class="kpis">${kpi(st.users, 'People on Nexa', `${thisWeek ? '+' + thisWeek : '+0'} this week (${pct(thisWeek, lastWeek)} vs last)`)}${kpi(`<span class="livedot"></span>${st.onlineNow}`, 'Online now', 'live')}${kpi(st.active24h, 'Active today', `${dau}% of everyone`)}${kpi(msgToday, 'Messages today', msgYest != null ? pct(msgToday, msgYest) + ' vs yesterday' : '')}${kpi(st.new24h, 'Joined today', `${st.new7d} this week`)}${kpi(S.inbox?.unread ?? 0, 'Help chats waiting', (d.safety?.flagsOpen ? d.safety.flagsOpen + ' flagged messages' : 'no flags'), (S.inbox?.unread || d.safety?.flagsOpen) ? 'hot' : '')}</div>
+  <div class="grid2" style="margin-top:16px"><section class="glass card"><div class="row spread"><h2>Total people · last 30 days</h2><span class="mute small">${growth.length ? growth[0].v + ' → ' + growth[growth.length - 1].v : ''}</span></div>${growth.length ? areaChart(growth, 'people') : ''}
+    <h2 style="margin-top:14px">New sign-ups per day</h2>${sg.length ? barChart(sg.map(x => ({ l: dl(x.day), v: x.n })), 'joined', '#5ff2c8') : ''}</section>
+  <section class="glass card"><h2>Engagement</h2><div class="eng">
+    <div><b>${dau}%</b><span class="mute small">active today</span></div><div><b>${wau}%</b><span class="mute small">active this week</span></div>
+    <div><b>${st.users ? (st.friendships * 2 / st.users).toFixed(1) : 0}</b><span class="mute small">friends per person</span></div><div><b>${st.messages ?? '—'}</b><span class="mute small">messages ever</span></div>
+    <div><b>${st.chats ?? '—'}</b><span class="mute small">chats</span></div><div><b>${st.groups ?? '—'}</b><span class="mute small">groups</span></div>
+    <div><b>${st.events ?? '—'}</b><span class="mute small">events</span></div><div><b>${st.moments ?? '—'}</b><span class="mute small">moments</span></div></div>
+    <h2 style="margin-top:16px">Safety</h2><div style="display:flex;flex-direction:column;gap:8px"><div class="row spread"><span class="mute">Flagged messages open</span><b>${d.safety?.flagsOpen ?? '—'}</b></div><div class="row spread"><span class="mute">Reports</span><b>${st.reports ?? '—'}</b></div><div class="row spread"><span class="mute">Warnings given</span><b>${d.safety?.warnings ?? '—'}</b></div><div class="row spread"><span class="mute">Banned</span><b>${(d.bans || []).length}</b></div></div>
+    <a class="btn sm" href="../support/" target="_blank" style="margin-top:12px;text-decoration:none">Open Nexa Support</a></section></div>
+  <section class="glass card" style="margin-top:16px"><div class="row spread"><h2>Messages per day</h2><span class="mute small">counted from now on</span></div>${md.length ? barChart(md.map(x => ({ l: dl(x.day), v: x.n })), 'messages', '#5aa2ff', 1100) : '<div class="mute small">Starts counting after this update.</div>'}</section>
+  <div class="grid3" style="margin-top:16px"><section class="glass card"><h2>🟢 Online now</h2>${people(d.online || [], 'No one online right now.')}</section><section class="glass card"><h2>✨ Newest people</h2>${people(d.newest || [], 'No one yet.')}</section><section class="glass card"><h2>🏆 Top inviters</h2>${(d.inviters || []).length ? `<div class="plist">${d.inviters.map(x => `<div class="prow"><span class="grow ellip"><b>${esc(x.name)}</b> <span class="mute small">${x.handle ? '@' + esc(x.handle) : ''}</span></span><b>${x.n}</b></div>`).join('')}</div>` : '<div class="mute small">When people join from someone\'s invite link, they show up here.</div>'}</section></div>
   <section class="glass card" style="margin-top:16px"><div class="row spread wrapflex"><h2>Everyone (${users.length})</h2><div class="row"><input class="inp" id="q" placeholder="Search name, @username or email" value="${esc(S.q)}" style="max-width:320px;height:44px;font-size:15px"><button class="btn sm" id="csv">Export CSV</button></div></div>
   <div class="table"><div class="tr h">${[['name', 'Name'], ['handle', 'Username'], ['email', 'Login email'], ['joined', 'Joined'], ['active', 'Last active']].map(([k, l]) => `<span data-sort="${k}">${l}${S.sort === k ? ' ▾' : ''}</span>`).join('')}<span></span></div>
   ${users.map(u => `<div class="tr"><span class="ellip"><b>${esc(u.name || '(didn\'t finish sign-up)')}</b>${u.deleted ? ' <span class="pill">deleted</span>' : ''}${banned.has(u.id) ? ' <span class="pill" style="background:rgba(255,77,109,.35)">banned</span>' : ''}${u.id === d.me ? ' <span class="pill">you</span>' : ''}</span><span class="ellip">${u.handle ? '@' + esc(u.handle) : '—'}</span><span class="ellip">${esc(u.email || '—')}${u.verified ? ' <span class="pill">verified</span>' : ''}</span><span>${fmtD(u.joined)}</span><span>${ago(u.lastActive)}</span>
@@ -172,7 +221,7 @@ function vMessages() {
   if (cur) {
     const ms = S.thread?.cid === cur.id ? S.thread.msgs : null;
     thread = `<div class="thead row spread"><div class="row"><button class="btn sm" id="back" style="display:${innerWidth <= 820 ? 'inline-flex' : 'none'}">‹</button>${avatar(cur, 40)}<div><b>${esc(cur.name)}</b><div class="mute small">${cur.handle ? '@' + esc(cur.handle) : ''}${cur.online ? ' · <span class="online">online</span>' : ''}${S.thread?.typing ? ' · typing…' : ''}</div></div></div>
-      <div class="row" style="gap:6px"><button class="btn sm" data-warn="${cur.uid}" data-name="${esc(cur.name)}">Warn</button>${banned.has(cur.uid) ? `<button class="btn sm" data-unban="${cur.uid}" data-name="${esc(cur.name)}">Unban</button>` : `<button class="btn sm red" data-ban="${cur.uid}" data-name="${esc(cur.name)}">Ban</button>`}</div></div>
+      <div class="row" style="gap:6px"><label class="replytog" title="Let them reply in this chat"><span class="small">Can reply</span><button class="tog ${cur.readOnly ? '' : 'on'}" id="tReply" type="button"></button></label><button class="btn sm" data-warn="${cur.uid}" data-name="${esc(cur.name)}">Warn</button>${banned.has(cur.uid) ? `<button class="btn sm" data-unban="${cur.uid}" data-name="${esc(cur.name)}">Unban</button>` : `<button class="btn sm red" data-ban="${cur.uid}" data-name="${esc(cur.name)}">Ban</button>`}</div></div>
       <div class="msgs" id="msgs">${!ms ? '<div class="mute" style="margin:auto">Loading…</div>' : ms.map(m => m.system ? `<div class="b sys">${esc(m.text || m.label)}</div>` : `<div class="b ${m.mine ? 'me' : ''}">${m.imgs.map(i => `<img src="${esc(i)}" alt="">`).join('')}${esc(m.text || (m.imgs.length ? '' : m.label))}<span class="t">${hm(m.at)}</span></div>`).join('')}</div>
       <form class="comp" id="f-reply"><textarea id="rtext" rows="1" placeholder="Reply to ${esc(cur.name.split(' ')[0])}…">${esc(S.drafts[cur.id] || '')}</textarea><button class="btn pri" ${S.sendingReply ? 'disabled' : ''}>Send</button></form>`;
   }
@@ -303,6 +352,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.cid) { if (S.cid && $('#rtext')) S.drafts[S.cid] = $('#rtext').value; S.cid = t.dataset.cid; S.thread = null; render(); loadThread(); setTimeout(() => $('#rtext')?.focus(), 50); return; }
   if (t.dataset.open) { e.preventDefault(); S.tab = 'messages'; S.cid = t.dataset.open; S.thread = null; S.flash = ''; render(); loadThread(); return; }
   if (t.id === 'back') { S.cid = ''; S.thread = null; render(); return; }
+  if (t.id === 'tReply') { const c = S.inbox.list.find(x => x.id === S.cid); if (!c) return; const allow = !!c.readOnly; try { await api('setReply', { cid: S.cid, allow }); c.readOnly = !allow; S.flash = allow ? '✅ They can reply in this chat.' : '🔒 Official-only: they can read but not reply.'; renderKeep(); } catch (er) { alert(er.message); } return; }
   if (t.dataset.chat) { try { const r = await api('startChat', { uid: t.dataset.chat }); S.tab = 'messages'; S.cid = r.cid; S.thread = null; await loadInbox(); if (!S.inbox.list.find(c => c.id === r.cid)) { const u = S.data.users.find(x => x.id === t.dataset.chat) || {}; S.inbox.list.unshift({ id: r.cid, uid: u.id, name: u.name || 'Nexa user', handle: u.handle || '', avatar: '', last: { text: '', from: 'me', at: 0 } }); } render(); loadThread(); } catch (er) { alert(er.message); } return; }
   if (t.dataset.ban) { const reason = prompt(`Ban ${t.dataset.name || 'this person'}? They won't be able to message, add friends, post events or moments.\n\nReason (optional, they'll see it):`, ''); if (reason === null) return; try { await api('ban', { uid: t.dataset.ban, reason }); S.data.bans = [...(S.data.bans || []), { id: t.dataset.ban, at: Date.now(), reason }]; S.flash = '🚫 ' + esc(t.dataset.name || 'User') + ' is banned.'; renderKeep(); } catch (er) { alert(er.message); } return; }
   if (t.dataset.unban) { if (!confirm(`Unban ${t.dataset.name || 'this person'}?`)) return; try { await api('unban', { uid: t.dataset.unban }); S.data.bans = (S.data.bans || []).filter(b => b.id !== t.dataset.unban); S.flash = '✅ ' + esc(t.dataset.name || 'User') + ' is unbanned.'; renderKeep(); } catch (er) { alert(er.message); } return; }
