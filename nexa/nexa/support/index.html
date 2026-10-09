@@ -116,6 +116,7 @@ textarea.inp{height:auto;min-height:90px;padding:12px 16px;font:inherit;font-siz
 .citem:hover{background:rgba(255,255,255,.06)}
 .pill.asked{background:rgba(255,200,80,.14);border-color:rgba(255,200,80,.4);color:#ffd27a;margin-right:4px}.pill.asked.me{background:linear-gradient(135deg,#ff8a4c,#ff4d6d);color:#fff;border-color:transparent}
 .updbar{height:10px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:12px}.updbar i{display:block;height:100%;background:linear-gradient(90deg,#2fd4c4,#5b7cff);border-radius:99px}.vok{color:#7ff0c3;font-weight:700}.vold{color:#ffb36b;font-weight:700}.pill.on{background:linear-gradient(135deg,#5b7cff,#9b6bff);color:#fff;border-color:transparent}
+.smtpgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:6px}.smtpgrid label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}select.inp{appearance:auto}
 </style></head>
 <body><div class="wrap" id="app"><div class="gate glass card"><div class="row"><div class="logo"></div><div><h1>Nexa Support</h1><div class="mute small">Loading…</div></div></div></div></div>
 <script type="module">
@@ -233,7 +234,7 @@ function vUpdates() {
   const f = S.updFilter || 'todo', rows = f === 'all' ? U.list : f === 'done' ? done : todo;
   const pct = U.list.length ? Math.round(done.length / U.list.length * 100) : 0;
   return `<section class="glass card"><div class="row spread wrapflex"><div><h2 style="margin:0">🚀 App updates</h2><div class="mute small">Newest version: <b>v${esc(latest || '?')}</b> · ${done.length} of ${U.list.length} people updated (${pct}%)</div></div>
-    ${todo.length ? `<button class="btn pri" id="askAll">Ask everyone who hasn't updated (${todo.length})</button>` : '<span class="pill">Everyone is updated 🎉</span>'}</div>
+    ${todo.length ? `<div class="row wrapflex" style="gap:8px"><label class="small row" style="gap:6px"><input type="checkbox" id="askEmail"> Also email them</label><button class="btn pri" id="askAll">Ask everyone who hasn't updated (${todo.length})</button></div>` : '<span class="pill">Everyone is updated 🎉</span>'}</div>
     <div class="updbar"><i style="width:${pct}%"></i></div>
     <div class="row wrapflex" style="gap:6px;margin:10px 0"><button class="pill ${f === 'todo' ? 'on' : ''}" data-uf="todo">Not updated · ${todo.length}</button><button class="pill ${f === 'done' ? 'on' : ''}" data-uf="done">Updated · ${done.length}</button><button class="pill ${f === 'all' ? 'on' : ''}" data-uf="all">Everyone · ${U.list.length}</button></div>
     <div class="flist">${rows.length ? rows.map(u => `<div class="flag"><div class="row spread wrapflex"><div class="row">${avatar(u, 40)}<div><b>${esc(u.name)}</b> <span class="mute small">@${esc(u.handle)}</span><div class="mute small">${isNew(u) ? `<span class="vok">✓ v${esc(u.version)}</span>` : `<span class="vold">${u.version ? 'v' + esc(u.version) : 'Older version'}</span>`} · last on Nexa ${ago(u.lastSeen)}${u.asked ? ' · asked ' + ago(u.asked) : ''}</div></div></div>
@@ -257,10 +258,31 @@ function vCompose() {
 function vMustChange() {
   return `<div class="modalbg"><form class="modal glass card" id="f-first"><h2 style="margin:0">Choose your own password</h2><div class="mute small" style="line-height:1.5">You signed in with the starting password. Pick your own so only you can use the <b>${esc(S.agent?.name)}</b> account.</div><input class="inp" id="fp1" type="password" minlength="6" placeholder="New password" required><input class="inp" id="fp2" type="password" minlength="6" placeholder="Type it again" required>${msg()}<div class="row" style="gap:8px;justify-content:flex-end"><button type="button" class="btn" id="later">Later</button><button class="btn pri">Save</button></div></form></div>`;
 }
+// ---------- 📧 Email server (SMTP): used for every email Nexa sends (welcome emails, owner codes, update reminders)
+function vSmtp() {
+  const m = S.smtp; if (!m) return `<section class="glass card"><h2>📧 Email server</h2><div class="mute small">Loading…</div></section>`;
+  const x = m.smtp, sel = v => x.security === v ? 'selected' : '';
+  const st = m.active === 'support' ? '<span class="vok">● Sending with this email server</span>' : m.active === 'server' ? '<span class="vok">● Using the server\'s SMTP settings</span>' : m.active === 'resend' ? '<span class="vold">● Using Resend (no email server set here)</span>' : '<span class="vold">● No email server yet — Nexa can\'t send emails</span>';
+  return `<section class="glass card"><h2>📧 Email server (SMTP)</h2><div class="mute small" style="line-height:1.5">Every email Nexa sends goes through this: welcome emails, owner sign-in codes and update reminders. You can change it any time.</div><div class="small" style="margin:8px 0">${st}${x.updatedBy ? ` <span class="mute">· last changed by ${esc(x.updatedBy)}</span>` : ''}</div>
+    <form id="f-smtp" class="smtpgrid">
+      <label>Server<input class="inp" id="sm_host" placeholder="smtp.gmail.com" value="${esc(x.host)}" autocomplete="off"></label>
+      <label>Port<input class="inp" id="sm_port" type="number" placeholder="587" value="${esc(x.port)}"></label>
+      <label>Security<select class="inp" id="sm_security"><option value="starttls" ${sel('starttls')}>STARTTLS (usually port 587)</option><option value="ssl" ${sel('ssl')}>SSL/TLS (usually port 465)</option><option value="none" ${sel('none')}>None (not recommended)</option></select></label>
+      <label>Username<input class="inp" id="sm_user" placeholder="you@yourdomain.com" value="${esc(x.user)}" autocomplete="off"></label>
+      <label>Password<input class="inp" id="sm_pass" type="password" placeholder="${x.hasPass ? '•••••••• (saved — leave empty to keep)' : 'App password'}" autocomplete="new-password"></label>
+      <label>From email<input class="inp" id="sm_from" placeholder="hello@yourdomain.com" value="${esc(x.from)}"></label>
+      <label>From name<input class="inp" id="sm_fromName" placeholder="Nexa" value="${esc(x.fromName)}"></label>
+      <div class="row wrapflex" style="gap:8px;align-self:end"><button class="btn pri">Save</button>${x.host ? '<button class="btn sm red" type="button" id="smClear">Remove</button>' : ''}</div>
+    </form>
+    <div class="row wrapflex" style="gap:8px;margin-top:12px"><input class="inp" id="sm_to" placeholder="Send a test email to…" style="flex:1;min-width:200px"><button class="btn" id="smTest" type="button">Send test</button></div>
+    <div class="mute small" style="margin-top:8px;line-height:1.5">Gmail: turn on 2-step verification, then make an <b>App password</b> at myaccount.google.com/apppasswords and use smtp.gmail.com, port 587, STARTTLS.</div></section>`;
+}
+async function loadSmtp() { try { S.smtp = await api('smtpGet'); renderKeep(); } catch (e) { if (e.code === 'session') return lockOut(e.message); } }
 function vSettings() {
   const notifOn = S.desk && 'Notification' in window && Notification.permission === 'granted';
   const tog = (on, id) => `<button class="tog ${on ? 'on' : ''}" id="${id}" type="button"></button>`;
   return `<div class="sets">
+  ${vSmtp()}
   <section class="glass card"><h2>🔔 Notifications on this device</h2>
     <div class="setrow"><span><b>Phone & computer alerts</b><div class="mute small">Get a notification for new help chats, flagged messages and reports — even when this app is closed.</div></span>${tog(S.pushOn, 'tPush')}</div>
     <div class="setrow"><span><b>Pop-ups while open</b><div class="mute small">While this page is open in another tab.</div></span>${tog(notifOn, 'tDesk')}</div>
@@ -281,6 +303,7 @@ async function loadAll() {
     if (S.tab === 'flags' || S.tab === 'home' || !S.flags) { const f = await api('flags'); checkFlags(S.flags, f.list); S.flags = f.list; }
     if (S.tab === 'reports' || !S.reports) S.reports = (await api('reports')).list;
     if (S.tab === 'updates' && (!S.upd || tick % 4 === 0)) loadUpdates();
+    if (S.tab === 'settings' && !S.smtp) loadSmtp();
     document.title = ((ib.unread || 0) + (d.stats.flags || 0) ? `(${(ib.unread || 0) + (d.stats.flags || 0)}) ` : '') + 'Nexa Support';
     renderKeep();
   } catch (e) { if (e.code === 'session') return lockOut(e.message); }
@@ -313,7 +336,7 @@ function renderKeep(scroll) {
   if (S.step !== 'app') return render();
   const ta = $('#rtext'); if (ta && S.cid) S.drafts[S.cid] = ta.value; const had = document.activeElement === ta; const pos = ta?.selectionStart;
   const ms = $('#msgs'); const atBottom = !ms || ms.scrollHeight - ms.scrollTop - ms.clientHeight < 80;
-  const keep = ['autoReply', 'op', 'np1', 'np2', 'pq', 'ctext', 'cq', 'fp1', 'fp2'].map(id => [id, $('#' + id)?.value, document.activeElement?.id === id]);
+  const keep = ['autoReply', 'op', 'np1', 'np2', 'pq', 'ctext', 'cq', 'fp1', 'fp2', 'sm_host', 'sm_port', 'sm_user', 'sm_pass', 'sm_from', 'sm_fromName', 'sm_to'].map(id => [id, $('#' + id)?.value, document.activeElement?.id === id]);
   render();
   keep.forEach(([id, v, f]) => { const el = $('#' + id); if (el && v != null) { el.value = v; if (f) el.focus(); } });
   const t2 = $('#rtext'); if (t2 && had) { t2.focus(); t2.setSelectionRange(pos, pos); }
@@ -353,6 +376,7 @@ document.addEventListener('submit', async e => {
     if (id === 'f-agent') { busy(true); const r = await api('login', { agent: S.pick, password: v.apw }); S.session = r.session; S.agent = r.agent; store.set('nexa.support.session', r.session); store.set('nexa.support.agent', JSON.stringify(r.agent)); S.mustChange = r.mustChange; S.busy = false; return enterApp(); }
     if (id === 'f-first') { if (v.fp1 !== v.fp2) throw new Error('The passwords don\'t match.'); await api('changePassword', { old: 'nexaofficial', password: v.fp1 }); S.mustChange = false; S.flash = '✅ Your password is saved.'; return renderKeep(); }
     if (id === 'f-pw') { if (v.np1 !== v.np2) throw new Error('The new passwords don\'t match.'); await api('changePassword', { old: v.op, password: v.np1 }); S.flash = '✅ Password changed.'; return renderKeep(); }
+    if (id === 'f-smtp') { const g = k => ($('#sm_' + k)?.value || '').trim(); await api('smtpSave', { smtp: { host: g('host'), port: +g('port') || 587, security: $('#sm_security').value, user: g('user'), pass: $('#sm_pass').value, from: g('from'), fromName: g('fromName') || 'Nexa' } }); S.smtp = null; S.flash = '✅ Email settings saved — send a test to check them.'; await loadSmtp(); return renderKeep(); }
     if (id === 'f-search') { S.q = v.pq; S.people = (await api('search', { q: v.pq })).list; S.searched = true; return renderKeep(); }
     if (id === 'f-compose') { const c = S.compose; if (!c.uid) return; const text = ($('#ctext')?.value || '').trim(); if (!text) throw new Error('Write a message first.'); S.busy = true; renderKeep(); const r = await api('startChat', { uid: c.uid, text, allowReply: c.allow !== false }); S.compose = null; S.busy = false; S.tab = 'chats'; S.cid = r.cid; S.thread = null; await loadAll(); loadThread(); S.flash = '✅ Sent to ' + esc(c.name || 'them') + (c.allow === false ? ' (they can\'t reply)' : ''); return renderKeep(); }
     if (id === 'f-reply') { const text = ($('#rtext')?.value || '').trim(); if (!text || !S.cid) return; const cid = S.cid; S.drafts[cid] = ''; if ($('#rtext')) $('#rtext').value = ''; S.sendingReply = true; S.thread?.msgs.push({ id: 'tmp', mine: true, agent: S.agent.name, at: Date.now(), text, imgs: [] }); renderKeep('force'); try { await api('reply', { cid, text }); } catch (er) { if (er.code === 'session') return lockOut(er.message); S.drafts[cid] = text; alert(er.message); } S.sendingReply = false; await loadThread(); loadAll(); setTimeout(() => $('#rtext')?.focus(), 30); return; }
@@ -383,9 +407,11 @@ document.addEventListener('click', async e => {
   if (d.warn) { const reason = prompt(`Official warning for ${d.name || 'this person'} — they'll see this on a big warning screen:`, 'Please keep Nexa friendly and respectful.'); if (!reason) return; try { const r = await api('warn', { uid: d.warn, reason }); S.flash = `⚠️ Warning #${r.n} sent to ${esc(d.name || 'them')}.`; renderKeep(); } catch (er) { alert(er.message); } return; }
   if (d.ban) { const reason = prompt(`Ban ${d.name || 'this person'}? They won't be able to message, add friends or post.\n\nReason (they'll see it):`, ''); if (reason === null) return; try { await api('ban', { uid: d.ban, reason }); S.flash = '🚫 ' + esc(d.name || 'User') + ' is banned.'; [S.inbox?.list || [], S.people].forEach(l => l.forEach(x => { if ((x.uid || x.id) === d.ban) x.banned = true; })); renderKeep(); } catch (er) { alert(er.message); } return; }
   if (d.unban) { if (!confirm(`Unban ${d.name || 'this person'}?`)) return; try { await api('unban', { uid: d.unban }); S.flash = '✅ Unbanned.'; [S.inbox?.list || [], S.people].forEach(l => l.forEach(x => { if ((x.uid || x.id) === d.unban) x.banned = false; })); renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (t.id === 'smTest') { const to = ($('#sm_to')?.value || '').trim(); if (!to) return alert('Type an email address to send the test to.'); t.disabled = true; t.textContent = 'Sending…'; try { const r = await api('smtpTest', { to }); S.flash = '✅ Test email sent' + (r.via === 'resend' ? ' (through Resend)' : '') + ' — check ' + esc(to); } catch (er) { alert('The test email failed:\n\n' + er.message); } t.disabled = false; return renderKeep(); }
+  if (t.id === 'smClear') { if (!confirm('Remove the email server? Nexa will stop sending emails (unless the server has its own SMTP settings).')) return; try { await api('smtpSave', { smtp: { host: '' } }); S.smtp = null; await loadSmtp(); S.flash = 'Email server removed.'; } catch (er) { alert(er.message); } return renderKeep(); }
   if (d.uf) { S.updFilter = d.uf; return renderKeep(); }
   if (d.askupd) { if (!confirm(`Ask ${d.name || 'this person'} to update Nexa? They'll get a notification.`)) return; try { await api('askUpdate', { uids: [d.askupd], version: S.upd?.latest }); const u = S.upd.list.find(x => x.id === d.askupd); if (u) u.asked = Date.now(); S.flash = '📨 Asked ' + esc(d.name) + ' to update.'; renderKeep(); } catch (er) { alert(er.message); } return; }
-  if (t.id === 'askAll') { const ids = S.upd.list.filter(u => !(S.upd.latest && u.version && vnum(u.version) >= vnum(S.upd.latest))).map(u => u.id); if (!ids.length || !confirm(`Ask ${ids.length} ${ids.length === 1 ? 'person' : 'people'} to update Nexa? Each gets a notification.`)) return; t.disabled = true; try { const r = await api('askUpdate', { uids: ids, version: S.upd.latest }); S.upd.list.forEach(u => { if (ids.includes(u.id)) u.asked = Date.now(); }); S.flash = `📨 Asked ${r.asked} ${r.asked === 1 ? 'person' : 'people'} to update.`; renderKeep(); } catch (er) { alert(er.message); t.disabled = false; } return; }
+  if (t.id === 'askAll') { const ids = S.upd.list.filter(u => !(S.upd.latest && u.version && vnum(u.version) >= vnum(S.upd.latest))).map(u => u.id); if (!ids.length || !confirm(`Ask ${ids.length} ${ids.length === 1 ? 'person' : 'people'} to update Nexa? Each gets a notification.`)) return; t.disabled = true; try { const r = await api('askUpdate', { uids: ids, version: S.upd.latest, email: !!$('#askEmail')?.checked }); S.upd.list.forEach(u => { if (ids.includes(u.id)) u.asked = Date.now(); }); S.flash = `📨 Asked ${r.asked} ${r.asked === 1 ? 'person' : 'people'} to update${r.emailed ? ` (${r.emailed} emailed)` : ''}.`; renderKeep(); } catch (er) { alert(er.message); t.disabled = false; } return; }
   if (d.delchat) { if (!confirm(`Delete this chat with ${d.name || 'this person'}?\n\nUse this when you're done helping. The whole chat is removed for both of you and can't be brought back.`)) return; try { await api('deleteChat', { cid: d.delchat }); S.inbox.list = S.inbox.list.filter(c => c.id !== d.delchat); S.cid = ''; S.thread = null; S.flash = '🗑 Chat deleted.'; renderKeep(); } catch (er) { alert(er.message); } return; }
   if (d.wlist) { try { const r = await api('warnings', { uid: d.wlist }); S.wlist = { uid: d.wlist, list: r.list }; renderKeep(); } catch (er) { alert(er.message); } return; }
   if (d.chat) { S.compose = { uid: d.chat, name: d.name, allow: true, text: '' }; renderKeep(); setTimeout(() => $('#ctext')?.focus(), 30); return; }
