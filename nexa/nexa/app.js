@@ -83,7 +83,7 @@ const P = {
 const ic = (n, s = 20, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
 let logoN = 0;
 // Nexa mark: a folded, glowing ribbon "N"
-const logo = (s = 34, frame = true, cls = '') => { const i = 'lg' + (logoN++); return `<svg class="nlogo ${cls}" width="${s}" height="${s}" viewBox="0 0 64 64" fill="none" aria-hidden="true"><defs><linearGradient id="${i}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#58c8ff"/><stop offset="1" stop-color="#2a6dff"/></linearGradient><linearGradient id="${i}c" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#3a6cff"/><stop offset="1" stop-color="#7fdcff"/></linearGradient><linearGradient id="${i}b" x1="14" y1="16" x2="50" y2="48" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8be4ff"/><stop offset=".5" stop-color="#4f86ff"/><stop offset="1" stop-color="#3159f0"/></linearGradient><filter id="${i}s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="1.2" flood-color="#000a30" flood-opacity=".75"/></filter></defs>${frame ? '<rect x="1.5" y="1.5" width="61" height="61" rx="17" fill="#0a1030" stroke="rgba(120,170,255,.35)"/>' : ''}<g ${frame ? 'transform="translate(9.6 9.6) scale(.7)"' : ''} stroke-linejoin="round" stroke-width="3.5"><path class="lg-l" d="M14 16H24V48H14Z" fill="url(#${i}a)" stroke="url(#${i}a)"/><path class="lg-r" d="M40 16H50V48H40Z" fill="url(#${i}c)" stroke="url(#${i}c)"/><path class="lg-d" d="M14 16L24 16L50 48L40 48Z" fill="url(#${i}b)" stroke="url(#${i}b)" filter="url(#${i}s)"/></g></svg>`; };
+const logo = (s = 34, frame = true, cls = '') => `<img class="nlogo nlogo-img ${cls}" src="icon-192-v4.png" width="${s}" height="${s}" alt="" aria-hidden="true" style="border-radius:${Math.round(s * .26)}px">`;
 
 /* ---------------- constants ---------------- */
 const BGS = [
@@ -304,7 +304,7 @@ function deviceNotify(title, body, onClick, tag, from) {
   if (n0 > 1) title = `${title} (${n0} new messages)`;
   // The sender's photo is the big picture; the small Nexa badge shows it came from Nexa.
   const pic = from ? safeImg((S.pics || {})[from] || U(from)?.avatar) : '';
-  const opts = { body: st.lines.join('\n'), icon: pic || 'icon-192-v3.png', badge: 'badge-96.png', tag, renotify: true };
+  const opts = { body: st.lines.join('\n'), icon: pic || 'icon-192-v4.png', badge: 'badge-96.png', tag, renotify: true };
   try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); onClick && onClick(); n.close(); }; }
   catch { navigator.serviceWorker?.ready.then(r => r.showNotification(title, opts)).catch(() => {}); }
 }
@@ -417,9 +417,9 @@ function startData() {
           const viewing = S.page === 'messages' && S.conv === c.id && document.visibilityState === 'visible';
           const mentioned = (c.last.men || []).includes(me);
           if (blocked(c.last.from) || (isMuted(c.id) && !mentioned)) return;
-          if (isRequestForMe(c)) { if (!old || !isRequestForMe(old) || !old.last) { toast(`<b>Message request</b> <span class="mute">from ${esc(dname(c.last.from))}</span>`, () => { S.convFilter = 'requests'; openConv(c.id); }, c.last.from); sound('ping'); } return; }
-          playTone(toneFor(c.last.from)); buzz([12, 40, 12]);
-          if (!viewing && S.prefs.notif.msg) toast(`<b>${esc(c.type !== 'dm' ? (mentioned ? dname(c.last.from).split(' ')[0] + ' mentioned you · ' : '') + convName(c) : dname(c.last.from))}</b> <span class="mute ellip" style="max-width:260px">${esc(c.last.text || 'Photo')}</span>`, () => openConv(c.id), c.last.from);
+          if (isRequestForMe(c)) { if (!old || !isRequestForMe(old) || !old.last) { toast(`<b>Message request</b> <span class="mute">from ${esc(dname(c.last.from))}</span>`, () => { S.convFilter = 'requests'; openConv(c.id); }, c.last.from); playTone(alertPref('request')); } return; }
+          playTone(alertFor(c, mentioned)); buzz(VIBES[(S.prefs.alerts || {}).vibe] || [12, 40, 12]);
+          if (!viewing && S.prefs.notif.msg && (S.prefs.alerts || {}).banner !== 'off') toast(`<b>${esc(c.type !== 'dm' ? (mentioned ? dname(c.last.from).split(' ')[0] + ' mentioned you · ' : '') + convName(c) : dname(c.last.from))}</b> <span class="mute ellip" style="max-width:260px">${esc(c.last.text || 'Photo')}</span>`, () => openConv(c.id), c.last.from);
           if (S.prefs.notif.msg) deviceNotify(c.type !== 'dm' ? convName(c) : dname(c.last.from), (c.type !== 'dm' ? dname(c.last.from).split(' ')[0] + ': ' : '') + (c.last.text || 'Photo'), () => openConv(c.id), 'c_' + c.id, c.last.from);
         }
       });
@@ -593,7 +593,7 @@ function vAuth() {
   const su = S.authMode === 'signup', f = S.form;
   return `<div class="auth${A('auth')}">
     <div class="col intro" style="gap:28px">
-      <div class="brandhero">${logo(92, false, 'logo-glow')}<div><div class="brandword">NEXA</div><div class="brandtag">Connect · Chat · Share · Together</div></div></div>
+      <div class="brandhero">${logo(92, false, 'logo-glow')}<div><div class="brandword">NEXA</div><div class="brandtag">A messaging app like never before</div></div></div>
       <h1>Every conversation, <span class="grad-text">a little closer.</span></h1>
       <p class="mute" style="margin:0;font-size:18px;line-height:1.55;max-width:470px">Messages, friends and plans in one calm, glassy place — built for the people you actually talk to.</p>
     </div>
@@ -658,14 +658,14 @@ function vShell() {
       <header class="top glass">
         <button class="search" data-a="palette">${ic('search', 18)}<span class="ellip">Search people, chats, events, settings…</span><span class="kbd">Ctrl K</span></button>
         <div style="flex:1"></div>
-        ${isOwner() ? '' : `<button class="btn sm helpbtn" data-a="dmOwner" title="Message the owner of Nexa">${ic('help', 16)} Help</button>`}
+        ${isOwner() ? '' : `<button class="btn sm helpbtn" data-a="dmOwner" title="Message Nexa Support">${ic('help', 16)} Help</button>`}
         <button class="ibtn" aria-label="Notifications" data-a="go" data-v="notifications">${ic('bell')}${c.notif ? '<span class="badge" style="position:absolute;top:-6px;right:-6px">' + c.notif + '</span>' : ''}</button>
         <button class="me-chip" style="width:auto;margin:0;padding:6px 12px 6px 6px" data-a="profile" data-v="${S.me}">${av(S.me, 36)}<span><span style="display:block;font-weight:700;font-size:14px">${esc(S.profile.name)}</span><span class="mute small">@${esc(S.profile.handle)}</span></span></button>
       </header>
       <header class="mtop">${pg === 'profile' && S.profileUid !== S.me ? `<button class="ibtn" aria-label="Back" data-a="back">${ic('back')}</button>` : logo(30)}<span class="t">${titles[pg]}</span>
         <button class="ibtn" aria-label="Explore" data-a="go" data-v="explore">${ic('compass')}</button>
         <button class="ibtn" aria-label="Search" data-a="palette">${ic('search')}</button>
-        ${isOwner() ? '' : `<button class="ibtn" aria-label="Message the owner for help" data-a="dmOwner">${ic('help')}</button>`}
+        ${isOwner() ? '' : `<button class="ibtn" aria-label="Message Nexa Support for help" data-a="dmOwner">${ic('help')}</button>`}
         <button class="ibtn" aria-label="Notifications" data-a="go" data-v="notifications">${ic('bell')}${c.notif ? '<span class="badge" style="position:absolute;top:-6px;right:-6px">' + c.notif + '</span>' : ''}</button></header>
       ${S.offline ? `<div class="offbar${A('offbar')}" role="status">${ic('wifiOff', 16)}<span>You're offline. Messages you send will go out when you reconnect.</span></div>` : ''}
       ${vPage()}
@@ -757,8 +757,8 @@ function vMoments() {
   const list = Object.keys(by).filter(u => u !== S.me).sort((a, b) => (seenAll(a) - seenAll(b)) || (by[b].at(-1).at - by[a].at(-1).at));
   const mine = by[S.me];
   return `<div class="moments" aria-label="Moments">
-    <div class="mo"><button class="mring ${mine ? '' : 'none'}" data-a="${mine ? 'storyOpen' : 'momentNew'}" data-v="${S.me}" aria-label="${mine ? 'View your moment' : 'Add a moment'}">${av(S.me, 58)}</button>${mine ? '' : `<button class="mplus" data-a="momentNew" aria-label="Add a moment">${ic('plus', 14, 2.6)}</button>`}<span class="small">${mine ? 'Your moment' : 'Add moment'}</span></div>
-    ${list.map(u => `<div class="mo"><button class="mring ${seenAll(u) ? 'seen' : by[u].some(m => m.close && !(m.seen || []).includes(S.me)) ? 'close' : ''}" data-a="storyOpen" data-v="${u}" aria-label="View ${esc(dname(u))}'s moment">${av(u, 58)}</button><span class="small ellip">${esc(dname(u).split(' ')[0])}</span></div>`).join('')}
+    <div class="mo"><button class="mring ${mine ? '' : 'none'}" data-a="${mine ? 'storyOpen' : 'momentNew'}" data-v="${S.me}" aria-label="${mine ? 'View your moment' : 'Add a moment'}">${av(S.me, 58)}${mine && mine.length > 1 ? `<span class="mcount">${mine.length}</span>` : ''}</button>${mine ? '' : `<button class="mplus" data-a="momentNew" aria-label="Add a moment">${ic('plus', 14, 2.6)}</button>`}<span class="small">${mine ? 'Your moment' : 'Add moment'}</span></div>
+    ${list.map(u => `<div class="mo"><button class="mring ${seenAll(u) ? 'seen' : by[u].some(m => m.close && !(m.seen || []).includes(S.me)) ? 'close' : ''}" data-a="storyOpen" data-v="${u}" aria-label="View ${esc(dname(u))}'s moment">${av(u, 58)}${by[u].length > 1 ? `<span class="mcount">${by[u].length}</span>` : ''}</button><span class="small ellip">${esc(dname(u).split(' ')[0])}</span></div>`).join('')}
     ${mine ? `<div class="mo"><button class="mring none" data-a="momentNew" aria-label="Add another moment"><span class="av" style="width:58px;height:58px;background:rgba(255,255,255,.05);color:var(--ac)">${ic('plus', 22, 2)}</span></button><span class="small">Add</span></div>` : ''}
     ${!list.length && !mine ? `<span class="mute small" style="align-self:center;max-width:240px">Moments disappear after 24 hours. Share one with your friends.</span>` : ''}
   </div>`;
@@ -947,7 +947,8 @@ function vChat(c) {
   if (!S.draft[c.id] && S.remoteDrafts?.[c.id] && !S.draftRestored?.[c.id]) { S.draftRestored = { ...(S.draftRestored || {}), [c.id]: 1 }; S.draft[c.id] = S.remoteDrafts[c.id]; }
   const draft = S.draft[c.id] || '';
   const pinned = c.pinned && c.pinned.text != null;
-  const cantSend = (U(other)?.deleted && !isGroup) || dmBlocked(c);
+  const roLock = (c.readOnlyFor || []).includes(S.me);
+  const cantSend = (U(other)?.deleted && !isGroup) || dmBlocked(c) || roLock;
   const sugg = S.sugg && S.sugg.conv === c.id ? S.sugg : null;
   const rec = S.rec;
   const th = thm;
@@ -983,7 +984,7 @@ function vChat(c) {
       ${S.editing ? `<div class="ctx glass${A('ctxe')}"><span style="color:var(--warm)">${ic('edit', 16)}</span><span class="grow"><b>Editing message</b> <span class="mute small">Esc to cancel</span></span><button class="ibtn sm" aria-label="Cancel edit" data-a="cancelCtx">${ic('x', 14)}</button></div>` : ''}
       ${reqOut ? `<div class="ctx glass small">${ic('send', 16)}<span class="grow">Message request sent. ${esc(dname(other).split(' ')[0])} can reply once they accept. <button class="grad-text" style="font-weight:700" data-a="addFriend" data-v="${other}">Add friend</button></span></div>` : ''}
       ${reqIn && !cantSend ? `<div class="reqbanner glass${A('reqb' + c.id)}"><div>${av(other, 44)}</div><div class="grow"><b>${esc(dname(other))} wants to message you</b><div class="mute small">@${esc(U(other)?.handle || '')} · Not your friend yet. Accept to reply — they won't know you've seen this until you do.</div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm danger" data-a="reqBlock">Block</button><button class="btn sm" data-a="reqDelete">Delete</button><button class="btn sm pri" data-a="reqAccept">Accept</button></div></div>`
-      : cantSend ? `<div class="ctx glass mute">${dmBlocked(c) ? `You blocked this person. <button class="btn sm" data-a="unblock" data-v="${other}">Unblock</button>` : 'This account no longer exists.'}</div>`
+      : cantSend ? `<div class="ctx glass mute ${roLock ? 'rolock' : ''}">${roLock ? `${ic('lock', 16)} <span><b>Official message</b> · Only Nexa can send messages in this chat.</span>` : dmBlocked(c) ? `You blocked this person. <button class="btn sm" data-a="unblock" data-v="${other}">Unblock</button>` : 'This account no longer exists.'}</div>`
       : rec ? `<div class="composer glass recbar${A('rec')}"><button class="ibtn" style="border:0" aria-label="Cancel recording" data-a="recCancel">${ic('trash', 18)}</button><span class="recdot"></span><span id="recTime" class="vt" style="min-width:40px" data-morph-skip="1">0:00</span><span class="bars live grow" id="recBars" data-morph-skip="1"></span><button class="send" aria-label="Send voice message" data-a="recSend">${ic('send', 20, 2)}</button></div>`
       : `${vPlanSugg(c)}${vMentionPop(c)}<div class="composer glass">
         <button class="ibtn ${S.attach ? 'on' : ''}" style="border:0" aria-label="Attach" title="Photos, poll, link" data-a="attach">${ic('plus', 20, 2)}</button>
@@ -1261,7 +1262,7 @@ function vSettings() {
     <div class="setrow"><span><b>Download your data</b><div class="mute small">Your profile, friends, chats and events in one file.</div></span><button class="btn sm" data-a="exportOpen">${ic('download', 14)} Download</button></div>
     <div class="row" style="gap:10px"><button class="btn" data-a="logout">${ic('logout', 18)} Log out</button></div>
     <div style="padding:18px;border-radius:18px;border:1px solid rgba(255,77,109,.35);background:rgba(255,77,109,.06)"><b>Delete account</b><div class="mute small" style="margin:4px 0 12px">Removes your profile and signs you out. Messages you sent stay visible to people you sent them to.</div><button class="btn sm danger" data-a="deleteAccount">Delete my account</button></div>`;
-  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the owner of Nexa (@' + OWNER_HANDLE + ') and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Message the owner</button>`}</div><div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
+  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the Nexa Support team and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Message the owner</button>`}</div><div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
   return `<div class="settings">
     <aside class="setnav glass card">${`<div class="disp hide-m" style="font-size:20px;font-weight:600;padding:6px 10px 12px">Settings</div>`}${secs.map(([k, i, l]) => `<button class="${s === k ? 'on' : ''}" data-a="setSec" data-v="${k}">${ic(i, 18)}${l}</button>`).join('')}</aside>
     <section class="setbody glass card scroll" data-keep-scroll="set"><div class="${A('set' + s)}">${body}</div></section>
@@ -1751,10 +1752,10 @@ const actions = {
     S.menu = null; S.palette = false;
     if (isOwner()) return toast('You\'re the owner — people\'s help messages come to your Chats.');
     const uid = await findOwner(); if (!uid) return toast('Couldn\'t reach the owner right now. Try again in a bit.');
-    if (blocked(uid)) return toast('Unblock @' + OWNER_HANDLE + ' first');
+    if (blocked(uid)) return toast('Unblock Nexa Support first');
     const id = await ensureDM(uid, true); if (!id) return;
     openConv(id);
-    if (!(S.msgs[id] || []).length && !(S.draft[id] || '')) { S.draft[id] = 'Hi! I need some help with Nexa: '; render(); setTimeout(() => { const el = $('#composer'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 50); }
+    if (!(S.msgs[id] || []).length && !(S.draft[id] || '')) { S.draft[id] = 'Hi Nexa Support! I need some help with: '; render(); setTimeout(() => { const el = $('#composer'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 50); }
   },
   mentionPick: d => {
     const el = $('#composer'); if (!el || !S.mention) return;
@@ -1991,8 +1992,8 @@ const actions = {
   sendReport: async () => {
     const m = S.modal; if (!S.form.repReason) { S.authErr = 'Pick a reason.'; return render(); }
     const msg = m.mid ? (S.msgs[S.conv] || []).find(x => x.id === m.mid) : null;
-    await db().add('reports', { reporter: S.me, target: m.uid, reason: S.form.repReason, details: (S.form.repDetails || '').slice(0, 500), convId: m.mid ? S.conv : '', messageId: m.mid || '', excerpt: msg ? msgLabel(msg).slice(0, 300) : '', at: now() });
-    S.modal = null; render();
+    const repId = await db().add('reports', { reporter: S.me, target: m.uid, reason: S.form.repReason, details: (S.form.repDetails || '').slice(0, 500), convId: m.mid ? S.conv : '', messageId: m.mid || '', excerpt: msg ? msgLabel(msg).slice(0, 300) : '', at: now() });
+    S.modal = null; render(); if (repId) pushNotify('report', { id: repId });
     if (S.form.repBlock) await doBlock(m.uid);
     toast('Thanks — your report was sent.');
   },
@@ -2338,7 +2339,7 @@ async function boot() {
   if (look) { Object.assign(S.prefs, look); applyTheme(); }
   const splash = document.createElement('div');
   splash.className = 'splash';
-  splash.innerHTML = `<div class="splash-mark">${logo(112, false, 'build')}</div><div class="word">NEXA</div><div class="tagline">Connect · Chat · Share · Together</div>`;
+  splash.innerHTML = `<div class="splash-mark">${logo(112, false, 'build')}</div><div class="word">NEXA</div><div class="tagline">A messaging app like never before</div>`;
   document.body.appendChild(splash);
   setTimeout(() => splash.remove(), 2700);
   try { S.be = await createBackend(CONFIG); }
@@ -3536,14 +3537,14 @@ function vOwner() {
 /* ---------- help: message the owner of Nexa ---------- */
 const OWNER_HANDLE = 'owner', OWNER_EMAIL = 'etihadairways1028@gmail.com';
 const RESERVED_HANDLES = ['owner', 'admin', 'nexa', 'support', 'help', 'official', 'moderator', 'mod', 'staff', 'team'];
-const handleReserved = h => RESERVED_HANDLES.includes(h) && (S.be?.auth?.user?.()?.email || '').toLowerCase() !== OWNER_EMAIL;
+const handleReserved = h => RESERVED_HANDLES.includes(h) && ![OWNER_EMAIL, 'nexaconnectofficial@gmail.com'].includes((S.be?.auth?.user?.()?.email || '').toLowerCase());
 let ownerUid = null;
-const isOwner = () => (S.profile?.handle || '').toLowerCase() === OWNER_HANDLE;
+const isOwner = () => ['owner', 'support'].includes((S.profile?.handle || '').toLowerCase());
 async function findOwner() {
   if (ownerUid) return ownerUid;
-  const h = await db().get('handles/' + OWNER_HANDLE).catch(() => null);
-  ownerUid = h?.uid || null; if (ownerUid) watchUser(ownerUid);
-  return ownerUid;
+  // Help goes to the Nexa Support team (@support); if that account isn't set up yet, to @owner.
+  for (const h of ['support', OWNER_HANDLE]) { const r = await db().get('handles/' + h).catch(() => null); if (r?.uid) { ownerUid = r.uid; watchUser(ownerUid); return ownerUid; } }
+  return null;
 }
 const canDM = uid => isFriend(uid) || (U(uid)?.allowMessages || 'everyone') !== 'friends';
 
@@ -3587,7 +3588,7 @@ function playTone(name) {
     (TONES[name] || TONES.chime).forEach(([f, d]) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = name === 'marimba' ? 'triangle' : 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(.08, t + d + .015); g.gain.exponentialRampToValueAtTime(.0001, t + d + .3); o.connect(g).connect(actx.destination); o.start(t + d); o.stop(t + d + .32); });
   } catch {}
 }
-const toneFor = uid => (S.prefs.friendSounds || {})[uid] || 'chime';
+let toneFor = uid => (S.prefs.friendSounds || {})[uid] || 'chime';
 
 /* ---------------- drafts synced across devices ---------------- */
 function watchDrafts() { unsubs.base.push(db().listenDoc(`users/${S.me}/private/drafts`, d => { S.remoteDrafts = d || {}; render(); })); }
@@ -4093,7 +4094,7 @@ function vAuthCode() {
   const f = S.form, canScan = 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
   return `<div class="auth${A('auth')}">
     <div class="col intro" style="gap:28px">
-      <div class="brandhero">${logo(92, false, 'logo-glow')}<div><div class="brandword">NEXA</div><div class="brandtag">Connect · Chat · Share · Together</div></div></div>
+      <div class="brandhero">${logo(92, false, 'logo-glow')}<div><div class="brandword">NEXA</div><div class="brandtag">A messaging app like never before</div></div></div>
       <h1>Log in <span class="grad-text">instantly.</span></h1>
       <p class="mute" style="margin:0;font-size:17px;line-height:1.6;max-width:470px">On a device where you're already logged in, open <b style="color:var(--text)">Settings › Account › Log in on another device</b>. Then scan the QR code or type the code here.</p>
     </div>
@@ -4254,23 +4255,24 @@ async function sendVideoBlob(blob, dur, round) {
   await sendMessage({ video: { src, thumb: t.thumb, dur: Math.round((dur || t.dur || 0) * 10) / 10, w: t.w, h: t.h, round: !!round }, text });
 }
 /* Re-encode a picked video so it's small enough to send (first 20 seconds, 360p) */
-async function shrinkVideo(file) {
+async function shrinkVideo(file, start = 0, maxSec = MAX_VIDEO_SEC, kbps = 200) {
   const mime = pickVideoMime(); if (!mime || !HTMLCanvasElement.prototype.captureStream) throw new Error('Your browser can\'t prepare videos. Try a shorter clip.');
   const url = URL.createObjectURL(file), v = document.createElement('video'); v.muted = true; v.playsInline = true; v.src = url;
   await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error('That video can\'t be opened.')); });
   const k = Math.min(1, 360 / Math.max(v.videoWidth, v.videoHeight)), W = Math.round(v.videoWidth * k / 2) * 2, H = Math.round(v.videoHeight * k / 2) * 2;
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const stream = c.captureStream(24), len = Math.min(v.duration || MAX_VIDEO_SEC, MAX_VIDEO_SEC);
+  const stream = c.captureStream(24); start = Math.max(0, Math.min(start, Math.max(0, (v.duration || 0) - 1))); const len = Math.min(Math.max(1, (v.duration || maxSec) - start), maxSec);
   let actx, srcNode;
   try { actx = new (window.AudioContext || window.webkitAudioContext)(); const buf = await actx.decodeAudioData(await file.arrayBuffer()); const dest = actx.createMediaStreamDestination(); srcNode = actx.createBufferSource(); srcNode.buffer = buf; srcNode.connect(dest); dest.stream.getAudioTracks().forEach(t => stream.addTrack(t)); } catch {}
-  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 200000, audioBitsPerSecond: 32000 }), chunks = [];
+  const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: kbps * 1000, audioBitsPerSecond: 32000 }), chunks = [];
   mr.ondataavailable = e => e.data.size && chunks.push(e.data);
   const done = new Promise(r => mr.onstop = r);
-  mr.start(500); await v.play(); if (srcNode) srcNode.start(0, 0);
+  if (start) { v.currentTime = start; await new Promise(r => { v.onseeked = r; setTimeout(r, 1500); }); }
+  mr.start(500); await v.play(); if (srcNode) srcNode.start(0, start);
   const t0 = performance.now();
   await new Promise(r => { const draw = () => { g.drawImage(v, 0, 0, W, H); const el = (performance.now() - t0) / 1000; const p = document.getElementById('vprog'); if (p) p.textContent = Math.min(100, Math.round(el / len * 100)) + '%'; if (el >= len || v.ended) return r(); requestAnimationFrame(draw); }; draw(); });
   v.pause(); try { srcNode && srcNode.stop(); } catch {} mr.stop(); await done; try { actx && actx.close(); } catch {} URL.revokeObjectURL(url);
-  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), dur: len, trimmed: (v.duration || 0) > MAX_VIDEO_SEC + .5 };
+  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), dur: len, trimmed: (v.duration || 0) > maxSec + .5 };
 }
 /* Round video notes */
 let VN = null;
@@ -4395,7 +4397,7 @@ Object.assign(actions, {
   moAud: d => { S.form.moClose = d.v === 'close'; if (S.form.moClose && !closeFriendIds().length) return actions.cfOpen({ back: 1 }); S.authErr = ''; render(); },
   cfOpen: d => { S.modal = { type: 'closeFriends', back: S.modal?.type === 'moment' || d?.back ? 1 : 0 }; render(); },
   cfPick: d => { const s = S.prefs.closeFriends || []; savePrefs({ closeFriends: s.includes(d.v) ? s.filter(x => x !== d.v) : [...s, d.v] }); },
-  cfBack: () => { S.modal = { type: 'moment' }; S.form.moClose = closeFriendIds().length > 0; render(); },
+  cfBack: () => { if (S.se) { S.modal = null; S.se.close = closeFriendIds().length > 0; return render(); } S.modal = { type: 'moment' }; S.form.moClose = closeFriendIds().length > 0; render(); },
   vnoteStart: () => vnoteStart(),
   playVideo: d => openVideo((S.msgs[S.conv] || []).find(x => x.id === d.v)),
   liveOpen: () => { S.attach = false; if (!navigator.geolocation) return toast('Location isn\'t available on this device.'); S.modal = { type: 'live' }; render(); },
@@ -5003,6 +5005,580 @@ actions.onbNext = async (...a) => {
   return r;
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.onceView) actions.onceClose(); });
+
+
+/* ================= v16: phone speed, Nexa Support, warnings, new moments (stories) ================= */
+
+/* ---- phones: no live glass blur (that's what made Nexa laggy on phones) ---- */
+const isPhoneish = () => matchMedia('(pointer: coarse)').matches || innerWidth <= 760;
+function applyPhoneMode() {
+  const r = document.documentElement, on = isPhoneish() && !S.prefs.fullGlass;
+  r.dataset.phone = on ? '1' : '';
+  if (on) r.classList.remove('refract');
+}
+const _applyThemeV16 = applyTheme;
+applyTheme = function (...a) { const out = _applyThemeV16(...a); try { applyPhoneMode(); } catch {} return out; };
+applyPhoneMode(); setTimeout(applyPhoneMode, 50);
+addEventListener('resize', () => { clearTimeout(applyPhoneMode.t); applyPhoneMode.t = setTimeout(applyPhoneMode, 200); }, { passive: true });
+const _vSettingsV16 = vSettings;
+vSettings = function () {
+  let h = _vSettingsV16();
+  if (isPhoneish()) {
+    const row = `<div class="setrow"><span><b>Full glass effects</b><div class="mute small">Live see-through blur like on computers. Looks fancier but can make phones laggy.</div></span><button class="tog ${S.prefs.fullGlass ? 'on' : ''}" role="switch" aria-checked="${!!S.prefs.fullGlass}" aria-label="Full glass effects" data-a="prefFlag" data-k="fullGlass"></button></div>`;
+    const i = h.indexOf('<b>Smooth mode</b>'); if (i > 0) { const s = h.lastIndexOf('<div class="setrow">', i); if (s > 0) h = h.slice(0, s) + row + h.slice(s); }
+  }
+  return h;
+};
+
+/* ---- Nexa Support & official chats ---- */
+const STAFF = new Set(['support', 'owner']);
+const isStaffUid = uid => !!(U(uid)?.staff || STAFF.has((U(uid)?.handle || '').toLowerCase()));
+const _vMsgBodyV16 = vMsgBody;
+vMsgBody = function (m, q, quote) {
+  const h = _vMsgBodyV16(m, q, quote);
+  if (m.agent && m.from !== S.me && !m.deleted) return `<div class="agentlbl">${ic('check', 11, 3)} ${esc(m.agent === 'Nexa Support' ? 'Nexa Support' : m.agent + ' · Nexa Support')}</div>` + h;
+  return h;
+};
+const _vChatV16 = vChat;
+vChat = function (c) {
+  let h = _vChatV16(c);
+  const other = c.type === 'dm' ? (c.members || []).find(u => u !== S.me) : null;
+  if (other && isStaffUid(other)) h = h.replace('<div class="stream"', `<div class="officialbar">${ic('check', 13, 3)} <b>Official Nexa ${(U(other)?.handle || '') === 'owner' ? 'Owner' : 'Support'}</b><span class="mute small">This is the real Nexa team.${(c.readOnlyFor || []).includes(S.me) ? ' You can read but not reply here.' : ''}</span></div><div class="stream"`);
+  return h;
+};
+
+/* ---- official warnings: a clear warning screen, not just a notification ---- */
+const _vOverlaysV16 = vOverlays;
+vOverlays = function () {
+  let o = _vOverlaysV16();
+  const w = S.view === 'app' && (S.notifs || []).filter(n => n.type === 'admin_warn' && !n.read).sort((a, b) => a.at - b.at)[0];
+  if (w) o += `<div class="warnscreen" role="alertdialog" aria-modal="true" aria-labelledby="warnT"><div class="warncard">
+    <div class="warnic">${ic('shield', 34, 2)}</div>
+    <div class="warnno">${w.warnNo ? 'Warning #' + w.warnNo : 'Official warning'}</div>
+    <h2 id="warnT">You've received a warning from Nexa</h2>
+    <p class="warnwhy">${esc(w.body || 'Please keep Nexa friendly and respectful.')}</p>
+    <ul class="warnlist"><li>Treat everyone with respect — no bullying, hate or threats.</li><li>${(w.warnNo || 1) >= 2 ? '<b>More warnings can get your account suspended.</b>' : 'If it happens again, your account can be suspended.'}</li></ul>
+    <div class="mute small">${fmtWhen(w.at)} · Questions? Tap Help to message Nexa Support.</div>
+    <button class="btn pri warnok" data-a="warnAck" data-v="${w.id}">I understand</button></div></div>`;
+  return o;
+};
+
+/* ---- stories ("moments") v2 ---- */
+const STORY_MAX = 45, SE_COLORS = ['#ffffff', '#111111', '#ffd84d', '#ff4d6d', '#5b7cff', '#2fd4c4', '#9b6bff', '#ff8a4c'];
+const SE_STICKERS = ['🔥', '😂', '😍', '🎉', '💯', '🥹', '👀', '✨', '❤️', '😎', '🙌', '💀'];
+const seNew = () => ({ step: 'edit', media: null, bg: Math.floor(Math.random() * MOMENT_BGS.length), text: '', tx: { x: 50, y: 42, s: 8, c: '#ffffff', box: 1 }, mp: { x: 0, y: 0, z: 1 }, sticker: '', sp: { x: 76, y: 22 }, poll: null, pp: { x: 50, y: 70 }, music: null, close: false, tool: '', songQ: '', songRes: [], songBusy: false, busy: false, prog: 0 });
+const mediaStyle = mp => `transform:translate(${(mp?.x || 0)}%,${(mp?.y || 0)}%) scale(${mp?.z || 1})`;
+const posStyle = p => `left:${p.x}%;top:${p.y}%`;
+const fmtS = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+function vStoryEditor() {
+  const e = S.se; if (!e) return '';
+  if (e.step === 'trim') {
+    const t = e.trim, maxStart = Math.max(0, t.dur - STORY_MAX);
+    return `<div class="sedit"><div class="seframe"><div class="sestage"><video id="seTrimV" src="${t.url}" playsinline muted autoplay loop class="semedia" style="object-fit:contain"></video></div></div>
+      <div class="sepanel glass"><b>Your video is ${fmtS(t.dur)} long</b><div class="mute small">Moments can be up to ${STORY_MAX} seconds. Slide to choose which part to use.</div>
+      <input type="range" id="seTrimR" min="0" max="${maxStart.toFixed(1)}" step="0.1" value="${t.start}" style="width:100%"><div class="row spread small"><span>${fmtS(t.start)}</span><b>${fmtS(t.start)} – ${fmtS(t.start + Math.min(STORY_MAX, t.dur))}</b><span>${fmtS(t.dur)}</span></div>
+      <div class="row" style="gap:10px;justify-content:flex-end"><button class="btn" data-a="seTrimCancel">Cancel</button><button class="btn pri" data-a="seTrimUse">Use this part</button></div></div></div>`;
+  }
+  const bg = e.media ? '#000' : MOMENT_BGS[e.bg];
+  const media = e.media ? (e.media.kind === 'vid' ? `<video data-key="se-v" src="${esc(e.media.src)}" class="semedia" style="${mediaStyle(e.mp)}" autoplay muted loop playsinline data-drag="media"></video>` : `<img src="${esc(e.media.src)}" class="semedia" style="${mediaStyle(e.mp)}" alt="" data-drag="media" draggable="false">`) : '';
+  const tx = e.tx;
+  const text = e.text || e.tool === 'text' ? `<div class="setext ${tx.box ? 'box' : ''}" data-drag="text" style="${posStyle(tx)};--tfs:${tx.s};color:${tx.c};${tx.box ? `background:${tx.c === '#ffffff' || tx.c === '#ffd84d' ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.85)'}` : ''}">${esc(e.text) || '<span style="opacity:.6">Type something…</span>'}</div>` : '';
+  const stick = e.sticker ? `<div class="sesticker" data-drag="sticker" style="${posStyle(e.sp)}">${esc(e.sticker)}</div>` : '';
+  const poll = e.poll ? `<div class="sepoll" data-drag="poll" style="${posStyle(e.pp)}"><b>${esc(e.poll.q || 'Ask a question…')}</b><span>${esc(e.poll.a || 'Yes')}</span><span>${esc(e.poll.b || 'No')}</span></div>` : '';
+  const mus = e.music ? `<div class="semusic">${e.music.art ? `<img src="${esc(e.music.art)}" alt="">` : ic('music', 14, 2)}<span class="ellip"><b>${esc(e.music.t)}</b> · ${esc(e.music.a || '')}</span><i class="eq"><b></b><b></b><b></b></i></div>` : '';
+  let panel = '';
+  if (e.tool === 'text') panel = `<div class="sepanel glass"><input class="inp" id="seText" maxlength="160" placeholder="Type something…" value="${esc(e.text)}" autocomplete="off" data-autofocus>
+      <div class="row" style="gap:6px;flex-wrap:wrap">${SE_COLORS.map(c => `<button class="secol ${tx.c === c ? 'on' : ''}" style="background:${c}" aria-label="Colour ${c}" data-a="seColor" data-v="${c}"></button>`).join('')}<button class="pill ${tx.box ? 'on' : ''}" data-a="seBox">${tx.box ? 'Box on' : 'Box off'}</button></div>
+      <label class="small row" style="gap:10px">Size<input type="range" id="seSize" min="4" max="16" step=".5" value="${tx.s}" style="flex:1"></label>
+      <div class="row spread"><span class="mute small">Drag the text to move it</span><button class="btn sm pri" data-a="seTool" data-v="">Done</button></div></div>`;
+  else if (e.tool === 'sticker') panel = `<div class="sepanel glass"><div class="row" style="gap:6px;flex-wrap:wrap">${SE_STICKERS.map(s => `<button class="pill ${e.sticker === s ? 'on' : ''}" style="font-size:22px" data-a="seSticker" data-v="${s}">${s}</button>`).join('')}${e.sticker ? '<button class="pill" data-a="seSticker" data-v="">Remove</button>' : ''}</div><div class="row spread"><span class="mute small">Drag it anywhere</span><button class="btn sm pri" data-a="seTool" data-v="">Done</button></div></div>`;
+  else if (e.tool === 'poll') panel = `<div class="sepanel glass"><input class="inp" id="sePq" maxlength="60" placeholder="Question — e.g. Pizza or tacos?" value="${esc(e.poll?.q || '')}"><div class="row" style="gap:8px"><input class="inp" id="sePa" maxlength="24" placeholder="Option 1" value="${esc(e.poll?.a || '')}"><input class="inp" id="sePb" maxlength="24" placeholder="Option 2" value="${esc(e.poll?.b || '')}"></div><div class="row spread">${e.poll ? '<button class="btn sm" data-a="sePollDel">Remove poll</button>' : '<span></span>'}<button class="btn sm pri" data-a="seTool" data-v="">Done</button></div></div>`;
+  else if (e.tool === 'song') {
+    const sel = e.songPick;
+    const len = e.media?.kind === 'vid' ? Math.min(30, Math.max(5, Math.round(e.media.dur || 15))) : 15;
+    panel = `<div class="sepanel glass songpanel"><form class="row" data-submit="seSong" style="gap:8px"><input class="inp" id="seSongQ" placeholder="Search any song or artist" value="${esc(e.songQ)}" autocomplete="off" data-autofocus><button class="btn sm pri">${ic('search', 15)}</button></form>
+      ${sel ? `<div class="songsel">${sel.art ? `<img src="${esc(sel.art)}" alt="">` : `<span class="songart">${ic('music', 18)}</span>`}<span class="grow ellip"><b>${esc(sel.t)}</b><span class="mute small" style="display:block">${esc(sel.a || '')}</span></span><button class="ibtn sm" data-a="seSongPlay" aria-label="Play">${ic(e.songPlaying ? 'pause' : 'play', 14)}</button></div>
+        <label class="small">Choose the part to play (${len}s)</label><input type="range" id="seSongStart" min="0" max="${Math.max(0, (sel.len || 30) - len)}" step=".5" value="${sel.start || 0}" style="width:100%"><div class="row spread small mute"><span>${fmtS(sel.start || 0)} – ${fmtS((sel.start || 0) + len)}</span><span>of ${fmtS(sel.len || 30)} preview</span></div>
+        <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn sm" data-a="seSongBack">Pick another</button><button class="btn sm pri" data-a="seSongUse">Use this song</button></div>`
+      : `<div class="songlist">${e.songBusy ? '<div class="mute small" style="padding:10px">Searching…</div>' : e.songRes.length ? e.songRes.map((r, i) => `<button class="songrow" data-a="seSongPick" data-i="${i}">${r.art ? `<img src="${esc(r.art)}" alt="" loading="lazy">` : `<span class="songart">${ic('music', 18)}</span>`}<span class="grow ellip"><b>${esc(r.t)}</b><span class="mute small" style="display:block">${esc(r.a || '')}</span></span>${ic('plus', 16)}</button>`).join('') : `<div class="mute small" style="padding:10px">${e.songErr ? esc(e.songErr) : 'Search for any song — you\'ll pick the part that plays.'}</div>`}</div>
+        <div class="row spread">${e.music ? '<button class="btn sm" data-a="seSongDel">Remove song</button>' : '<span></span>'}<button class="btn sm" data-a="seTool" data-v="">Close</button></div>`}</div>`;
+  }
+  else panel = `<div class="sebottom">${e.media ? `<label class="sezoom">${ic('search', 14)}<input type="range" id="seZoom" min="1" max="3" step=".05" value="${e.mp.z}" aria-label="Zoom"></label>` : `<div class="row" style="gap:6px">${MOMENT_BGS.map((b, i) => `<button class="secol ${e.bg === i ? 'on' : ''}" style="background:${b}" aria-label="Background ${i + 1}" data-a="seBg" data-v="${i}"></button>`).join('')}</div>`}
+      <div class="row" style="gap:8px;width:100%"><button class="pill ${e.close ? '' : 'on'}" data-a="seAud" data-v="all">${ic('people', 14)} Friends</button><button class="pill ${e.close ? 'on cfpill' : ''}" data-a="seAud" data-v="close">${ic('star', 14)} Close friends</button><span class="grow"></span><button class="btn pri" data-a="sePost" ${e.busy ? 'disabled' : ''}>${e.busy ? (e.prog ? 'Uploading…' : 'Sharing…') : 'Share'} ${ic('send', 15, 2)}</button></div></div>`;
+  return `<div class="sedit" role="dialog" aria-label="New moment"><div class="seframe"><div class="sestage" id="seStage" style="background:${bg}">${media}${text}${stick}${poll}${mus}
+      ${!e.media && !e.text && e.tool !== 'text' ? `<button class="sehint" data-a="seTool" data-v="text">Tap to type<br><span class="small">or add a photo / video</span></button>` : ''}
+      ${S.moVidBusy ? `<div class="sebusy"><span class="spin"></span>Preparing video… <b id="vprog">0%</b></div>` : ''}
+    </div>
+    <div class="setop"><button class="ibtn" aria-label="Close" data-a="seClose">${ic('x', 18)}</button><span class="grow"></span>
+      <button class="ibtn semus" data-a="seTool" data-v="song">${ic('music', 16)} <span>${e.music ? 'Change song' : 'Choose a song'}</span></button>${e.tool ? `<button class="btn sm pri" data-a="sePost" ${e.busy ? 'disabled' : ''}>Share</button>` : ''}</div>
+    <div class="setools">
+      <label class="setool" title="Photo or video">${ic('photo', 20)}<span>Media</span><input type="file" accept="image/*,video/*" class="sr" data-file="seMedia"></label>
+      <button class="setool ${e.tool === 'text' ? 'on' : ''}" data-a="seTool" data-v="text">${ic('edit', 20)}<span>Text</span></button>
+      <button class="setool ${e.tool === 'sticker' ? 'on' : ''}" data-a="seTool" data-v="sticker">${ic('smile', 20)}<span>Sticker</span></button>
+      <button class="setool ${e.tool === 'poll' ? 'on' : ''}" data-a="seTool" data-v="poll">${ic('poll', 20)}<span>Poll</span></button>
+      ${e.media ? `<button class="setool" data-a="seMediaDel">${ic('trash', 20)}<span>Remove</span></button>` : ''}
+    </div></div>
+    ${panel}${S.authErr && S.se ? `<div class="seerr">${esc(S.authErr)}</div>` : ''}</div>`;
+}
+
+// dragging text / stickers / polls / the photo itself inside the editor
+let seDrag = null;
+document.addEventListener('pointerdown', ev => {
+  const el = ev.target.closest('.sestage [data-drag]'); if (!el || !S.se) return;
+  const st = document.getElementById('seStage'); const r = st.getBoundingClientRect(); const k = el.dataset.drag; const e = S.se;
+  const start = k === 'media' ? { ...e.mp } : k === 'text' ? { ...e.tx } : k === 'sticker' ? { ...e.sp } : { ...e.pp };
+  seDrag = { k, el, r, x0: ev.clientX, y0: ev.clientY, start, moved: false };
+  el.setPointerCapture?.(ev.pointerId); ev.preventDefault();
+}, { passive: false });
+document.addEventListener('pointermove', ev => {
+  if (!seDrag || !S.se) return; const d = seDrag, e = S.se;
+  const dx = (ev.clientX - d.x0) / d.r.width * 100, dy = (ev.clientY - d.y0) / d.r.height * 100;
+  if (Math.abs(dx) + Math.abs(dy) > 1) d.moved = true;
+  const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  if (d.k === 'media') { const lim = 50 * (e.mp.z - 1) + 15; e.mp.x = cl(d.start.x + dx / e.mp.z, -lim, lim); e.mp.y = cl(d.start.y + dy / e.mp.z, -lim, lim); d.el.style.transform = mediaStyle(e.mp).slice(10); }
+  else { const tgt = d.k === 'text' ? e.tx : d.k === 'sticker' ? e.sp : e.pp; tgt.x = cl(d.start.x + dx, 5, 95); tgt.y = cl(d.start.y + dy, 5, 95); d.el.style.left = tgt.x + '%'; d.el.style.top = tgt.y + '%'; }
+}, { passive: true });
+document.addEventListener('pointerup', () => { if (!seDrag) return; const d = seDrag; seDrag = null; if (!d.moved && d.k === 'text') { S.se.tool = 'text'; render(); } else if (!d.moved && d.k === 'sticker') { S.se.tool = 'sticker'; render(); } else if (!d.moved && d.k === 'poll') { S.se.tool = 'poll'; render(); } });
+document.addEventListener('input', ev => {
+  const e = S.se; if (!e) return; const id = ev.target.id, v = ev.target.value;
+  if (id === 'seText') { e.text = v; const t = document.querySelector('.setext'); if (t) t.textContent = v || ' '; else render(); }
+  if (id === 'seSize') { e.tx.s = +v; const t = document.querySelector('.setext'); if (t) t.style.setProperty('--tfs', v); }
+  if (id === 'seZoom') { e.mp.z = +v; const m = document.querySelector('.semedia'); if (m) m.style.transform = mediaStyle(e.mp).slice(10); }
+  if (id === 'sePq' || id === 'sePa' || id === 'sePb') { e.poll = { ...(e.poll || {}), [id === 'sePq' ? 'q' : id === 'sePa' ? 'a' : 'b']: v.slice(0, 60) }; const p = document.querySelector('.sepoll'); if (p) { p.children[0].textContent = e.poll.q || 'Ask a question…'; p.children[1].textContent = e.poll.a || 'Yes'; p.children[2].textContent = e.poll.b || 'No'; } else render(); }
+  if (id === 'seSongQ') e.songQ = v;
+  if (id === 'seSongStart' && e.songPick) { e.songPick.start = +v; const a = songAudio(); if (e.songPlaying) { a.currentTime = +v; } clearTimeout(e.songT); e.songT = setTimeout(render, 250); }
+  if (id === 'seTrimR' && e.trim) { e.trim.start = +v; const vid = document.getElementById('seTrimV'); if (vid) vid.currentTime = +v; clearTimeout(e.trimT); e.trimT = setTimeout(render, 200); }
+});
+let _songA = null;
+const songAudio = () => { if (!_songA) { _songA = new Audio(); _songA.preload = 'auto'; } return _songA; };
+function stopSong() { try { _songA && _songA.pause(); } catch {} if (S.se) S.se.songPlaying = false; clearTimeout(stopSong.t); }
+async function seSearch() {
+  const e = S.se; if (!e || !e.songQ.trim()) return;
+  e.songBusy = true; e.songErr = ''; e.songPick = null; render();
+  try { const r = await fetch('/.netlify/functions/music?q=' + encodeURIComponent(e.songQ.trim())); const j = await r.json(); e.songRes = j.list || []; if (!e.songRes.length) e.songErr = j.error || 'No songs found — try another search.'; }
+  catch { e.songRes = []; e.songErr = 'Couldn\'t search songs right now.'; }
+  e.songBusy = false; render();
+}
+async function seEncodeVideo(file, start) {
+  const e = S.se; S.moVidBusy = true; render();
+  try {
+    const out = await shrinkVideo(file, start, STORY_MAX, 160);
+    const src = String(await blobToData(out.blob)).replace(/;codecs=[^;,]+/, '');
+    const u = URL.createObjectURL(out.blob); const t = await videoThumb(u, 360); URL.revokeObjectURL(u);
+    if (S.se === e) { e.media = { kind: 'vid', src, thumb: t.thumb, dur: Math.round(out.dur * 10) / 10 }; e.mp = { x: 0, y: 0, z: 1 }; }
+  } catch (err) { toast(esc(err.message || 'Couldn\'t use that video.')); }
+  S.moVidBusy = false; render();
+}
+Object.assign(files, {
+  seMedia: async f => {
+    const e = S.se; if (!e) return; S.authErr = '';
+    if (/^video\//.test(f.type)) {
+      const url = URL.createObjectURL(f);
+      const dur = await new Promise(r => { const v = document.createElement('video'); v.preload = 'metadata'; v.onloadedmetadata = () => r(v.duration || 0); v.onerror = () => r(0); v.src = url; });
+      if (dur > STORY_MAX + .5) { e.step = 'trim'; e.trim = { file: f, url, dur, start: 0 }; return render(); }
+      URL.revokeObjectURL(url); return seEncodeVideo(f, 0);
+    }
+    if (!f.type.startsWith('image/')) return toast('Pick a photo or a video.');
+    e.media = { kind: 'img', src: await compress(f, 1080, .82), file: true }; e.mp = { x: 0, y: 0, z: 1 }; render();
+  }
+});
+document.addEventListener('submit', ev => {
+  const f = ev.target.closest('[data-submit]'); if (!f) return;
+  const k = f.dataset.submit;
+  if (k === 'seSong') { ev.preventDefault(); ev.stopImmediatePropagation(); seSearch(); }
+  if (k === 'storyComment') { ev.preventDefault(); ev.stopImmediatePropagation(); actions.storyComment(); }
+}, true);
+
+// split a big video over several small documents (each under Firestore's 1 MB limit)
+async function saveMomentVideo(src, aud) {
+  const CH = 900000, parts = [];
+  for (let i = 0; i < src.length; i += CH) parts.push(src.slice(i, i + CH));
+  const ids = [];
+  for (let i = 0; i < parts.length; i++) { if (S.se) { S.se.prog = (i + 1) / parts.length; } ids.push(await db().add('momentMedia', { author: S.me, audience: aud, src: parts[i], part: i, of: parts.length, at: now() })); }
+  return ids;
+}
+momentVideo = function (mo) {
+  const ids = Array.isArray(mo.video?.media) ? mo.video.media : mo.video?.media ? [mo.video.media] : [];
+  if (!ids.length) return '';
+  const key = ids.join(',');
+  if (momentVids[key] !== undefined) return momentVids[key] || '';
+  momentVids[key] = null;
+  Promise.all(ids.map(id => db().get('momentMedia/' + id))).then(ds => { const src = ds.map(d => d?.src || '').join(''); momentVids[key] = /^data:video\/(webm|mp4);base64,/.test(src) ? src : ''; if (S.story) storyTick(); render(); }).catch(() => { momentVids[key] = ''; });
+  return '';
+};
+
+// viewer
+const storyAudio = () => { if (!storyAudio.a) { storyAudio.a = new Audio(); storyAudio.a.preload = 'auto'; } return storyAudio.a; };
+function storyList(author) { return S.moments.filter(m => m.author === author); }
+function storyDur(mo) { if (mo.video) return Math.max(3, mo.video.dur || 6); if (mo.music) return Math.min(15, mo.music.len || 15); return 6; }
+storyTick = function () {
+  clearTimeout(storyT);
+  const st = S.story; if (!st) { stopStoryAudio(); return; }
+  const mo = storyList(st.author)[st.idx]; if (!mo) return;
+  if (mo.author !== S.me && !(mo.seen || []).includes(S.me)) db().update('moments/' + mo.id, { seen: ops.union(S.me) }).catch(() => {});
+  if (st.cur !== mo.id) { st.cur = mo.id; st.elapsed = 0; startStoryAudio(mo); }
+  if (st.paused) return;
+  const ready = !mo.video || momentVideo(mo);
+  st.t0 = performance.now();
+  const total = (ready ? storyDur(mo) : 15) * 1000 + (mo.video ? 300 : 0);
+  storyT = setTimeout(() => storyStep(1), Math.max(300, total - (st.elapsed || 0)));
+};
+function startStoryAudio(mo) {
+  const a = storyAudio(); stopStoryAudio();
+  if (!mo.music?.url) return;
+  try { a.src = mo.music.url; a.currentTime = mo.music.start || 0; a.muted = !!S.storyMuted; a.volume = mo.video ? .7 : 1; a.play().catch(() => {}); const len = (mo.music.len || 15) * 1000; clearInterval(startStoryAudio.iv); startStoryAudio.iv = setInterval(() => { if (a.currentTime > (mo.music.start || 0) + len / 1000) a.currentTime = mo.music.start || 0; }, 400); } catch {}
+}
+function stopStoryAudio() { try { storyAudio.a && storyAudio.a.pause(); } catch {} clearInterval(startStoryAudio.iv); }
+function storyPause(on) {
+  const st = S.story; if (!st || !!st.paused === on) return;
+  const mo = storyList(st.author)[st.idx];
+  if (on) { st.paused = true; st.elapsed = (st.elapsed || 0) + (performance.now() - (st.t0 || performance.now())); clearTimeout(storyT); document.querySelector('.sview')?.classList.add('paused'); document.querySelector('.svideo')?.pause(); storyAudio.a?.pause(); }
+  else { st.paused = false; document.querySelector('.sview')?.classList.remove('paused'); document.querySelector('.svideo')?.play().catch(() => {}); if (mo?.music) storyAudio.a?.play().catch(() => {}); storyTick(); }
+}
+const _storyStepV16 = storyStep;
+storyStep = function (k) { const st = S.story; if (st) { st.paused = false; st.elapsed = 0; st.cur = null; } const r = _storyStepV16(k); if (!S.story) stopStoryAudio(); return r; };
+vStory = function () {
+  const st = S.story; const list = storyList(st.author);
+  const mo = list[st.idx]; if (!mo) return '';
+  const mine = mo.author === S.me, L = mo.layout || {}, dur = storyDur(mo);
+  const vid = mo.video ? momentVideo(mo) : '';
+  const media = safeImg(mo.image) ? `<img class="smedia" src="${mo.image}" alt="" style="${mediaStyle(L.m)}" draggable="false">` : mo.video ? (vid ? `<video class="svideo smedia" data-key="sv-${mo.id}" src="${esc(vid)}" autoplay playsinline ${S.storyMuted ? 'muted' : ''} style="${mediaStyle(L.m)}"></video>` : `${safeImg(mo.video.thumb) ? `<img class="smedia" src="${mo.video.thumb}" alt="" style="${mediaStyle(L.m)};filter:blur(6px)">` : ''}<div class="sload"><span class="spin"></span></div>`) : '';
+  const tx = L.t || { x: 50, y: safeImg(mo.image) || mo.video ? 80 : 45, s: safeImg(mo.image) || mo.video ? 5.5 : 8, c: '#ffffff', box: safeImg(mo.image) || mo.video ? 1 : 0 };
+  const text = mo.text ? `<div class="setext ${tx.box ? 'box' : ''}" style="${posStyle(tx)};--tfs:${tx.s};color:${tx.c};${tx.box ? `background:${tx.c === '#ffffff' || tx.c === '#ffd84d' ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.85)'}` : ''}">${esc(mo.text)}</div>` : '';
+  const stick = mo.sticker ? `<div class="sesticker" style="${posStyle(L.s || { x: 76, y: 22 })}">${esc(mo.sticker)}</div>` : '';
+  let poll = '';
+  if (mo.poll) {
+    const v = mo.votes || {}, na = Object.values(v).filter(x => x === 'a').length, nb = Object.values(v).filter(x => x === 'b').length, tot = na + nb, my = v[S.me], show = my || mine;
+    const opt = (k, t, n) => `<button class="spopt ${my === k ? 'mine' : ''}" data-a="storyVote" data-v="${mo.id}" data-k="${k}" ${show ? 'disabled' : ''}>${show ? `<i style="width:${tot ? Math.round(n / tot * 100) : 0}%"></i>` : ''}<span>${esc(t)}</span>${show ? `<b>${tot ? Math.round(n / tot * 100) : 0}%</b>` : ''}</button>`;
+    poll = `<div class="spoll sepoll2" style="${posStyle(L.p || { x: 50, y: 66 })}"><b>${esc(mo.poll.q)}</b>${opt('a', mo.poll.a, na)}${opt('b', mo.poll.b, nb)}${mine ? `<span class="small" style="opacity:.8">${tot} vote${tot === 1 ? '' : 's'}</span>` : ''}</div>`;
+  }
+  const mus = mo.music ? `<div class="smusic">${mo.music.art ? `<img src="${esc(mo.music.art)}" alt="">` : ic('music', 14, 2)}<span class="ellip"><b>${esc(mo.music.t)}</b> · ${esc(mo.music.a || '')}</span><i class="eq"><b></b><b></b><b></b></i></div>` : mo.song ? `<div class="smusic">${ic('music', 14, 2)}<span class="ellip">${esc(mo.song)}</span></div>` : '';
+  const comments = mo.comments || [];
+  const authors = [...new Set(S.moments.filter(m => m.author !== S.me && isFriend(m.author) && !blocked(m.author)).map(m => m.author))];
+  return `<div class="story sview${A('story' + st.author)} ${st.paused ? 'paused' : ''}" role="dialog" aria-label="Moment">
+    <div class="sframe"><div class="sstage" id="sStage" style="background:${safeImg(mo.image) || mo.video ? '#000' : MOMENT_BGS[mo.bg || 0]}">
+      ${media}${text}${stick}${poll}
+      <div class="sshade"></div>
+      <div class="sbars">${list.map((m, i) => `<button class="sbar" data-a="storyJump" data-i="${i}" aria-label="Moment ${i + 1} of ${list.length}"><b style="${i < st.idx ? 'width:100%' : i === st.idx ? `animation-duration:${storyDur(m) + (m.video ? .3 : 0)}s` : 'width:0'}" class="${i === st.idx && (!m.video || momentVideo(m)) ? 'run' : ''}"></b></button>`).join('')}</div>
+      <div class="shead">${av(mo.author, 36)}<span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(dname(mo.author))}</b><span class="small" style="opacity:.85">${fmtWhen(mo.at)}${list.length > 1 ? ` · ${st.idx + 1} of ${list.length}` : ''}${mo.close ? ' · Close friends' : ''}</span></span>
+        ${mo.video || mo.music ? `<button class="ibtn sbtn" aria-label="${S.storyMuted ? 'Unmute' : 'Mute'}" data-a="storyMute">${ic(S.storyMuted ? 'micOff' : 'volume', 18)}</button>` : ''}
+        ${mine ? `<button class="ibtn sbtn" aria-label="Delete moment" data-a="delMoment" data-v="${mo.id}">${ic('trash', 18)}</button>` : `<button class="ibtn sbtn" aria-label="Report" data-a="report" data-v="${mo.author}">${ic('flag', 18)}</button>`}
+        <button class="ibtn sbtn" aria-label="Close" data-a="storyClose">${ic('x', 18)}</button></div>
+      ${mus}
+      ${list.length > 1 ? `<div class="spicker">${list.map((m, i) => `<button class="sthumb ${i === st.idx ? 'on' : ''}" data-a="storyJump" data-i="${i}" style="background:${safeImg(m.image) ? `url(${m.image}) center/cover` : m.video && safeImg(m.video.thumb) ? `url(${m.video.thumb}) center/cover` : MOMENT_BGS[m.bg || 0]}" aria-label="Open moment ${i + 1}"></button>`).join('')}</div>` : ''}
+      <button class="szone l" aria-label="Previous" data-a="storyPrev"></button><button class="szone r" aria-label="Next" data-a="storyNext"></button>
+      <div class="sbottom">
+        ${comments.length ? `<div class="scomments ${comments.length > 3 ? 'fade' : ''}" data-keep-scroll="scom">${comments.slice(-30).map(c => `<div class="scom">${av(c.u, 24)}<span><b>${esc(c.u === S.me ? 'You' : dname(c.u).split(' ')[0])}</b> ${esc(c.t)}</span></div>`).join('')}</div>` : ''}
+        <div class="row" style="gap:8px;align-items:center">
+          ${mine ? `<button class="btn sm sglass" data-a="seenList" data-v="${mo.id}">${ic('eye', 16)} ${(mo.seen || []).length}</button>` : ''}
+          <form class="row grow scform" data-submit="storyComment" style="gap:8px"><input id="storyCom" class="inp" data-model="form.storyCom" value="${esc(S.form.storyCom || '')}" placeholder="Add a comment…" aria-label="Add a comment" maxlength="300" autocomplete="off"><button class="send" aria-label="Post comment">${ic('send', 18, 2)}</button></form>
+          ${!mine && isFriend(mo.author) ? `<button class="ibtn sbtn" aria-label="Send as a private message" title="Send privately" data-a="storyDm">${ic('msg', 18)}</button>` : ''}
+        </div></div>
+    </div></div>
+    ${authors.length > 1 && !mine ? '' : ''}</div>`;
+};
+
+Object.assign(actions, {
+  warnAck: d => { const n = (S.notifs || []).find(x => x.id === d.v); if (n) n.read = true; db().update('notifications/' + d.v, { read: true }).catch(() => {}); render(); },
+  momentNew: () => { S.modal = null; S.story = null; S.authErr = ''; S.se = seNew(); render(); },
+  seClose: () => { if (S.se && (S.se.media || S.se.text) && !confirm('Discard this moment?')) return; stopSong(); S.se = null; S.authErr = ''; render(); },
+  seTool: d => { if (!S.se) return; if (S.se.tool === 'song' && d.v !== 'song') stopSong(); S.se.tool = S.se.tool === d.v ? '' : d.v; if (d.v === 'poll' && !S.se.poll) S.se.poll = { q: '', a: '', b: '' }; if (d.v === 'text' && !S.se.text) S.se.text = ''; render(); },
+  seColor: d => { S.se.tx.c = d.v; render(); },
+  seBox: () => { S.se.tx.box = S.se.tx.box ? 0 : 1; render(); },
+  seBg: d => { S.se.bg = +d.v; render(); },
+  seAud: d => { S.se.close = d.v === 'close'; if (S.se.close && !closeFriendIds().length) { toast('Add close friends first (Profile › Close friends)'); S.se.close = false; } render(); },
+  seSticker: d => { S.se.sticker = d.v; render(); },
+  sePollDel: () => { S.se.poll = null; S.se.tool = ''; render(); },
+  seMediaDel: () => { S.se.media = null; S.se.mp = { x: 0, y: 0, z: 1 }; render(); },
+  seTrimCancel: () => { URL.revokeObjectURL(S.se.trim.url); S.se.trim = null; S.se.step = 'edit'; render(); },
+  seTrimUse: () => { const t = S.se.trim; S.se.step = 'edit'; S.se.trim = null; URL.revokeObjectURL(t.url); seEncodeVideo(t.file, t.start); },
+  seSongPick: d => { const r = S.se.songRes[+d.i]; if (!r) return; S.se.songPick = { ...r, start: 0 }; render(); actions.seSongPlay(); },
+  seSongBack: () => { stopSong(); S.se.songPick = null; render(); },
+  seSongPlay: () => {
+    const e = S.se, p = e.songPick; if (!p) return; const a = songAudio();
+    if (e.songPlaying) { stopSong(); return render(); }
+    const len = e.media?.kind === 'vid' ? Math.min(30, Math.max(5, Math.round(e.media.dur || 15))) : 15;
+    a.src = p.url; a.currentTime = p.start || 0; a.play().then(() => { e.songPlaying = true; render(); }).catch(() => toast('Couldn\'t play that preview.'));
+    clearTimeout(stopSong.t); stopSong.t = setTimeout(() => { stopSong(); render(); }, len * 1000);
+  },
+  seSongUse: () => { const e = S.se, p = e.songPick; const len = e.media?.kind === 'vid' ? Math.min(30, Math.max(5, Math.round(e.media.dur || 15))) : 15; e.music = { t: p.t, a: p.a || '', art: p.art || '', url: p.url, start: p.start || 0, len }; stopSong(); e.songPick = null; e.tool = ''; render(); },
+  seSongDel: () => { S.se.music = null; render(); },
+  sePost: async () => {
+    const e = S.se; if (!e || e.busy) return;
+    if (!e.media && !(e.text || '').trim()) { S.authErr = 'Add a photo, a video or some text.'; return render(); }
+    if (S.moVidBusy) { S.authErr = 'Your video is still being prepared.'; return render(); }
+    const close = e.close && closeFriendIds().length > 0;
+    e.busy = true; S.authErr = ''; stopSong(); render();
+    try {
+      bumpStat('moments');
+      const aud = [S.me, ...(close ? closeFriendIds() : friendIds()).filter(u => !blocked(u))];
+      let video = null, image = '';
+      if (e.media?.kind === 'vid') video = { media: await saveMomentVideo(e.media.src, aud), thumb: e.media.thumb, dur: e.media.dur };
+      if (e.media?.kind === 'img') image = await storeImg(e.media.src, 'moments');
+      const poll = e.poll && (e.poll.q || '').trim() && (e.poll.a || '').trim() && (e.poll.b || '').trim() ? { q: e.poll.q.trim(), a: e.poll.a.trim(), b: e.poll.b.trim() } : null;
+      const doc = { v: 2, author: S.me, close, audience: aud, text: (e.text || '').trim().slice(0, 160), image, video, bg: e.bg, at: now(), expiresAt: now() + 864e5, seen: [], comments: [],
+        layout: { m: e.mp, t: e.tx, s: e.sp, p: e.pp } };
+      if (e.sticker) doc.sticker = e.sticker; if (poll) doc.poll = poll; if (e.music) doc.music = e.music;
+      await db().add('moments', doc);
+      S.se = null; toast('Moment shared');
+    } catch (err) { S.authErr = err.message || 'Couldn\'t share that.'; if (S.se) S.se.busy = false; }
+    render();
+  },
+  storyJump: d => { const st = S.story; if (!st) return; S.story = { author: st.author, idx: +d.i }; storyTick(); render(); },
+  storyMute: () => { S.storyMuted = !S.storyMuted; const v = document.querySelector('.svideo'); if (v) v.muted = S.storyMuted; if (storyAudio.a) storyAudio.a.muted = S.storyMuted; render(); },
+  storyClose: () => { clearTimeout(storyT); stopStoryAudio(); S.story = null; render(); },
+  storyComment: async () => {
+    const t = (S.form.storyCom || '').trim(); const st = S.story; if (!t || !st) return;
+    const mo = storyList(st.author)[st.idx]; if (!mo) return;
+    S.form.storyCom = ''; mo.comments = [...(mo.comments || []), { u: S.me, t: t.slice(0, 300), at: now() }]; render();
+    try { await db().update('moments/' + mo.id, { comments: ops.union({ u: S.me, t: t.slice(0, 300), at: mo.comments.at(-1).at }) }); if (mo.author !== S.me) notify(mo.author, { type: 'story_comment', title: `${S.profile.name} commented on your moment`, body: t.slice(0, 120), link: { page: 'home' } }); }
+    catch { toast('Couldn\'t post that comment.'); }
+    const sc = document.querySelector('.scomments'); if (sc) sc.scrollTop = sc.scrollHeight;
+  },
+  storyDm: async () => {
+    const t = (S.form.storyCom || '').trim(); const st = S.story; if (!st) return;
+    if (!t) return toast('Type something first, then tap the message button to send it privately.');
+    const mo = storyList(st.author)[st.idx];
+    const id = await ensureDM(st.author); S.form.storyCom = '';
+    await sendMessage({ text: t, replyTo: { id: mo.id, from: st.author, text: 'Moment: ' + (mo.text || (mo.video ? 'Video' : 'Photo')) } }, id);
+    toast('Sent privately'); render();
+  }
+});
+// hold to pause a moment
+let holdT = 0;
+document.addEventListener('pointerdown', ev => { if (!S.story || !ev.target.closest('.sstage') || ev.target.closest('button:not(.szone),input,form,a')) return; holdT = setTimeout(() => storyPause(true), 180); }, { passive: true });
+document.addEventListener('pointerup', () => { clearTimeout(holdT); if (S.story?.paused) { storyPause(false); suppressTap = performance.now(); } }, { passive: true });
+let suppressTap = 0;
+document.addEventListener('click', ev => { if (performance.now() - suppressTap < 300 && ev.target.closest('.szone')) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
+document.addEventListener('keydown', ev => { if (S.se && ev.key === 'Escape') { ev.stopImmediatePropagation(); actions.seClose(); } }, true);
+const _vOverlaysV16b = vOverlays;
+vOverlays = function () { let o = _vOverlaysV16b(); if (S.se) o += vStoryEditor(); return o; };
+
+// "Sam posted a moment" — a small banner at the top when a friend shares one
+let knownMoments = null;
+setInterval(() => {
+  if (S.view !== 'app' || !S.me) return;
+  const ids = new Set(S.moments.map(m => m.id));
+  if (knownMoments == null) { if (S.moments.length || performance.now() > 8000) knownMoments = ids; return; }
+  const fresh = S.moments.filter(m => !knownMoments.has(m.id) && m.author !== S.me && isFriend(m.author) && now() - m.at < 10 * 60e3);
+  knownMoments = ids;
+  const by = [...new Set(fresh.map(m => m.author))];
+  by.slice(0, 2).forEach(u => { const n = storyList(u).length; toast(`<span><b>${esc(dname(u).split(' ')[0])}</b> posted a moment${n > 1 ? ` <span class="mute">· ${n} moments</span>` : ''}</span>`, () => actions.storyOpen({ v: u }), u); });
+}, 1500);
+
+
+// phones: moments strip at the very top of Home (like stories in other apps)
+const _vHomeV16 = vHome;
+vHome = function () {
+  let h = _vHomeV16();
+  if (!isPhoneish()) return h;
+  const mark = '<h2 class="h2">Moments</h2>';
+  for (let i = h.indexOf(mark); i > 0; i = h.indexOf(mark)) { const s0 = h.lastIndexOf('<section', i), e0 = h.indexOf('</section>', i); if (s0 < 0 || e0 < 0) break; h = h.slice(0, s0) + h.slice(e0 + 10); }
+  return h.replace('<section class="hero glass card">', `<section class="pmoments">${vMoments()}</section><section class="hero glass card">`);
+};
+
+
+/* ================= v16.1: "Update available" + choose your message alerts ================= */
+// ---- updates wait until you tap Update
+let swReg = null;
+function swAsk(worker) { return new Promise(res => { try { const ch = new MessageChannel(); ch.port1.onmessage = e => res(e.data || {}); worker.postMessage({ type: 'version' }, [ch.port2]); setTimeout(() => res({}), 2500); } catch { res({}); } }); }
+async function watchUpdates() {
+  if (!('serviceWorker' in navigator)) return;
+  swReg = await navigator.serviceWorker.getRegistration().catch(() => null);
+  if (!swReg) { if ((watchUpdates.n = (watchUpdates.n || 0) + 1) < 10) setTimeout(watchUpdates, 3000); return; }
+  if (navigator.serviceWorker.controller) swAsk(navigator.serviceWorker.controller).then(v => { S.appVersion = v.version || ''; render(); });
+  const found = async w => { if (!navigator.serviceWorker.controller) return; S.updateReady = w; S.updateInfo = await swAsk(w); render(); };
+  if (swReg.waiting) found(swReg.waiting);
+  swReg.addEventListener('updatefound', () => { const w = swReg.installing; if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') found(w); }); });
+  setInterval(() => swReg.update().catch(() => {}), 20 * 60e3);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') swReg.update().catch(() => {}); });
+}
+navigator.serviceWorker?.addEventListener('controllerchange', () => { if (S.updating && !watchUpdates.reloaded) { watchUpdates.reloaded = true; location.reload(); } });
+setTimeout(watchUpdates, 2500);
+const _vOverlaysV161 = vOverlays;
+vOverlays = function () {
+  let o = _vOverlaysV161();
+  if (S.updateReady && !S.updateLater && S.view === 'app' && !S.modal) {
+    const n = S.updateInfo?.notes || [];
+    o += `<div class="updbar${A('upd')}" role="status"><span class="updic">${ic('spark', 18, 2)}</span><span class="grow" style="min-width:0"><b>Nexa update ready${S.updateInfo?.version ? ' · v' + esc(S.updateInfo.version) : ''}</b><span class="small ellip" style="display:block;opacity:.85">${n.length ? esc(n.slice(0, 2).join(' · ')) : 'New features and fixes'}</span></span>${n.length ? `<button class="btn sm updghost" data-a="updNotes">What's new</button>` : ''}<button class="btn sm pri" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update'}</button><button class="ibtn sm updghost" aria-label="Later" data-a="updLater">${ic('x', 14)}</button></div>`;
+  }
+  return o;
+};
+const _vModal5V161 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'updNotes') { const n = S.updateInfo?.notes || []; return head('What\'s new in Nexa', S.updateInfo?.version ? 'Version ' + esc(S.updateInfo.version) : '') + `<ul class="updlist">${n.map(x => `<li>${ic('check', 15, 2.4)}<span>${esc(x)}</span></li>`).join('')}</ul><div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Later</button><button class="btn pri" data-a="updNow">Update now</button></div>`; }
+  if (m.type === 'alertPick') {
+    const k = m.k, cur = alertPref(k);
+    return head(ALERT_KINDS[k][0], ALERT_KINDS[k][1]) + `<div class="col" style="gap:4px;max-height:60vh;overflow:auto">${Object.entries(TONE_NAMES).map(([t, l]) => `<button class="item ${cur === t ? 'on' : ''}" data-a="alertSet" data-k="${k}" data-v="${t}">${ic(t === 'silent' ? 'bellOff' : 'volume', 18)}<b class="grow">${esc(l)}</b>${cur === t ? ic('check', 16, 2.4) : `<span class="mute small">Tap to hear</span>`}</button>`).join('')}</div><div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="closeModal">Done</button></div>`;
+  }
+  return _vModal5V161(m, f, head);
+};
+
+// ---- message alerts you can choose
+Object.assign(TONES, {
+  nexa: [[784, 0], [1047, .07], [1568, .14]], glass: [[1760, 0], [2637, .05]], bubble: [[300, 0, 900], [500, .1, 1200]], harp: [[523, 0], [659, .06], [784, .12], [1047, .18], [1319, .24]],
+  ding: [[1318, 0]], swoosh: [[400, 0, 1600]], drop: [[1400, 0, 500]], twinkle: [[2093, 0], [1568, .07], [2093, .14], [2637, .21]], knock: [[180, 0], [180, .14]], arcade: [[523, 0], [784, .07], [1047, .14], [1568, .21]]
+});
+Object.assign(TONE_NAMES, { nexa: 'Nexa', glass: 'Glass', bubble: 'Bubble', harp: 'Harp', ding: 'Ding', swoosh: 'Swoosh', drop: 'Drop', twinkle: 'Twinkle', knock: 'Knock knock', arcade: 'Arcade' });
+playTone = function (name) {
+  if (!S.prefs.sounds || name === 'silent') return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const t = actx.currentTime;
+    const wave = { marimba: 'triangle', knock: 'triangle', arcade: 'square', bubble: 'sine' }[name] || 'sine', vol = name === 'arcade' ? .035 : name === 'knock' ? .14 : .08;
+    (TONES[name] || TONES.chime).forEach(([f, d, f2]) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = wave; o.frequency.setValueAtTime(f, t + d); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d + .18); g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(vol, t + d + .015); g.gain.exponentialRampToValueAtTime(.0001, t + d + (name === 'knock' ? .09 : .26)); o.connect(g).connect(actx.destination); o.start(t + d); o.stop(t + d + .3); });
+  } catch {}
+};
+const ALERT_KINDS = { dm: ['Direct messages', 'When a friend messages you one-to-one.'], group: ['Group chats', 'Messages in groups and communities.'], mention: ['When you\'re @mentioned', 'Someone tags you in a group.'], request: ['Message requests', 'Someone who isn\'t your friend yet.'] };
+const ALERT_DEFAULT = { dm: 'chime', group: 'pop', mention: 'nexa', request: 'bell' };
+const alertPref = k => (S.prefs.alerts || {})[k] || ALERT_DEFAULT[k];
+const VIBES = { short: [12, 40, 12], double: [40, 60, 40], long: [200, 100, 200], off: [] };
+function alertFor(c, mentioned) {
+  const from = c.last?.from, own = c.type === 'dm' && (S.prefs.friendSounds || {})[from];
+  return own || (mentioned ? alertPref('mention') : c.type === 'dm' ? alertPref('dm') : alertPref('group'));
+}
+toneFor = uid => (S.prefs.friendSounds || {})[uid] || alertPref('dm');
+const _toastV161 = toast;
+toast = function (html, onClick, fromUid) {
+  _toastV161(html, onClick, fromUid);
+  if ((S.prefs.alerts || {}).banner === 'compact' && fromUid) { const t = document.querySelector('.toasts .toast:last-child'); t && t.classList.add('compact'); }
+};
+
+Object.assign(actions, {
+  updNow: () => { const w = S.updateReady; if (!w) return location.reload(); S.updating = true; S.modal = null; render(); try { w.postMessage({ type: 'skipWaiting' }); } catch {} setTimeout(() => location.reload(), 4000); },
+  updLater: () => { S.updateLater = true; render(); toast('You can update any time from Settings › Help & guide.'); },
+  updNotes: () => { S.modal = { type: 'updNotes' }; render(); },
+  updCheck: async () => { if (!swReg) return toast('Updates aren\'t available in this browser.'); toast('Checking for updates…'); try { await swReg.update(); } catch {} setTimeout(() => { if (S.updateReady) { S.updateLater = false; render(); } else toast('You have the latest Nexa.'); }, 2500); },
+  alertOpen: d => { S.modal = { type: 'alertPick', k: d.k }; render(); },
+  alertSet: d => { playTone(d.v); savePrefs({ alerts: { ...(S.prefs.alerts || {}), [d.k]: d.v } }); },
+  alertOpt: d => { const a = { ...(S.prefs.alerts || {}), [d.k]: d.v }; savePrefs({ alerts: a }); if (d.k === 'vibe' && VIBES[d.v]) try { navigator.vibrate?.(VIBES[d.v]); } catch {} }
+});
+const _vSettingsV161 = vSettings;
+vSettings = function () {
+  let h = _vSettingsV161();
+  if (S.setSec === 'notifications') {
+    const a = S.prefs.alerts || {};
+    const row = k => `<button class="setrow alertrow" data-a="alertOpen" data-k="${k}"><span><b>${ALERT_KINDS[k][0]}</b><div class="mute small">${ALERT_KINDS[k][1]}</div></span><span class="pill">${ic('volume', 13)} ${esc(TONE_NAMES[alertPref(k)] || 'Chime')}</span></button>`;
+    const pills = (k, opts, def) => `<div class="pills">${opts.map(([v, l]) => `<button class="pill ${(a[k] || def) === v ? 'on' : ''}" data-a="alertOpt" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const block = `<div class="panel alertpanel" style="padding:16px;border-radius:18px;border:1px solid var(--line)"><b style="font-size:16px">Message alerts</b><div class="mute small" style="margin-bottom:6px">Choose how each kind of message sounds while Nexa is open. Tap one to hear the choices. You can also set a sound for one friend from their ••• menu.</div>
+      ${['dm', 'group', 'mention', 'request'].map(row).join('')}
+      <div class="field" style="margin-top:8px">Pop-up inside Nexa${pills('banner', [['full', 'Banner'], ['compact', 'Small'], ['off', 'None']], 'full')}</div>
+      ${'vibrate' in navigator ? `<div class="field">Vibration${pills('vibe', [['short', 'Short'], ['double', 'Double'], ['long', 'Long'], ['off', 'Off']], 'short')}</div>` : ''}
+      <div class="field">When Nexa is closed${pills('push', [['sound', 'Sound'], ['silent', 'Silent']], 'sound')}<span class="mute small" style="font-weight:500">Your phone's own notification sound plays for these (browsers can't use custom sounds when the app is closed).</span></div></div>`;
+    const i = h.indexOf('<div class="mute small">Muted chats never notify.'); if (i > 0) h = h.slice(0, i) + block + h.slice(i);
+  }
+  if (S.setSec === 'shortcuts') {
+    const row = `<div class="setrow"><span><b>Nexa version${S.appVersion ? ' ' + esc(S.appVersion) : ''}</b><div class="mute small">${S.updateReady ? 'An update is ready — tap Update to switch.' : 'Updates download in the background and wait until you tap Update.'}</div></span>${S.updateReady ? '<button class="btn sm pri" data-a="updNow">Update</button>' : '<button class="btn sm" data-a="updCheck">Check for updates</button>'}</div>`;
+    const i = h.indexOf('<b>How to use Nexa</b>'); if (i > 0) { const s0 = h.lastIndexOf('<div class="setrow">', i); if (s0 > 0) h = h.slice(0, s0) + row + h.slice(s0); }
+  }
+  return h;
+};
+
+
+/* ================= v16.2: add friends only by exact @username, request popups, update screen, what's new ================= */
+// ---- people search: friends by name, everyone else ONLY by their exact @username
+searchPeople = async function () {
+  const raw = S.peopleQ.trim(), q = raw.toLowerCase().replace(/^@/, '');
+  if (!q) { S.peopleRes = []; S.exactMiss = ''; return render(); }
+  const m = {};
+  friendIds().forEach(u => { const x = U(u); if (x && ((x.name || '').toLowerCase().includes(q) || (x.handleLower || '') === q || nickOf(u).toLowerCase().includes(q))) m[u] = { id: u, ...x }; });
+  S.searching = true; S.exactMiss = ''; render();
+  try {
+    if (/^[a-z0-9_.]{3,24}$/.test(q)) {
+      const h = await db().get('handles/' + q).catch(() => null);
+      if (h?.uid && h.uid !== S.me) { const u = await db().get('users/' + h.uid).catch(() => null); if (u && !u.deleted) m[h.uid] = { id: h.uid, ...u }; }
+    }
+  } catch {}
+  S.searching = false;
+  if (q !== S.peopleQ.trim().toLowerCase().replace(/^@/, '')) return;
+  S.peopleRes = Object.values(m).slice(0, 30);
+  if (!S.peopleRes.some(u => (u.handleLower || u.handle || '').toLowerCase() === q)) S.exactMiss = q;
+  S.peopleRes.forEach(u => { if (!S.users[u.id]) S.users[u.id] = u; watchUser(u.id); });
+  render();
+};
+const _vPeopleV162 = vPeople;
+vPeople = function () {
+  let h = _vPeopleV162();
+  h = h.replace('placeholder="Search by name or @handle"', 'placeholder="Type their full @username"');
+  h = h.replace('<b>Search</b> <span class="mute">a name or @handle and send a request.</span>', '<b>Type their full @username</b> <span class="mute">— exactly, e.g. @maya.chen — and send a request.</span>');
+  const q = S.peopleQ.trim();
+  if (q && !S.searching && S.exactMiss) {
+    const note = `<div class="exactnote">${ic('search', 16)}<span>To add someone new, type their <b>full @username</b> exactly. ${S.peopleRes.length ? '' : `No one has the username <b>@${esc(S.exactMiss)}</b>.`}</span></div>`;
+    const i = h.indexOf('<div class="col scroll" style="gap:8px;flex:1" data-keep-scroll="people">');
+    if (i > 0) { const j = h.indexOf('>', i) + 1; const k = h.indexOf('</div>', j); h = h.slice(0, j) + note + (S.peopleRes.length ? h.slice(j, k) : '') + h.slice(k); }
+  }
+  return h;
+};
+// ---- sending a request: a clear "sent" screen you can undo
+const _addFriendV162 = actions.addFriend;
+actions.addFriend = async d => {
+  const had = S.reqOut.length, back = S.reqIn.find(r => r.from === d.v);
+  await _addFriendV162(d);
+  if (!back) { S.modal = { type: 'reqSent', uid: d.v }; render(); }
+};
+// ---- getting a request: a popup with Approve / Decline
+let knownReqs = null;
+setInterval(() => {
+  if (S.view !== 'app' || !S.me) return;
+  const ids = new Set((S.reqIn || []).map(r => r.id));
+  if (knownReqs == null) { knownReqs = ids; return; }
+  const fresh = (S.reqIn || []).filter(r => !knownReqs.has(r.id) && now() - (r.at || 0) < 10 * 60e3);
+  knownReqs = ids;
+  if (fresh.length && !S.reqPop) { S.reqPop = fresh[0].id; watchUser(fresh[0].from); playTone(alertPref('request')); render(); }
+  if (S.reqPop && !ids.has(S.reqPop)) { S.reqPop = null; render(); }
+}, 1200);
+
+// ---- updates: a proper "Update available" screen after you get in, then "What's new"
+const UPD_DISMISS = 'nexa.updLaterAt';
+const _vOverlaysV162 = vOverlays;
+vOverlays = function () {
+  let o = _vOverlaysV162();
+  if (S.view === 'app' && S.reqPop) {
+    const r = (S.reqIn || []).find(x => x.id === S.reqPop);
+    if (r) o += `<div class="reqpop glass${A('rp' + r.id)}" role="alertdialog">${av(r.from, 52)}<span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(dname(r.from))}</b><span class="mute small">@${esc(U(r.from)?.handle || '')} wants to be friends</span></span><div class="row" style="gap:8px"><button class="btn sm" data-a="reqPopNo" data-v="${r.id}">Decline</button><button class="btn sm pri" data-a="reqPopYes" data-v="${r.id}">Approve</button></div></div>`;
+  }
+  if (S.view === 'app' && S.updateReady && !S.updateSheetShown && !S.modal) {
+    const last = +(lsGet(UPD_DISMISS, 0) || 0);
+    if (now() - last > 30 * 60e3) { S.updateSheetShown = true; setTimeout(() => { S.modal = { type: 'updAvail' }; render(); }, 600); }
+  }
+  return o;
+};
+const _vModal5V162 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'reqSent') {
+    const u = m.uid, out = (S.reqOut || []).find(r => r.to === u);
+    return `<div class="col" style="align-items:center;text-align:center;gap:12px;padding:6px 0"><div class="sentic">${ic('send', 26, 2)}</div>${av(u, 72)}<h2 class="disp" style="margin:0;font-size:22px">Request sent</h2><div class="mute" style="line-height:1.5">You've sent a friend request to <b style="color:var(--text)">${esc(dname(u))}</b> <span class="mute">@${esc(U(u)?.handle || '')}</span>.<br>When they approve it, you'll get a notification and can start chatting.</div>
+      <div class="row" style="gap:10px;margin-top:6px">${out ? `<button class="btn" data-a="reqSentUndo" data-v="${out.id}">Cancel request</button>` : ''}<button class="btn pri" data-a="closeModal">Done</button></div></div>`;
+  }
+  if (m.type === 'updAvail') {
+    const n = S.updateInfo?.notes || [];
+    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update available</h2><div class="mute" style="text-align:center">A new version of Nexa${S.updateInfo?.version ? ' (v' + esc(S.updateInfo.version) + ')' : ''} is ready.</div>
+      ${n.length ? `<ul class="updlist">${n.slice(0, 5).map(x => `<li>${ic('spark', 15, 2)}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}
+      <button class="btn pri updbig" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update now'}</button><button class="btn" style="align-self:center" data-a="updSheetLater">Not now</button></div>`;
+  }
+  if (m.type === 'whatsNew') {
+    const n = m.notes || [];
+    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><div class="kicker" style="text-align:center">Nexa ${m.version ? 'v' + esc(m.version) : ''}</div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">What's new</h2>
+      <ul class="updlist big">${n.map(x => `<li>${ic('check', 16, 2.4)}<span>${esc(x)}</span></li>`).join('')}</ul><button class="btn pri updbig" data-a="closeModal">Let's go</button></div>`;
+  }
+  return _vModal5V162(m, f, head);
+};
+const _updNowV162 = actions.updNow;
+Object.assign(actions, {
+  reqPopYes: async d => { S.reqPop = null; render(); await actions.accept({ v: d.v }); },
+  reqPopNo: async d => { S.reqPop = null; render(); await actions.decline({ v: d.v }); toast('Request declined'); },
+  reqSentUndo: async d => { await actions.cancelReq({ v: d.v }); S.modal = null; render(); toast('Request cancelled'); },
+  updSheetLater: () => { lsSet(UPD_DISMISS, now()); S.modal = null; render(); },
+  updNow: () => { lsSet('nexa.justUpdated', '1'); return _updNowV162(); }
+});
+// after an update: show "What's new" once
+setTimeout(async function whatsNewCheck() {
+  if (S.view !== 'app' || !navigator.serviceWorker?.controller) { if ((whatsNewCheck.n = (whatsNewCheck.n || 0) + 1) < 20) setTimeout(whatsNewCheck, 1500); return; }
+  const v = await swAsk(navigator.serviceWorker.controller); if (!v.version) return;
+  const seen = lsGet('nexa.seenVersion', null), just = lsGet('nexa.justUpdated', null);
+  lsSet('nexa.seenVersion', v.version); lsSet('nexa.justUpdated', null);
+  if ((just || (seen && seen !== v.version)) && (v.notes || []).length && !S.modal) { S.modal = { type: 'whatsNew', version: v.version, notes: v.notes }; render(); }
+}, 2500);
 
 // Test hook: only on a local dev server, never on the live site.
 if (location.hostname === 'localhost') Object.assign(window, { S, actions });

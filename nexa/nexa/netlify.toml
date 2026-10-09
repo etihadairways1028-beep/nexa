@@ -27,3 +27,11 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
     X-Frame-Options = "DENY"
+
+# Nexa Support app: never indexed, never cached
+[[headers]]
+  for = "/support/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+    X-Frame-Options = "DENY"

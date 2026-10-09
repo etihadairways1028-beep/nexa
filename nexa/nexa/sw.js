@@ -1,17 +1,37 @@
-// Nexa service worker: makes Nexa installable, keeps the app shell available offline,
-// and focuses the app when a notification is tapped. Live data always comes from the network.
-const CACHE = 'nexa-shell-v27';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'icon-192-v3.png', 'icon-512-v3.png', 'apple-touch-icon-v3.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
-self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+// Nexa service worker: makes Nexa installable and keeps the app working offline.
+// Updates: a new version downloads in the background and WAITS — people keep using the version they have
+// until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
+const VERSION = '16.2';
+const NOTES = ['Add friends by their full @username — and see who you sent requests to', 'Approve or decline friend requests right from the pop-up', 'Updates now ask first — tap Update now when you are ready', 'A What\'s new screen after every update', 'New Nexa logo, smoother phones, full-screen moments with music'];
+const CACHE = 'nexa-shell-v30';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
+const LIVE = /^\/(\.netlify|owner|support|__seen)(\/|$)/; // always straight from the server
+self.addEventListener('install', e => e.waitUntil((async () => {
+  const c = await caches.open(CACHE);
+  await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
+  // Moving from the old "update straight away" versions: switch once now; from here on, updates wait for a tap.
+  const olds = (await caches.keys()).filter(k => /^nexa-shell-v\d+$/.test(k) && k !== CACHE);
+  if (!olds.length || olds.every(k => +k.split('-v')[1] < 29)) self.skipWaiting();
+})()));
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'nexa-seen').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  if (e.request.method !== 'GET' || u.origin !== location.origin) return; // Firebase, fonts, previews: straight to network
-  e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
+  if (e.request.method !== 'GET' || u.origin !== location.origin || LIVE.test(u.pathname)) return; // Firebase, fonts, server, staff apps: network
+  const nav = e.request.mode === 'navigate';
+  e.respondWith((async () => {
+    const c = await caches.open(CACHE);
+    // the app itself comes from this version's saved copy, so it only changes when you tap Update
+    const hit = nav ? await c.match('index.html') : await c.match(e.request, { ignoreSearch: true });
+    if (hit) return hit;
+    try { const r = await fetch(e.request); if (r.ok && !nav) c.put(e.request, r.clone()); return r; }
+    catch { return (await c.match(e.request)) || (await c.match('index.html')) || Response.error(); }
+  })());
 });
 self.addEventListener('message', e => {
   const d = e.data || {};
   if (d.type === 'clear' && d.tag) e.waitUntil(self.registration.getNotifications({ tag: d.tag }).then(ns => ns.forEach(n => n.close())));
+  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: NOTES });
+  if (d.type === 'skipWaiting') self.skipWaiting();
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
@@ -62,6 +82,9 @@ self.addEventListener('push', e => {
       seen.set(id, t);
       if (x.tag) try { const old = await self.registration.getNotifications({ tag: x.tag }); if (old.some(o => (o.data?.ids || []).includes(id))) { if (ios) await showNothing(); return; } } catch {}
     }
+    // Remember shown pushes on disk too — phones restart the worker between pushes, so memory alone isn't enough.
+    const diskId = x.msg || (/^(n_|call_|flag_|rep_)/.test(x.tag || '') ? x.tag : '');
+    if (diskId) { try { const sc = await caches.open('nexa-seen'); const key = new Request('/__seen/' + encodeURIComponent(diskId)); if (await sc.match(key)) { if (ios) await showNothing(); return; } await sc.put(key, new Response(String(Date.now()))); if (Math.random() < .05) { const ks = await sc.keys(); for (const k of ks.slice(0, Math.max(0, ks.length - 300))) await sc.delete(k); } } catch {} }
     // Nexa is open on screen → no system pop-up; the app shows its own from the top.
     if (cs.some(c => c.visibilityState === 'visible')) {
       if (ios) await showNothing();
@@ -70,11 +93,11 @@ self.addEventListener('push', e => {
     // Several messages from the same chat stack into one notification: "Sam (3 new messages)"
     let lines = [body], count = 1, ids = id ? [id] : [];
     if (x.kind === 'message' && x.tag) {
-      try { const old = await self.registration.getNotifications({ tag: x.tag }); const o = old[old.length - 1]; if (o) { const od = o.data || {}; lines = [...(od.lines || [o.body]), body].slice(-6); count = (od.count || 1) + 1; ids = [...(od.ids || []), ...ids].slice(-20); } } catch {}
+      try { const old = await self.registration.getNotifications({ tag: x.tag }); const o = old[old.length - 1]; if (o) { const od = o.data || {}; const prev = od.lines || String(o.body || '').split('\n'); if (!od.ids && prev[prev.length - 1] === body) { if (ios) await showNothing(); return; } lines = [...prev, body].slice(-6); count = (od.count || prev.length) + 1; ids = [...(od.ids || []), ...ids].slice(-20); } } catch {}
     }
     return self.registration.showNotification(count > 1 ? `${title} (${count} new messages)` : title, {
-      body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : 'icon-192-v3.png', badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
-      data: { chat: x.chat || '', page: x.page || '', url: x.url || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : [80],
+      body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : 'icon-192-v4.png', badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
+      data: { chat: x.chat || '', page: x.page || '', url: x.url || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : x.vibe === 'off' ? [] : x.vibe === 'long' ? [200, 100, 200, 100, 200] : x.vibe === 'double' ? [80, 80, 80] : [80], silent: x.silent === '1',
       requireInteraction: x.kind === 'call',
       actions: x.kind === 'message' && x.chat ? [{ action: 'reply', title: 'Reply', type: 'text', placeholder: 'Reply…' }] : x.kind === 'call' ? [{ action: 'open', title: 'Answer' }] : []
     });
