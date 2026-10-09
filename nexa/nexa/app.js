@@ -1082,6 +1082,7 @@ function personActions(uid) {
   const out = S.reqOut.find(r => r.to === uid), inn = S.reqIn.find(r => r.from === uid);
   let actions = '';
   if (uid === S.me) actions = '<span class="mute small">You</span>';
+  else if (!fr && !inn && ownerLocked(uid)) actions = `<button class="btn sm" data-a="dmOwner">${ic('help', 16)} Contact support</button>`;
   else if (fr) actions = `<button class="btn sm pri" data-a="dm" data-v="${uid}">${ic('msg', 16)} Message</button><button class="ibtn sm" aria-label="More" data-a="personMenu" data-v="${uid}">${ic('more', 16)}</button>`;
   else if (inn && !blocked(uid)) actions = `<button class="btn sm pri" data-a="accept" data-v="${inn.id}">Accept</button><button class="btn sm" data-a="decline" data-v="${inn.id}">Decline</button>`;
   else if (out) actions = `${canDM(uid) && !blocked(uid) ? `<button class="btn sm" data-a="dm" data-v="${uid}" aria-label="Message">${ic('msg', 16)}<span class="hide-xs">Message</span></button>` : ''}<button class="btn sm" data-a="cancelReq" data-v="${out.id}">Requested</button>`;
@@ -1268,7 +1269,7 @@ function vSettings() {
     <div class="setrow"><span><b>Download your data</b><div class="mute small">Your profile, friends, chats and events in one file.</div></span><button class="btn sm" data-a="exportOpen">${ic('download', 14)} Download</button></div>
     <div class="row" style="gap:10px"><button class="btn" data-a="logout">${ic('logout', 18)} Log out</button></div>
     <div style="padding:18px;border-radius:18px;border:1px solid rgba(255,77,109,.35);background:rgba(255,77,109,.06)"><b>Delete account</b><div class="mute small" style="margin:4px 0 12px">Removes your profile and signs you out. Messages you sent stay visible to people you sent them to.</div><button class="btn sm danger" data-a="deleteAccount">Delete my account</button></div>`;
-  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the Nexa Support team and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Message the owner</button>`}</div><div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
+  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the Nexa Support team and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Contact support</button>`}</div><div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
   return `<div class="settings">
     <aside class="setnav glass card">${`<div class="disp hide-m" style="font-size:20px;font-weight:600;padding:6px 10px 12px">Settings</div>`}${secs.map(([k, i, l]) => `<button class="${s === k ? 'on' : ''}" data-a="setSec" data-v="${k}">${ic(i, 18)}${l}</button>`).join('')}</aside>
     <section class="setbody glass card scroll" data-keep-scroll="set"><div class="${A('set' + s)}">${body}</div></section>
@@ -5684,3 +5685,112 @@ Object.assign(actions, {
     toast('Group photo removed');
   }
 });
+
+/* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
+const APP_VERSION = '16.6';
+// ---- only @shiv can add the @owner account as a friend
+// @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
+function ownerLocked(uid) { const h = (U(uid)?.handle || S.peopleRes.find(x => x.id === uid)?.handle || '').toLowerCase(); return h === 'support' || (h === 'owner' && (S.profile?.handle || '').toLowerCase() !== 'shiv'); }
+{
+  const _add = actions.addFriend;
+  actions.addFriend = async d => { if (ownerLocked(d.v)) return toast((U(d.v)?.handle || '') === 'support' ? 'Nexa Support can\'t be added as a friend — tap Help to message them.' : 'The owner account can\'t be added as a friend. Tap Help to contact Nexa Support.'); return _add(d); };
+}
+// ---- Help → choose who helps you: 1 Shiv, 2 Arrick, 3 Yaseen
+const SUPPORT_AGENTS = [['shiv', 'Shiv'], ['arrick', 'Arrick'], ['yaseen', 'Yaseen']];
+{
+  const _dmOwner = actions.dmOwner;
+  Object.assign(actions, {
+    dmOwner: async () => { S.menu = null; S.palette = false; if (isOwner()) return toast('You\'re Nexa Support — people\'s help messages come to your Chats.'); S.modal = { type: 'helpPick' }; render(); },
+    helpPick: async d => {
+      const ag = SUPPORT_AGENTS.find(a => a[0] === d.v); S.modal = null; render();
+      await _dmOwner();
+      const id = S.conv, c = convOf(id); if (!c || !ownerUid || !c.members.includes(ownerUid)) return;
+      await db().update('conversations/' + id, { askedFor: ag ? ag[0] : null }).catch(() => {});
+      if (!(S.msgs[id] || []).length) { S.draft[id] = ag ? `Hi ${ag[1]}! I need some help with: ` : 'Hi Nexa Support! I need some help with: '; render(); setTimeout(() => { const el = $('#composer'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 60); }
+      toast(ag ? `Your message goes to <b>${ag[1]}</b> at Nexa Support` : 'Your message goes to the Nexa Support team');
+    }
+  });
+}
+// ---- updates: everyone gets the "Update available" screen, and they have to update to keep going
+const verNum = v => String(v || '0').split('.').map(n => +n || 0).reduce((a, n, i) => a + n / Math.pow(1000, i), 0);
+async function checkRemote() {
+  try {
+    const r = await fetch('/support/version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const v = await r.json(); if (!v || !v.version) return;
+    let running = APP_VERSION;
+    try { const ctl = navigator.serviceWorker?.controller; if (ctl) { const sv = (await swAsk(ctl)).version; if (sv && verNum(sv) > verNum(running)) running = sv; } } catch {}
+    // never loop: if we already updated to this version once and are somehow still behind, don't force it again
+    if (lsGet('nexa.forcedTo', '') === v.version && !S.updateReady) return;
+    if (verNum(v.version) > verNum(running)) {
+      S.mustUpdate = v; if (!S.updateInfo?.version) S.updateInfo = v;
+      try { const reg = await navigator.serviceWorker?.getRegistration(); reg && reg.update().catch(() => {}); } catch {}
+      render();
+    }
+  } catch {}
+}
+setTimeout(checkRemote, 3500);
+setInterval(checkRemote, 10 * 60e3);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkRemote(); });
+async function hardRefresh() {
+  if (S.mustUpdate?.version) lsSet('nexa.forcedTo', S.mustUpdate.version);
+  try { const ks = await caches.keys(); await Promise.all(ks.filter(k => /^nexa-shell/.test(k)).map(k => caches.delete(k))); } catch {}
+  try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) await reg.unregister(); } catch {}
+  location.reload();
+}
+async function doUpdate() {
+  if (S.updating) return; S.updating = true; lsSet('nexa.justUpdated', '1'); render();
+  let reg = null; try { reg = await navigator.serviceWorker?.getRegistration(); } catch {}
+  let w = (reg && reg.waiting) || S.updateReady;
+  if (!w && reg) {
+    try { await reg.update(); } catch {}
+    w = reg.waiting || await new Promise(res => {
+      const i = reg.installing; if (!i) return res(null);
+      const t = setTimeout(() => res(null), 15000);
+      i.addEventListener('statechange', () => { if (i.state === 'installed') { clearTimeout(t); res(reg.waiting || i); } if (i.state === 'redundant') { clearTimeout(t); res(null); } });
+    });
+  }
+  if (w) { try { w.postMessage({ type: 'skipWaiting' }); } catch {} setTimeout(hardRefresh, 5000); return; } // the page reloads itself when the new version takes over
+  hardRefresh();
+}
+actions.updNow = doUpdate;
+const _vOverlaysV165 = vOverlays;
+vOverlays = function () {
+  if (S.view === 'app' && (S.updateReady || S.mustUpdate) && !S.modal) S.modal = { type: 'updAvail' };
+  return _vOverlaysV165();
+};
+const _vModal5V165 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'updAvail') {
+    const info = S.updateInfo?.version ? S.updateInfo : (S.mustUpdate || {}), n = info.notes || [];
+    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update available</h2><div class="mute" style="text-align:center">A new version of Nexa${info.version ? ' (v' + esc(info.version) + ')' : ''} is ready. Update to keep using Nexa — everything switches to the new version, logo and all.</div>
+      ${n.length ? `<ul class="updlist">${n.slice(0, 5).map(x => `<li>${ic('spark', 15, 2)}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}
+      <button class="btn pri updbig" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update now'}</button></div>`;
+  }
+  if (m.type === 'helpPick') {
+    const btn = ([id, name], i) => `<button class="helppick" data-a="helpPick" data-v="${id}"><span class="hpn">${i + 1}</span><span class="grow"><b>${name}</b><span class="mute small">Nexa Support</span></span><span class="hpgo">${ic('back', 18)}</span></button>`;
+    return head('Contact support', 'Who would you like to talk to?') + `<div class="col" style="gap:10px">${SUPPORT_AGENTS.map(btn).join('')}<button class="helppick any" data-a="helpPick" data-v="any"><span class="hpn">${ic('group', 16)}</span><span class="grow"><b>Anyone who's free</b><span class="mute small">The first person available will reply</span></span><span class="hpgo">${ic('back', 18)}</span></button></div>`;
+  }
+  return _vModal5V165(m, f, head);
+};
+// the update screen can't be closed — only "Update now"
+{
+  const _close = actions.closeModal;
+  actions.closeModal = d => { if (S.modal?.type === 'updAvail') return; return _close(d); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.modal?.type === 'updAvail') { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+}
+
+/* ================= v16.6: version reporting + "please update" nudges from Nexa Support ================= */
+// tell Nexa Support which version this person is on (shown on the support page's Updates tab)
+setInterval(() => {
+  if (S.view !== 'app' || !S.me || !S.profile || S.profile.appVersion === APP_VERSION || reportVersion.done) return;
+  reportVersion.done = true; reportVersion();
+}, 4000);
+function reportVersion() { db().update('users/' + S.me, { appVersion: APP_VERSION, appVersionAt: now() }).catch(() => { reportVersion.done = false; }); }
+NIC.update_ask = ['download', 'linear-gradient(135deg,#5b7cff,#2fd4c4)'];
+SYS_NOTIF.add('update_ask');
+// when Nexa Support asks you to update, check for the update straight away
+let updAskSeen = '';
+setInterval(() => {
+  const n = (S.notifs || []).find(x => x.type === 'update_ask' && !x.read); if (!n || n.id === updAskSeen) return;
+  updAskSeen = n.id; checkRemote();
+}, 3000);

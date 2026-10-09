@@ -1474,3 +1474,10 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 /* the glass panels are drawn once on their own layer, so hovering over things inside them doesn't redraw the blur */
 .shell .side.glass,.shell .top.glass,.shell .panel.glass,.shell .card.glass{isolation:isolate;backface-visibility:hidden}
 .card.react::after{will-change:opacity}
+/* ===== v16.5: contact support picker ===== */
+.helppick{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid var(--line2);color:var(--text);transition:background .2s,border-color .2s}
+.helppick:hover{background:color-mix(in oklab,var(--ac) 14%,transparent);border-color:color-mix(in oklab,var(--ac) 45%,transparent)}
+.helppick b{display:block;font-size:16px}
+.helppick .hpn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;font-weight:800;font-size:17px;color:#fff;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.helppick.any .hpn{background:rgba(255,255,255,.12)}
+.helppick .hpgo{display:inline-flex;transform:scaleX(-1);opacity:.6}
