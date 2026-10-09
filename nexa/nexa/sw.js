@@ -1,11 +1,11 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '16.6';
-const NOTES = ["Nexa Support: automatic welcome reply and the Nexa logo", "Contact support: choose Shiv, Arrick or Yaseen", "Updates now arrive for everyone — tap Update now", "Only @shiv can add the owner; Nexa Support can't be added as a friend", "Steadier glass, smoother calls and group photos"];
-const CACHE = 'nexa-shell-v34';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
-const LIVE = /^\/(\.netlify|owner|support|__seen)(\/|$)/; // always straight from the server
+const VERSION = '16.7';
+const NOTES = ["Nexa has moved to a new home — faster and always on", "Contact support: choose Shiv, Arrick or Yaseen", "Updates arrive for everyone — tap Update now", "Nexa Support: welcome reply and the Nexa logo", "Steadier glass, smoother calls and group photos"];
+const CACHE = 'nexa-shell-v35';
+const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
+const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
@@ -21,10 +21,10 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
     // the app itself comes from this version's saved copy, so it only changes when you tap Update
-    const hit = nav ? await c.match('index.html') : await c.match(e.request, { ignoreSearch: true });
+    const hit = nav ? await c.match('./') : await c.match(e.request, { ignoreSearch: true });
     if (hit) return hit;
     try { const r = await fetch(e.request); if (r.ok && !nav) c.put(e.request, r.clone()); return r; }
-    catch { return (await c.match(e.request)) || (await c.match('index.html')) || Response.error(); }
+    catch { return (await c.match(e.request)) || (await c.match('./')) || Response.error(); }
   })());
 });
 self.addEventListener('message', e => {

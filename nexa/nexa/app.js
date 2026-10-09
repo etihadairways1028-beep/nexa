@@ -2468,7 +2468,7 @@ function loadIce() {
   return iceLoading || (iceLoading = (async () => {
     try {
       const tok = await S.be.auth.idToken(); if (!tok) return;
-      const r = await fetch(CONFIG.turnEndpoint || '/.netlify/functions/turn', { headers: { authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined });
+      const r = await fetch(CONFIG.turnEndpoint || '/api/turn', { headers: { authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined });
       const j = await r.json().catch(() => ({}));
       if (Array.isArray(j.iceServers)) { iceCache = { servers: j.iceServers, exp: now() + (j.iceServers.length ? (j.ttl || 43200) * 1000 - 60e3 : 600e3) }; lsSet('nexa.ice', iceCache); }
     } catch {} finally { iceLoading = null; }
@@ -2828,7 +2828,7 @@ async function pushNotify(kind, body) {
   if (!S.be.push) return;
   try {
     const tok = await S.be.auth.idToken(); if (!tok) return;
-    fetch(CONFIG.pushEndpoint || '/.netlify/functions/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ kind, ...body }), keepalive: true }).catch(() => {});
+    fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ kind, ...body }), keepalive: true }).catch(() => {});
   } catch {}
 }
 
@@ -3574,14 +3574,14 @@ function vCallTest() {
   const t = S.callTest; if (!t) return '';
   if (t.running) return '<div class="small mute" style="margin-top:8px">Testing… (up to 10 seconds)</div>';
   const good = t.relay;
-  return `<div class="calltest ${good ? 'ok' : 'bad'}">${good ? '✅ <b>Calls are ready.</b> The call relay works, so calls will connect even between different Wi-Fi and phone networks.' : t.relayServers ? '⚠️ <b>The relay is set up but this device can\'t reach it.</b> This network may block it (school or office Wi-Fi). Try mobile data.' : '❌ <b>The call relay isn\'t set up.</b> Calls only work when both people are on the same Wi-Fi. In Netlify › Environment variables, add METERED_USERNAME and METERED_PASSWORD (from dashboard.metered.ca), then redeploy.'}${t.error ? `<div class="small mute">${esc(t.error)}</div>` : ''}</div>`;
+  return `<div class="calltest ${good ? 'ok' : 'bad'}">${good ? '✅ <b>Calls are ready.</b> The call relay works, so calls will connect even between different Wi-Fi and phone networks.' : t.relayServers ? '⚠️ <b>The relay is set up but this device can\'t reach it.</b> This network may block it (school or office Wi-Fi). Try mobile data.' : '❌ <b>The call relay isn\'t set up.</b> Calls only work when both people are on the same Wi-Fi. In Cloudflare › nexa › Settings › Variables and Secrets, add METERED_USERNAME and METERED_PASSWORD (from dashboard.metered.ca), then redeploy.'}${t.error ? `<div class="small mute">${esc(t.error)}</div>` : ''}</div>`;
 }
 /* ---------- owner dashboard: who uses Nexa ---------- */
 async function loadOwner(force) {
   if (S.ownerData && !force) return; S.ownerErr = ''; S.ownerLoading = true; render();
   try {
     const tok = await S.be.auth.idToken();
-    const r = await fetch((CONFIG.ownerEndpoint || '/.netlify/functions/owner'), { headers: { authorization: 'Bearer ' + tok } });
+    const r = await fetch((CONFIG.ownerEndpoint || '/api/owner'), { headers: { authorization: 'Bearer ' + tok } });
     const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Couldn\'t load');
     S.ownerData = j;
   } catch (e) { S.ownerErr = e.message || 'Couldn\'t load the dashboard'; }
@@ -4154,7 +4154,7 @@ Object.assign(actions, {
    ===================================================================== */
 Object.assign(P, { qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4M20 20v1"/>',
   scan: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M4 12h16"/>' });
-const QL_URL = () => CONFIG.quickLoginEndpoint || '/.netlify/functions/quicklogin';
+const QL_URL = () => CONFIG.quickLoginEndpoint || '/api/quicklogin';
 const fmtCode = c => String(c || '').replace(/(.{4})(.{4})/, '$1-$2');
 async function qlCall(body, auth) {
   let r;
@@ -5231,7 +5231,7 @@ function stopSong() { try { _songA && _songA.pause(); } catch {} if (S.se) S.se.
 async function seSearch() {
   const e = S.se; if (!e || !e.songQ.trim()) return;
   e.songBusy = true; e.songErr = ''; e.songPick = null; render();
-  try { const r = await fetch('/.netlify/functions/music?q=' + encodeURIComponent(e.songQ.trim())); const j = await r.json(); e.songRes = j.list || []; if (!e.songRes.length) e.songErr = j.error || 'No songs found — try another search.'; }
+  try { const r = await fetch('/api/music?q=' + encodeURIComponent(e.songQ.trim())); const j = await r.json(); e.songRes = j.list || []; if (!e.songRes.length) e.songErr = j.error || 'No songs found — try another search.'; }
   catch { e.songRes = []; e.songErr = 'Couldn\'t search songs right now.'; }
   e.songBusy = false; render();
 }
@@ -5687,7 +5687,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '16.6';
+const APP_VERSION = '16.7';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
 function ownerLocked(uid) { const h = (U(uid)?.handle || S.peopleRes.find(x => x.id === uid)?.handle || '').toLowerCase(); return h === 'support' || (h === 'owner' && (S.profile?.handle || '').toLowerCase() !== 'shiv'); }

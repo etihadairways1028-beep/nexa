@@ -1,0 +1,5 @@
+# Cloudflare Pages settings for Nexa (read automatically when Cloudflare builds from GitHub).
+name = "nexa"
+pages_build_output_dir = "."
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
