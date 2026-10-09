@@ -1447,3 +1447,14 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 :root:root[data-phone="1"] .overlay:has(.modal){background:rgba(3,5,14,.84)!important}
 :root:root[data-phone="1"] .overlay>.modal.glass{background-color:rgba(16,22,52,.97)!important;background-image:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,0) 50%)!important}
 .overlay .modal:has(.updsheet){max-width:440px}
+
+/* ===== v16.3: smoother calls ===== */
+/* while a call or room fills the screen, the app behind it isn't drawn at all */
+:root[data-incall] #app{content-visibility:hidden;visibility:hidden}
+:root[data-incall] .call-screen,:root[data-incall] .room-full{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.netweak{color:#ffc857;font-weight:600}
+.netbad{color:#ff6b6b;font-weight:600}
+/* group photo picker */
+.gphoto{position:relative;cursor:pointer;flex:none;border-radius:30%}
+.gphoto-cam{position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:2px solid rgba(10,14,30,.9)}
+.gphoto:hover .av{filter:brightness(.85)}

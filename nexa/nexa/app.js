@@ -241,7 +241,8 @@ function convAv(c, size = 44, status = true) {
   if (c.type === 'dm') return av(others(c)[0], size, status);
   if (c.type === 'channel') return `<span class="av group" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .42)}px;--grad:${gradFor(c.communityId || c.id)}">#</span>`;
   if (c.type === 'event') { const e = allEvents().find(x => x.id === c.eventId); const img = safeImg(e?.image); return `<span class="av group" style="width:${size}px;height:${size}px;--grad:${gradFor(c.eventId || c.id)}">${img ? `<img src="${img}" alt="" style="border-radius:30%">` : ic('cal', Math.round(size * .45))}</span>`; }
-  return `<span class="av group" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .34)}px;--grad:${gradFor(c.id)}">${esc(initials(c.name || 'G'))}</span>`;
+  const gp = c.type === 'group' ? safeImg(c.photo) : '';
+  return `<span class="av group" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .34)}px;--grad:${gradFor(c.id)}">${gp ? `<img src="${gp}" alt="" style="border-radius:30%">` : esc(initials(c.name || 'G'))}</span>`;
 }
 const hiddenAt = c => (c.hidden || {})[S.me] || 0;
 const visibleConv = c => !hiddenAt(c) || (c.last && c.last.at > hiddenAt(c));
@@ -514,7 +515,12 @@ async function checkReminders() {
    ===================================================================== */
 let seenPrev = new Set(), seenNext = new Set(), raf = 0;
 const A = key => { seenNext.add(key); return seenPrev.has(key) ? '' : ' anim'; };
-function render() { if (!raf) raf = requestAnimationFrame(doRender); }
+function render() { if (callCovers()) { renderLater = true; return; } if (!raf) raf = requestAnimationFrame(doRender); }
+// While a call fills the screen, the app behind it isn't redrawn (it's caught up the moment the call ends).
+// This keeps the phone's processor free for the call's sound and video.
+let renderLater = false;
+function callCovers() { try { return !!(S.call || (R && !R.min)); } catch { return false; } }
+function callUncovered() { document.documentElement.toggleAttribute('data-incall', callCovers()); if (!callCovers() && renderLater) { renderLater = false; render(); } }
 /* Update the screen in place: only the parts that changed are touched, so photos don't
    reload, videos keep playing and nothing flickers when a message or status comes in. */
 const mkey = n => n.nodeType === 1 ? (n.id || n.getAttribute('data-key') || null) : null;
@@ -1388,7 +1394,8 @@ function vModal() {
   if (m.type === 'group') {
     const c = convOf(m.id); if (!c) return head('Group');
     const owner = roleOf(c, S.me) === 'owner', mgr = canManage(c);
-    return head(mgr ? 'Group settings' : 'Group info', `${c.members.length} members`) + `<div class="row">${convAv(c, 56)}${mgr ? `<label class="field grow">Group name<input class="inp" id="g-rename" data-model="form.gRename" value="${esc(f.gRename ?? c.name)}" maxlength="40"></label><button class="btn" style="align-self:flex-end" data-a="renameGroup">Save</button>` : `<b class="disp" style="font-size:18px">${esc(c.name)}</b>`}</div>
+    return head(mgr ? 'Group settings' : 'Group info', `${c.members.length} members`) + `<div class="row">${mgr ? `<label class="gphoto" title="Change group photo" aria-label="Change group photo">${convAv(c, 56)}<span class="gphoto-cam">${ic('photo', 14)}</span><input type="file" accept="image/*" class="sr" data-file="groupPhoto"></label>` : convAv(c, 56)}${mgr ? `<label class="field grow">Group name<input class="inp" id="g-rename" data-model="form.gRename" value="${esc(f.gRename ?? c.name)}" maxlength="40"></label><button class="btn" style="align-self:flex-end" data-a="renameGroup">Save</button>` : `<b class="disp" style="font-size:18px">${esc(c.name)}</b>`}</div>
+      ${mgr ? `<div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn sm" style="cursor:pointer">${ic('photo', 14)} ${c.photo ? 'Change group photo' : 'Add group photo'}<input type="file" accept="image/*" class="sr" data-file="groupPhoto"></label>${c.photo ? '<button class="btn sm" data-a="groupPhotoRemove">Remove photo</button>' : ''}</div>` : ''}
       <div class="sec">Members</div><div class="col" style="gap:4px">${c.members.map(u => `<div class="item">${av(u, 40, true)}<span class="grow"><b style="display:block">${esc(dname(u))}${u === S.me ? ' (you)' : ''}</b><span class="mute small">${{ owner: 'Owner', admin: 'Admin', member: 'Member' }[roleOf(c, u)]}</span></span>${owner && u !== S.me ? `<button class="btn sm" data-a="setRole" data-v="${u}" data-r="${roleOf(c, u) === 'admin' ? 'member' : 'admin'}">${roleOf(c, u) === 'admin' ? 'Remove admin' : 'Make admin'}</button>` : ''}${mgr && u !== S.me && roleOf(c, u) !== 'owner' && (owner || roleOf(c, u) === 'member') ? `<button class="btn sm" data-a="kick" data-v="${u}">Remove</button>` : ''}</div>`).join('')}</div>
       ${mgr ? `<div class="setrow"><span><b>Invite link</b><div class="mute small">Anyone with the link can join this group.</div></span><span class="row" style="gap:6px">${c.inviteCode ? '<button class="btn sm" data-a="groupLinkReset">Turn off</button>' : ''}<button class="btn sm pri" data-a="groupLink">${ic('link', 14)} ${c.inviteCode ? 'Copy link' : 'Create link'}</button></span></div>` : ''}
       <div class="row" style="gap:10px;flex-wrap:wrap">${mgr ? `<button class="btn" data-a="addMembersOpen">${ic('userplus', 18)} Add members</button>` : ''}<button class="btn" data-a="boardOpen">${ic('brush', 18)} Drawing board</button><button class="btn danger" data-a="leaveGroup">Leave group</button></div>`;
@@ -2474,7 +2481,7 @@ function newPC(callId, mine, theirs) {
   const pc = new RTCPeerConnection(ICE());
   const remote = new MediaStream(), pending = [], outbox = [];
   const P = { pc, remote, pending, ready: false };
-  pc.ontrack = e => { (e.streams[0] ? e.streams[0].getTracks() : [e.track]).forEach(t => { if (!remote.getTracks().includes(t)) remote.addTrack(t); }); attachMedia(true); };
+  pc.ontrack = e => { (e.streams[0] ? e.streams[0].getTracks() : [e.track]).forEach(t => { if (!remote.getTracks().includes(t)) remote.addTrack(t); }); attachMedia(); const rv = document.getElementById('callRemote'); rv && rv.play && rv.play().catch(() => {}); paintCall(); };
   pc.onicecandidate = e => { if (!e.candidate) return; const c = e.candidate.toJSON(); P.ready ? db().add(`calls/${callId}/${mine}`, c).catch(() => {}) : outbox.push(c); };
   P.flushOut = () => { P.ready = true; outbox.splice(0).forEach(c => db().add(`calls/${callId}/${mine}`, c).catch(() => {})); };
   P.flushIn = () => pending.splice(0).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
@@ -2483,7 +2490,7 @@ function newPC(callId, mine, theirs) {
     S.call.state = pc.connectionState;
     if (pc.connectionState === 'connected' && !S.call.startedAt) { S.call.startedAt = now(); clearTimeout(S.call.timeout); }
     if (pc.connectionState === 'connected') { S.call.retries = S.call.retries || 0; clearTimeout(S.call.watch); }
-    if (pc.connectionState === 'disconnected') { clearTimeout(S.call.watch); S.call.watch = setTimeout(() => { if (S.call?.pc === pc && pc.connectionState !== 'connected') retryCall('drop'); }, 3500); }
+    if (pc.connectionState === 'disconnected') { clearTimeout(S.call.watch); S.call.watch = setTimeout(() => { if (S.call?.pc === pc && pc.connectionState !== 'connected') retryCall('drop'); }, 5000); }
     if (pc.connectionState === 'failed') { if (!retryCall('failed')) { toast(hasRelay() ? 'The call couldn\'t connect. Try Settings › Help & guide › Test calls.' : 'The call couldn\'t connect — your networks block direct calls and the call relay isn\'t set up yet.'); hangUp(); } }
     paintCall();
   };
@@ -2500,7 +2507,7 @@ function retryCall(why) {
   const call = S.call; if (!call || !hasRelay()) return false;
   call.retries = (call.retries || 0) + 1; if (call.retries > 2) return false;
   call.state = 'reconnecting'; paintCall();
-  try { call.pc.setConfiguration(ICE(true)); } catch {}
+  try { call.pc.setConfiguration(ICE(call.retries >= 2)); } catch {}
   if (call.role === 'caller') renegotiate(call); else db().update('calls/' + call.id, { restartReq: now() }).catch(() => {});
   return true;
 }
@@ -2511,8 +2518,61 @@ function armWatchdog(call) {
   clearTimeout(call.watch);
   call.watch = setTimeout(() => { if (S.call === call && call.pc.connectionState !== 'connected' && (call.role === 'callee' || call.answered)) retryCall('slow'); }, 9000);
 }
+const isPhoneDev = () => matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 async function getMedia(kind) {
-  return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: kind === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false });
+  const phone = isPhoneDev();
+  const s = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+    video: kind === 'video' ? (phone ? { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 }, facingMode: 'user' } : { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 30, max: 30 }, facingMode: 'user' }) : false
+  });
+  s.getAudioTracks().forEach(t => { try { t.contentHint = 'speech'; } catch {} });
+  s.getVideoTracks().forEach(t => { try { t.contentHint = 'motion'; } catch {} });
+  return s;
+}
+// Bitrate caps: voice always comes first, video is kept smooth instead of sharp, and it stays light on phones.
+function videoCap(peers) { const base = isPhoneDev() ? 650e3 : 1200e3; return Math.max(220e3, Math.round(base / Math.max(1, peers || 1))); }
+async function tuneSenders(pc, peers, q) {
+  for (const s of pc.getSenders()) {
+    if (!s.track) continue;
+    try {
+      const p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      const e = p.encodings[0];
+      if (s.track.kind === 'audio') { e.priority = 'high'; e.networkPriority = 'high'; e.maxBitrate = 48000; }
+      else {
+        const lvl = q || 0; // 0 = best, 1..3 = lower when the connection is struggling
+        e.maxBitrate = Math.round(videoCap(peers) * [1, .6, .35, .2][lvl]);
+        e.scaleResolutionDownBy = [1, 1.5, 2, 3][lvl];
+        e.maxFramerate = lvl >= 3 ? 15 : (isPhoneDev() ? 24 : 30);
+        e.priority = 'low'; e.networkPriority = 'low';
+        p.degradationPreference = 'balanced';
+      }
+      await s.setParameters(p);
+    } catch {}
+  }
+}
+// Every 2 seconds: check how the connection is doing and lower/raise the video so the sound never breaks up.
+function watchQuality(get, onState) {
+  let lvl = 0, good = 0, last = {};
+  const iv = setInterval(async () => {
+    const x = get(); if (!x || !x.pc || x.pc.connectionState !== 'connected') return;
+    let loss = 0, rtt = 0, avail = 0;
+    try {
+      const st = await x.pc.getStats(); let sent = 0, lost = 0;
+      st.forEach(r => {
+        if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') { rtt = r.currentRoundTripTime || rtt; avail = r.availableOutgoingBitrate || avail; }
+        if (r.type === 'remote-inbound-rtp') { lost += r.packetsLost || 0; }
+        if (r.type === 'outbound-rtp') { sent += r.packetsSent || 0; }
+      });
+      const dS = sent - (last.sent || 0), dL = lost - (last.lost || 0); last = { sent, lost };
+      loss = dS > 0 ? Math.max(0, dL) / dS : 0;
+    } catch { return; }
+    const bad = loss > .06 || rtt > .45 || (avail && avail < 300e3);
+    const awful = loss > .15 || rtt > .9 || (avail && avail < 120e3);
+    if (bad) { good = 0; const nl = Math.min(3, lvl + (awful ? 2 : 1)); if (nl !== lvl) { lvl = nl; tuneSenders(x.pc, x.peers, lvl); } }
+    else if (++good >= 4 && lvl > 0) { good = 0; lvl--; tuneSenders(x.pc, x.peers, lvl); }
+    onState && onState(awful ? 'poor' : bad ? 'weak' : 'good');
+  }, 2000);
+  return () => clearInterval(iv);
 }
 async function startCall(kind) {
   const c = convOf(S.conv); if (!c || c.type !== 'dm' || cantCall(c)) return;
@@ -2524,7 +2584,8 @@ async function startCall(kind) {
   local.getTracks().forEach(t => P.pc.addTrack(t, local));
   S.call = { id, kind, peer: to, conv: c.id, role: 'caller', local, ...P, state: 'ringing', muted: false, camOff: false };
   paintCall();
-  const offer = await P.pc.createOffer(); await P.pc.setLocalDescription(offer);
+  const offer = await P.pc.createOffer(); await P.pc.setLocalDescription(offer); tuneSenders(P.pc, 1);
+  S.call.unQ = watchQuality(() => S.call?.id === id ? S.call : null, q => { if (S.call?.id === id && S.call.net !== q) { S.call.net = q; paintCall(); } });
   await db().set('calls/' + id, { from: S.me, to, conv: c.id, kind, status: 'ringing', at: now(), offer: { type: offer.type, sdp: offer.sdp } });
   P.flushOut();
   pushNotify('call', { id });
@@ -2540,13 +2601,13 @@ async function onCallDoc(d) {
   // connection restarts
   if (call.role === 'callee' && d.offer2 && d.offer2.n !== call.seenOffer2) {
     call.seenOffer2 = d.offer2.n;
-    try { call.pc.setConfiguration(ICE(true)); await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.offer2.type, sdp: d.offer2.sdp })); const a = await call.pc.createAnswer(); await call.pc.setLocalDescription(a); await db().update('calls/' + call.id, { answer2: { type: a.type, sdp: a.sdp, n: d.offer2.n } }); } catch (e) { console.warn(e); }
+    try { call.pc.setConfiguration(ICE((d.offer2.n || 1) >= 2)); await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.offer2.type, sdp: d.offer2.sdp })); const a = await call.pc.createAnswer(); await call.pc.setLocalDescription(a); await db().update('calls/' + call.id, { answer2: { type: a.type, sdp: a.sdp, n: d.offer2.n } }); } catch (e) { console.warn(e); }
   }
   if (call.role === 'caller' && d.answer2 && d.answer2.n !== call.seenAnswer2 && call.pc.signalingState === 'have-local-offer') {
     call.seenAnswer2 = d.answer2.n;
     try { await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.answer2.type, sdp: d.answer2.sdp })); } catch (e) { console.warn(e); }
   }
-  if (call.role === 'caller' && d.restartReq && d.restartReq !== call.seenRestart) { call.seenRestart = d.restartReq; call.retries = (call.retries || 0); if (call.pc.connectionState !== 'connected') { call.retries++; try { call.pc.setConfiguration(ICE(true)); } catch {} renegotiate(call); } }
+  if (call.role === 'caller' && d.restartReq && d.restartReq !== call.seenRestart) { call.seenRestart = d.restartReq; call.retries = (call.retries || 0); if (call.pc.connectionState !== 'connected') { call.retries++; try { call.pc.setConfiguration(ICE(call.retries >= 2)); } catch {} renegotiate(call); } }
   if (['ended', 'declined', 'missed', 'busy'].includes(d.status)) {
     if (call.role === 'caller' && d.status === 'declined') toast(`${esc(dname(call.peer))} declined the call`);
     if (call.role === 'caller' && d.status === 'busy') toast(`${esc(dname(call.peer))} is on another call`);
@@ -2564,7 +2625,8 @@ async function acceptCall() {
   S.call = { id: inc.id, kind: inc.kind, peer: inc.from, conv: inc.conv, role: 'callee', local, ...P, state: 'connecting', muted: false, camOff: false };
   paintCall();
   await P.pc.setRemoteDescription(new RTCSessionDescription(d.offer)); P.flushIn();
-  const ans = await P.pc.createAnswer(); await P.pc.setLocalDescription(ans);
+  const ans = await P.pc.createAnswer(); await P.pc.setLocalDescription(ans); tuneSenders(P.pc, 1);
+  { const cid = inc.id; S.call.unQ = watchQuality(() => S.call?.id === cid ? S.call : null, q => { if (S.call?.id === cid && S.call.net !== q) { S.call.net = q; paintCall(); } }); }
   await db().update('calls/' + inc.id, { answer: { type: ans.type, sdp: ans.sdp }, status: 'accepted', acceptedAt: now() });
   P.flushOut();
   armWatchdog(S.call);
@@ -2582,7 +2644,7 @@ async function hangUp() {
 function endLocal() {
   const call = S.call; if (!call) return;
   S.call = null;
-  clearTimeout(call.timeout); clearTimeout(call.watch);
+  clearTimeout(call.timeout); clearTimeout(call.watch); try { call.unQ && call.unQ(); } catch {}
   try { call.local.getTracks().forEach(t => t.stop()); } catch {}
   try { call.pc.close(); } catch {}
   try { call.unC && call.unC(); call.unDoc && call.unDoc(); } catch {}
@@ -2595,6 +2657,7 @@ function attachMedia(force) {
   if (rv && (force || rv.srcObject !== call.remote)) { rv.srcObject = call.remote; rv.play && rv.play().catch(() => {}); }
 }
 function paintCall() {
+  queueMicrotask(callUncovered);
   let layer = document.getElementById('callLayer');
   if (!S.call && !S.incoming) { if (layer) layer.remove(); clearInterval(callTick); return; }
   if (!layer) {
@@ -2618,7 +2681,7 @@ function paintCall() {
   }
   layer.classList.toggle('has-video', video && hasRemoteVideo);
   document.getElementById('callLocal').style.display = video && !call.camOff ? '' : 'none';
-  const status = call.state === 'reconnecting' ? 'Reconnecting through the relay…' : call.startedAt ? `<span id="callTime">${fmtDur((now() - call.startedAt) / 1000)}</span>` : call.state === 'ringing' ? 'Ringing…' : 'Connecting…';
+  const status = call.state === 'reconnecting' ? 'Reconnecting…' : call.startedAt ? `<span id="callTime">${fmtDur((now() - call.startedAt) / 1000)}</span>${call.net === 'poor' ? ' · <span class="netbad">Poor connection</span>' : call.net === 'weak' ? ' · <span class="netweak">Weak connection</span>' : ''}` : call.state === 'ringing' ? 'Ringing…' : 'Connecting…';
   document.getElementById('callCenter').innerHTML = `${video && hasRemoteVideo ? '' : `<div class="call-ring ${call.startedAt ? '' : 'pulse'}">${av(call.peer, 120)}</div>`}<b class="disp" style="font-size:24px">${esc(dname(call.peer))}</b><span class="mute">${status}</span>`;
   document.getElementById('callCtl').innerHTML = `<button class="cbtn ${call.muted ? 'on' : ''}" data-call="mute" aria-label="${call.muted ? 'Unmute' : 'Mute'}">${ic(call.muted ? 'micOff' : 'mic', 22, 2)}</button>${video ? `<button class="cbtn ${call.camOff ? 'on' : ''}" data-call="cam" aria-label="${call.camOff ? 'Turn camera on' : 'Turn camera off'}">${ic(call.camOff ? 'videoOff' : 'video', 22, 2)}</button>` : ''}<button class="cbtn red" data-call="hang" aria-label="Hang up">${ic('hangup', 24, 2)}</button>`;
   attachMedia();
@@ -3813,7 +3876,7 @@ async function joinRoom(rid, kind, name, meta) {
   if (R) { if (R.id === rid) { R.min = false; return paintRoom(); } await leaveRoom(); }
   if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) return toast('Voice and video rooms aren\'t supported in this browser.');
   const iceP = loadIce();
-  let local; try { local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: kind === 'video' ? { width: { ideal: 960 }, height: { ideal: 540 } } : false }); }
+  let local; try { local = await getMedia(kind); }
   catch { return toast(kind === 'video' ? 'Camera or microphone access was blocked.' : 'Microphone access was blocked.'); }
   await iceP;
   let room = await db().get('rooms/' + rid).catch(() => null);
@@ -3840,7 +3903,8 @@ function makePeer(u, initiator) {
   pc.ontrack = e => { (e.streams[0] ? e.streams[0].getTracks() : [e.track]).forEach(t => { if (!remote.getTracks().includes(t)) remote.addTrack(t); }); paintRoom(true); };
   pc.onicecandidate = e => { if (e.candidate && P.sess) sig(u, 'cand', { cand: e.candidate.toJSON(), sess: P.sess }); };
   pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') dropPeer(u); paintRoom(); };
-  if (initiator) (async () => { const o = await pc.createOffer(); await pc.setLocalDescription(o); sig(u, 'offer', { sdp: { type: o.type, sdp: o.sdp }, sess }); })();
+  P.unQ = watchQuality(() => R && R.peers[u] === P ? { pc, peers: Object.keys(R.peers).length } : null);
+  if (initiator) (async () => { const o = await pc.createOffer(); await pc.setLocalDescription(o); retuneRoom(); sig(u, 'offer', { sdp: { type: o.type, sdp: o.sdp }, sess }); })();
   return P;
 }
 function sig(to, type, data) { if (!R) return; db().add(`rooms/${R.id}/sig`, { from: S.me, to, type, ...data, at: now() }).catch(() => {}); }
@@ -3854,7 +3918,7 @@ async function onSignal(s) {
     const P = makePeer(u, false); P.sess = s.sess;
     await P.pc.setRemoteDescription(new RTCSessionDescription(s.sdp));
     P.pending.splice(0).forEach(c => P.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
-    const a = await P.pc.createAnswer(); await P.pc.setLocalDescription(a);
+    const a = await P.pc.createAnswer(); await P.pc.setLocalDescription(a); retuneRoom();
     sig(u, 'answer', { sdp: { type: a.type, sdp: a.sdp }, sess: s.sess });
   } else if (s.type === 'answer') {
     const P = R.peers[u]; if (!P || P.sess !== s.sess || P.pc.currentRemoteDescription) return;
@@ -3864,11 +3928,12 @@ async function onSignal(s) {
     P.pc.remoteDescription ? P.pc.addIceCandidate(new RTCIceCandidate(s.cand)).catch(() => {}) : P.pending.push(s.cand);
   }
 }
-function dropPeer(u) { const P = R?.peers[u]; if (!P) return; try { P.pc.close(); } catch {} delete R.peers[u]; paintRoom(); }
+function retuneRoom() { if (!R) return; const n = Object.keys(R.peers).length; Object.values(R.peers).forEach(P => tuneSenders(P.pc, n)); }
+function dropPeer(u) { const P = R?.peers[u]; if (!P) return; try { P.unQ && P.unQ(); P.pc.close(); } catch {} delete R.peers[u]; retuneRoom(); paintRoom(); }
 async function leaveRoom() {
   if (!R) return; const r = R; R = null; S.room = null;
   clearInterval(r.hb); r.unSig && r.unSig(); r.unRoom && r.unRoom();
-  Object.values(r.peers).forEach(P => { try { P.pc.close(); } catch {} });
+  Object.values(r.peers).forEach(P => { try { P.unQ && P.unQ(); P.pc.close(); } catch {} });
   r.local.getTracks().forEach(t => t.stop()); r.screen && r.screen.getTracks().forEach(t => t.stop());
   await db().update('rooms/' + r.id, { ['participants.' + S.me]: ops.del() }).catch(() => {});
   paintRoom(); render();
@@ -3891,6 +3956,7 @@ async function toggleShare(target) {
 }
 let roomTick = 0;
 function paintRoom(force) {
+  queueMicrotask(callUncovered);
   let layer = document.getElementById('roomLayer');
   if (!R) { if (layer) layer.remove(); clearInterval(roomTick); return; }
   if (!layer) {
@@ -5505,7 +5571,7 @@ vPeople = function () {
   if (q && !S.searching && S.exactMiss) {
     const note = `<div class="exactnote">${ic('search', 16)}<span>To add someone new, type their <b>full @username</b> exactly. ${S.peopleRes.length ? '' : `No one has the username <b>@${esc(S.exactMiss)}</b>.`}</span></div>`;
     const i = h.indexOf('<div class="col scroll" style="gap:8px;flex:1" data-keep-scroll="people">');
-    if (i > 0) { const j = h.indexOf('>', i) + 1; const k = h.indexOf('</div>', j); h = h.slice(0, j) + note + (S.peopleRes.length ? h.slice(j, k) : '') + h.slice(k); }
+    if (i > 0) { const j = h.indexOf('>', i) + 1; const sec = h.indexOf('</section>', j); const k = h.lastIndexOf('</div>', sec); if (sec > 0 && k >= j) h = h.slice(0, j) + note + (S.peopleRes.length ? h.slice(j, k) : '') + h.slice(k); }
   }
   return h;
 };
@@ -5582,3 +5648,31 @@ setTimeout(async function whatsNewCheck() {
 
 // Test hook: only on a local dev server, never on the live site.
 if (location.hostname === 'localhost') Object.assign(window, { S, actions });
+
+/* ================= v16.3: group photos ================= */
+// Square, centre-cropped photo for a group chat. Owners and admins can change it; everyone in the group sees it.
+function squareImg(file, size = 320) {
+  return compress(file, 1200, .9).then(src => new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => { const s0 = Math.min(img.width, img.height), c = document.createElement('canvas'); c.width = c.height = Math.min(size, s0); c.getContext('2d').drawImage(img, (img.width - s0) / 2, (img.height - s0) / 2, s0, s0, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .85)); };
+    img.onerror = () => rej(new Error('That image couldn\'t be opened.')); img.src = src;
+  }));
+}
+Object.assign(files, {
+  groupPhoto: async f => {
+    const id = S.modal?.id || S.conv, c = convOf(id); if (!c || !canManage(c)) return toast('Only the group owner or admins can change the photo.');
+    toast('Updating group photo…');
+    const url = await storeImg(await squareImg(f), 'group');
+    await db().update('conversations/' + id, { photo: url });
+    sendMessage({ system: true, text: `${S.profile.name} changed the group photo` }, id);
+    toast('Group photo updated');
+  }
+});
+Object.assign(actions, {
+  groupPhotoRemove: async () => {
+    const id = S.modal?.id || S.conv, c = convOf(id); if (!c || !canManage(c)) return;
+    await db().update('conversations/' + id, { photo: ops.del() });
+    sendMessage({ system: true, text: `${S.profile.name} removed the group photo` }, id);
+    toast('Group photo removed');
+  }
+});
