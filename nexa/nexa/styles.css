@@ -1458,3 +1458,19 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 .gphoto{position:relative;cursor:pointer;flex:none;border-radius:30%}
 .gphoto-cam{position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:2px solid rgba(10,14,30,.9)}
 .gphoto:hover .av{filter:brightness(.85)}
+
+/* ===== v16.4: steady glass — moving the mouse no longer makes the app wobble ===== */
+/* big glass panels keep the same shadow on hover (changing it redrew the blur behind the whole panel) */
+@media (hover:hover){
+  :root[data-look="liquid"]:not([data-theme="light"]) .card.glass:hover,
+  :root[data-look="liquid"]:not([data-theme="light"]) .panel.glass:hover{box-shadow:var(--lg-rim2),0 26px 50px -26px rgba(0,0,0,.6)!important}
+  /* buttons light up instead of growing, so nothing around them jiggles */
+  :root[data-look="liquid"]:not([data-theme="light"]) .btn:hover,:root[data-look="liquid"]:not([data-theme="light"]) .ibtn:hover,
+  :root[data-look="liquid"]:not([data-theme="light"]) .pill:hover,:root[data-look="liquid"]:not([data-theme="light"]) .send:hover{transform:none!important;filter:brightness(1.15)}
+  .qa:hover,.aicard:hover{transform:none}
+}
+/* the soft cursor light stays, but on its own layer and never under the mouse-hover glass */
+#cursorGlow{contain:strict;backface-visibility:hidden}
+/* the glass panels are drawn once on their own layer, so hovering over things inside them doesn't redraw the blur */
+.shell .side.glass,.shell .top.glass,.shell .panel.glass,.shell .card.glass{isolation:isolate;backface-visibility:hidden}
+.card.react::after{will-change:opacity}

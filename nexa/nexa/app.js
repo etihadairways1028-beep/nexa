@@ -2296,9 +2296,17 @@ document.addEventListener('keydown', e => {
   }
   if (e.key === '/' && !inField) { const t = $('#peopleQ') || $('#convQ'); e.preventDefault(); t ? t.focus() : actions.palette(); }
 });
+// soft light inside cards that follows the mouse — at most once per frame, and only when it really moved
+let reactRaf = 0, reactEv = null;
 document.addEventListener('pointermove', e => {
-  const c = e.target.closest?.('.card.react'); if (!c) return;
-  const r = c.getBoundingClientRect(); c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  if (e.pointerType !== 'mouse') return;
+  reactEv = e; if (reactRaf) return;
+  reactRaf = requestAnimationFrame(() => {
+    reactRaf = 0; const ev = reactEv; const c = ev.target.closest?.('.card.react'); if (!c) return;
+    const r = c.getBoundingClientRect(), x = Math.round(ev.clientX - r.left), y = Math.round(ev.clientY - r.top);
+    if (Math.abs(x - (c._mx || 0)) + Math.abs(y - (c._my || 0)) < 6) return;
+    c._mx = x; c._my = y; c.style.setProperty('--mx', x + 'px'); c.style.setProperty('--my', y + 'px');
+  });
 }, { passive: true });
 window.addEventListener('resize', () => render());
 
