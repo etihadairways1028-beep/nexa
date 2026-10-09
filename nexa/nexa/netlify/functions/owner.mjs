@@ -123,9 +123,12 @@ export async function ensureStaffHandle(db, uid, handle, name, bio) {
   return { handle, fixed, name: (prof && prof.name) || name };
 }
 // Push to everyone signed in on the support app (Shiv, Arrick, Yaseen…)
-export async function pushAgents(db, data) {
+export async function pushAgents(db, data, onlyAgent) {
   const sec = (await db.doc('supportSecrets/main').get()).data() || {};
-  const tokens = Object.keys(sec.devices || {}).filter(Boolean).slice(0, 40);
+  let tokens = Object.keys(sec.devices || {}).filter(Boolean);
+  // a person can ask for one agent (Shiv, Arrick or Yaseen) — then only that agent's devices buzz (everyone, if they have none)
+  if (onlyAgent) { const mine = tokens.filter(t => ((sec.devices[t] || {}).agent || '') === onlyAgent); if (mine.length) tokens = mine; }
+  tokens = tokens.slice(0, 40);
   if (!tokens.length) return 0;
   const res = await admin.messaging().sendEachForMulticast({ tokens, data: Object.fromEntries(Object.entries({ kind: 'notification', page: 'notifications', ...data }).map(([k, v]) => [k, String(v ?? '')])), webpush: { headers: { Urgency: 'high', TTL: '86400' } } });
   const dead = []; res.responses.forEach((r, i) => { const c = r.error && r.error.code || ''; if (!r.success && /not-registered|invalid-registration|invalid-argument/.test(c)) dead.push(tokens[i]); });

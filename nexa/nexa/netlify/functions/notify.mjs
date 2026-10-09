@@ -66,12 +66,16 @@ async function checkMessage(db, uid, name, cid, conv, mid, msg) {
   try { await ref.create({ conv: cid, msg: mid, from: uid, fromName: name, text: String(msg.text || '').slice(0, 400), words: hits.slice(0, 5), at: Date.now(), status: 'open', convType: conv.type || 'dm', convName: conv.name || '' }); } catch { return; }
   await pushAgents(db, { title: '🚩 Offensive message', body: `${name}: ${String(msg.text || '').slice(0, 120)}`, url: '/support/#flags', tag: 'flag_' + id });
 }
+const DEFAULT_AUTO_REPLY = 'Thank you for reaching out to Nexa Support. The next Nexa Support agent will get back to you soon! Thank you for choosing Nexa 💙';
 async function supportForward(db, uid, name, cid, conv, msg) {
   const sec = (await db.doc('supportSecrets/main').get()).data() || {};
   const sup = (process.env.SUPPORT_UID || '').trim() || sec.uid;
   if (!sup || uid === sup || !(conv.members || []).includes(sup)) return;
-  await pushAgents(db, { title: `💬 ${name} needs help`, body: label(msg).slice(0, 140), url: '/support/#inbox', tag: 'sup_' + cid });
-  if (sec.autoReply && !conv.autoReplied) { await db.doc('conversations/' + cid).update({ autoReplied: true }); await sendAs(db, sup, cid, conv, sec.autoReply, null, { agent: 'Nexa Support', staff: 'support', auto: true }); }
+  const asked = ['shiv', 'arrick', 'yaseen'].includes(conv.askedFor) ? conv.askedFor : '';
+  const askedName = asked ? asked[0].toUpperCase() + asked.slice(1) : '';
+  await pushAgents(db, { title: asked ? `💬 ${name} asked for ${askedName}` : `💬 ${name} needs help`, body: label(msg).slice(0, 140), url: '/support/#inbox', tag: 'sup_' + cid }, asked);
+  const autoReply = sec.autoReply ?? DEFAULT_AUTO_REPLY;
+  if (autoReply && !conv.autoReplied) { await db.doc('conversations/' + cid).update({ autoReplied: true }); await sendAs(db, sup, cid, conv, autoReply, null, { agent: 'Nexa Support', staff: 'support', auto: true }); }
 }
 
 async function ownerForward(db, uid, name, cid, conv, msg, icon, req) {

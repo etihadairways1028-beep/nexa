@@ -1,6 +1,6 @@
 // Nexa Support — the server side of /support (the Nexa Support app for the support team).
-// Everyone signs in with the one support email, then picks their own name (Shiv, Arrick, Yaseen)
-// and types their own password (starts as "nexaofficial" — change it in Settings).
+// No email sign-in: people pick their own name (Shiv, Arrick, Yaseen)
+// and type their own password (starts as "nexaofficial" — change it in Settings).
 // Agents can read & answer help chats as @support, see flagged (offensive) messages and reports,
 // warn, ban/unban, and message anyone (with or without letting them reply).
 import admin from 'firebase-admin';
@@ -10,6 +10,7 @@ import { deliver, sendAs, warnUser, setReply, startStaffChat, ensureStaffHandle 
 const SUPPORT_EMAIL = (process.env.SUPPORT_EMAIL || 'nexaconnectofficial@gmail.com').toLowerCase();
 const AGENTS = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }, { id: 'yaseen', name: 'Yaseen' }];
 const DEFAULT_PASSWORD = 'nexaofficial';
+const DEFAULT_AUTO_REPLY = 'Thank you for reaching out to Nexa Support. The next Nexa Support agent will get back to you soon! Thank you for choosing Nexa 💙';
 const DOC = 'supportSecrets/main'; // no Firestore rule lets app users read this
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 const ms = v => !v ? 0 : typeof v === 'number' ? v : v.toMillis ? v.toMillis() : Date.parse(v) || 0;
@@ -37,26 +38,32 @@ export default async (req) => {
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405);
   try { init(); } catch (e) { return json({ error: 'Server not configured: ' + e.message }, 500); }
   const db = admin.firestore();
+  // No email sign-in: people open /support, pick their name and type their own password.
+  // The server works as the shared Nexa Support account (it's created automatically the first time).
+  let tokUid = '';
   const m = (req.headers.get('authorization') || '').match(/^Bearer (.+)$/);
-  if (!m) return json({ error: 'Not signed in' }, 401);
-  let tok; try { tok = await admin.auth().verifyIdToken(m[1]); } catch { return json({ error: 'Not signed in' }, 401); }
-  if ((tok.email || '').toLowerCase() !== SUPPORT_EMAIL) return json({ error: 'This is only for the Nexa Support team. Sign in with the support email.' }, 403);
-  const fixedUid = (process.env.SUPPORT_UID || '').trim();
-  if (fixedUid ? tok.uid !== fixedUid : !tok.email_verified) return json({ error: 'verify-email', message: fixedUid ? 'This isn\'t the saved support account.' : 'Verify the support email first (check the inbox for the link), or save SUPPORT_UID on the server.', uid: tok.uid }, 403);
+  if (m) { try { const t = await admin.auth().verifyIdToken(m[1]); if ((t.email || '').toLowerCase() === SUPPORT_EMAIL) tokUid = t.uid; } catch {} }
   let body = {}; try { body = await req.json(); } catch {}
   const ref = db.doc(DOC); const now = Date.now();
   let sec = (await ref.get()).data();
+  // which Nexa account answers as Nexa Support
+  let me = (process.env.SUPPORT_UID || '').trim() || (sec && sec.uid) || tokUid;
+  if (!me) {
+    try { me = (await admin.auth().getUserByEmail(SUPPORT_EMAIL)).uid; }
+    catch { me = (await admin.auth().createUser({ email: SUPPORT_EMAIL, emailVerified: true, password: crypto.randomBytes(24).toString('base64url'), displayName: 'Nexa Support' })).uid; }
+  }
   if (!sec || !sec.sessionKey) {
     // first time: everyone starts with the same password; each person changes theirs in Settings
     const agents = {}; AGENTS.forEach(a => { const salt = crypto.randomBytes(16).toString('hex'); agents[a.id] = { salt, hash: hash(DEFAULT_PASSWORD, salt), changed: 0 }; });
-    sec = { sessionKey: crypto.randomBytes(32).toString('hex'), agents, devices: {}, uid: tok.uid, createdAt: now };
+    sec = { sessionKey: crypto.randomBytes(32).toString('hex'), agents, devices: {}, uid: me, createdAt: now };
     await ref.set(sec);
   }
-  if (sec.uid !== tok.uid) await ref.update({ uid: tok.uid });
-  const me = tok.uid;
+  if (sec.uid !== me) await ref.update({ uid: me });
 
   if (body.action === 'status') {
     const link = await ensureStaffHandle(db, me, 'support', 'Nexa Support', 'Official Nexa Support — message us any time.');
+    // the Nexa Support photo is always the Nexa logo
+    try { const logo = new URL('/icon-512-v4.png', req.url).href; const p = (await db.doc('users/' + me).get()).data() || {}; if (p.avatar !== logo) await db.doc('users/' + me).update({ avatar: logo }); } catch {}
     return json({ version: 1, agents: AGENTS.map(a => ({ ...a, changed: !!(sec.agents[a.id] || {}).changed, locked: ((sec.agents[a.id] || {}).lockUntil || 0) > now })), link });
   }
   if (body.action === 'login') {
@@ -93,14 +100,14 @@ export default async (req) => {
     const openReports = reports.docs.filter(d => !d.data().resolved).length;
     let users = null, online = null; try { users = (await db.collection('users').count().get()).data().count; } catch {}
     try { online = (await db.collection('users').where('lastSeen', '>=', now - 3 * 60e3).count().get()).data().count; } catch {}
-    return ok({ stats: { waiting, chats: convs.length, flags: flags.docs.length, reports: openReports, bans: bans.size, users, online }, ui: { autoReply: sec.autoReply || '' } });
+    return ok({ stats: { waiting, chats: convs.length, flags: flags.docs.length, reports: openReports, bans: bans.size, users, online }, ui: { autoReply: sec.autoReply ?? DEFAULT_AUTO_REPLY } });
   }
   if (body.action === 'inbox') {
     const qs = await db.collection('conversations').where('members', 'array-contains', me).get();
     const convs = qs.docs.map(x => ({ id: x.id, ...x.data() })).filter(c => c.type === 'dm' && (c.last || c.help));
     const info = await userInfo(db, convs.map(c => (c.members || []).find(u => u !== me)));
     const bans = new Set((await db.collection('bans').get()).docs.map(b => b.id));
-    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = info[u] || {}, last = c.last || {}; return { id: c.id, uid: u, name: p.name, handle: p.handle, avatar: p.avatar, online: p.online, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: !!last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u), claimed: c.claimedBy || '' }; }).sort((a, b) => b.last.at - a.last.at);
+    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = info[u] || {}, last = c.last || {}; return { id: c.id, uid: u, name: p.name, handle: p.handle, avatar: p.avatar, online: p.online, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: !!last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u), claimed: c.claimedBy || '', asked: ['shiv', 'arrick', 'yaseen'].includes(c.askedFor) ? c.askedFor : '' }; }).sort((a, b) => b.last.at - a.last.at);
     return ok({ list, unread: list.filter(c => c.unread).length });
   }
   if (body.action === 'thread') {
@@ -195,6 +202,37 @@ export default async (req) => {
     return ok({ done: true });
   }
   if (body.action === 'autoReply') { await ref.update({ autoReply: String(body.text || '').slice(0, 300) }); return ok({ done: true }); }
+  // finished helping someone: delete the whole chat (for them too) so nothing piles up
+  if (body.action === 'deleteChat') {
+    const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
+    const base = db.doc('conversations/' + body.cid);
+    for (const sub of ['messages', 'meta', 'board']) {
+      for (;;) { const qs = await base.collection(sub).limit(400).get(); if (qs.empty) break; const b = db.batch(); qs.docs.forEach(d => b.delete(d.ref)); await b.commit(); if (qs.size < 400) break; }
+    }
+    await base.delete();
+    return ok({ deleted: true });
+  }
+  // who's on the newest Nexa and who isn't
+  if (body.action === 'versions') {
+    const qs = await db.collection('users').orderBy('lastSeen', 'desc').limit(400).get();
+    const list = qs.docs.filter(d => d.id !== me && !d.data().staff && !d.data().deleted).map(d => { const p = d.data(); return { id: d.id, name: p.name || 'Nexa user', handle: p.handle || '', avatar: typeof p.avatar === 'string' && p.avatar.length < 6000 ? p.avatar : '', version: String(p.appVersion || ''), versionAt: ms(p.appVersionAt), lastSeen: ms(p.lastSeen), asked: ms(p.updateAskedAt) }; });
+    return ok({ list });
+  }
+  // nudge people to update: a notification + a push to their phone/computer
+  if (body.action === 'askUpdate') {
+    const ids = [...new Set((Array.isArray(body.uids) ? body.uids : []).filter(uidOk))].slice(0, 400);
+    const v = String(body.version || '').slice(0, 12);
+    let n = 0;
+    for (const u of ids) {
+      try {
+        const nd = await db.collection('notifications').add({ to: u, from: me, type: 'update_ask', title: '🚀 Update Nexa', body: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready — open Nexa and tap Update now.`, at: now, read: false });
+        await db.doc('users/' + u).update({ updateAskedAt: now }).catch(() => {});
+        await deliver(db, u, { kind: 'notification', title: '🚀 Update Nexa', body: 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd_' + nd.id }, 86400).catch(() => 0);
+        n++;
+      } catch {}
+    }
+    return ok({ asked: n });
+  }
   if (body.action === 'logoutAll') { await ref.update({ sessionsFrom: now + 1 }); return json({ done: true }); }
   return json({ error: 'Unknown action' }, 400);
 };
