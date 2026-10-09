@@ -1,0 +1,20 @@
+{
+  "name": "Nexa Support",
+  "short_name": "Nexa Support",
+  "description": "The Nexa Support team app — help chats, flagged messages and reports.",
+  "id": "/support/",
+  "start_url": "/support/",
+  "scope": "/support/",
+  "display": "standalone",
+  "background_color": "#05070f",
+  "theme_color": "#05070f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Help chats", "url": "/support/#chats", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Flagged messages", "url": "/support/#flags", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ]
+}

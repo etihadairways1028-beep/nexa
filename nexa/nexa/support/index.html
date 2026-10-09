@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Nexa Support</title>
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#05070f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nexa Support">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{--ac:#3d7bff;--ac2:#5aa2ff;--mint:#5ff2c8;--text:#eef2ff;--mute:rgba(220,228,255,.68);--line:rgba(255,255,255,.14)}
+*{box-sizing:border-box;margin:0}
+body{min-height:100vh;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:#05070f url(../sky.jpg) center/cover fixed;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(60% 40% at 20% 10%,rgba(22,199,154,.25),transparent 70%),radial-gradient(50% 40% at 90% 80%,rgba(138,92,255,.25),transparent 70%),rgba(4,6,18,var(--dim,.35));pointer-events:none}
+.wrap{position:relative;max-width:1180px;margin:0 auto;padding:24px 18px 60px}
+.glass{background:radial-gradient(150% 100% at 25% -20%,rgba(255,255,255,.18),transparent 46%),linear-gradient(165deg,rgba(255,255,255,.10),rgba(255,255,255,.02) 50%,rgba(255,255,255,.06)),rgba(12,16,42,.35);backdrop-filter:blur(14px) saturate(1.8);-webkit-backdrop-filter:blur(14px) saturate(1.8);box-shadow:inset 2px 2px 1px -1px rgba(255,255,255,.75),inset -2px -2px 1px -1px rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.1),0 24px 50px -24px rgba(0,0,0,.7);border-radius:28px}
+.card{padding:22px}
+h1{font-size:28px;letter-spacing:-.02em}h2{font-size:17px;margin-bottom:10px}
+.mute{color:var(--mute)}.small{font-size:13px}
+.row{display:flex;align-items:center;gap:10px}.spread{justify-content:space-between}.wrapflex{flex-wrap:wrap}
+.btn{height:44px;padding:0 20px;border-radius:999px;border:0;color:#fff;font-weight:700;font-size:15px;cursor:pointer;background:rgba(255,255,255,.1);box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),inset 0 0 0 1px rgba(255,255,255,.1);display:inline-flex;align-items:center;gap:8px}
+.btn.pri{background:radial-gradient(120% 90% at 30% -10%,rgba(255,255,255,.5),transparent 50%),linear-gradient(135deg,var(--ac),var(--ac2));box-shadow:inset 1px 1.5px 0 rgba(255,255,255,.7),0 10px 24px -10px var(--ac)}
+.btn:disabled{opacity:.6;cursor:default}
+.inp{width:100%;height:50px;border-radius:16px;border:0;padding:0 16px;font-size:17px;color:#fff;background:rgba(255,255,255,.08);box-shadow:inset 1px 1px 0 rgba(255,255,255,.35),inset 0 0 0 1px rgba(255,255,255,.12);outline:none}
+.inp:focus{box-shadow:inset 1px 1px 0 rgba(255,255,255,.35),0 0 0 3px rgba(95,242,200,.35)}
+.code::placeholder{letter-spacing:normal;font-size:15px;font-weight:500}
+.code{letter-spacing:.5em;text-align:center;font-size:24px;font-weight:700}
+label{display:flex;flex-direction:column;gap:8px;font-weight:700;font-size:14px}
+.err{color:#ff9aa8;font-weight:600;font-size:14px}.ok{color:var(--mint);font-weight:600;font-size:14px}
+.gate{max-width:440px;margin:8vh auto 0;display:flex;flex-direction:column;gap:16px}
+.logo{width:56px;height:56px;border-radius:16px;background:url(icon-192.png) center/cover;box-shadow:0 0 40px rgba(80,140,255,.6)}
+.steps{display:flex;gap:6px}.steps i{height:5px;flex:1;border-radius:3px;background:rgba(255,255,255,.18)}.steps i.on{background:var(--mint)}
+.qr{background:#fff;border-radius:18px;padding:10px;width:220px;align-self:center}.qr svg{display:block;width:100%;height:auto}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tile{padding:16px 18px;display:flex;flex-direction:column;gap:6px;border-radius:22px}.tile b{font-size:32px;font-weight:800;letter-spacing:-.02em}
+.bars{display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:4px;height:180px;align-items:end;margin-top:6px}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:3px;font-size:10px}
+.bar i{width:100%;min-height:2px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--mint),var(--ac))}
+.bar i.act{background:rgba(255,255,255,.25)}
+.legend{display:flex;gap:16px;font-size:12px}.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:linear-gradient(180deg,var(--mint),var(--ac))}.legend span.a::before{background:rgba(255,255,255,.3)}
+.table{overflow-x:auto;margin-top:8px}
+.tr{display:grid;grid-template-columns:1.2fr 1fr 1.7fr .8fr .9fr;gap:12px;padding:11px 8px;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px;min-width:700px;align-items:center}
+.tr.h{font-size:12px;font-weight:800;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;cursor:pointer;user-select:none}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.online{color:var(--mint);font-weight:700}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.pill{display:inline-flex;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(255,255,255,.1)}
+.top{position:sticky;top:12px;z-index:5;padding:14px 18px;margin-bottom:16px}
+@media (max-width:820px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}.bars{gap:2px}.bar span{display:none}.tile b{font-size:26px}}
+.choices{display:flex;flex-direction:column;gap:8px}.choice{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px 14px;border-radius:18px;border:0;color:#fff;cursor:pointer;background:rgba(255,255,255,.07);box-shadow:inset 1px 1px 0 rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.1);font-size:15px}.choice.on{background:rgba(95,242,200,.16);box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),0 0 0 2px rgba(95,242,200,.6)}
+
+.tabs{display:flex;gap:6px;padding:4px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.tab{height:38px;padding:0 16px;border-radius:999px;border:0;background:transparent;color:var(--mute);font-weight:700;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tab.on{color:#fff;background:rgba(255,255,255,.16);box-shadow:inset 1px 1px 0 rgba(255,255,255,.45)}
+.badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#ff4d6d;color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.inbox{display:grid;grid-template-columns:340px 1fr;gap:16px;height:calc(100vh - 150px);min-height:460px}
+.clist{overflow-y:auto;padding:8px}
+.citem{display:flex;gap:10px;align-items:center;width:100%;padding:10px;border-radius:18px;border:0;background:transparent;color:#fff;text-align:left;cursor:pointer}
+.citem:hover{background:rgba(255,255,255,.06)}.citem.on{background:rgba(255,255,255,.13)}
+.citem .grow{flex:1;min-width:0}.citem.un b{color:#fff}.citem.un .prev{color:#fff;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mint);box-shadow:0 0 10px var(--mint);flex:none}
+.av{width:44px;height:44px;border-radius:50%;flex:none;background:linear-gradient(135deg,#5b7cff,#9b6bff) center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;position:relative}
+.av.on::after{content:"";position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:#3fdc8a;box-shadow:0 0 0 2px #0b1030}
+.thread{display:flex;flex-direction:column;min-height:0}
+.thead{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px}
+.b{max-width:72%;padding:9px 14px;border-radius:20px;font-size:15px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;background:rgba(255,255,255,.1);align-self:flex-start}
+.b.me{align-self:flex-end;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.b img{max-width:240px;border-radius:12px;display:block;margin:2px 0}
+.b .t{display:block;font-size:11px;opacity:.6;margin-top:3px}.b.sys{align-self:center;background:none;color:var(--mute);font-size:13px}
+.comp{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.08);align-items:flex-end}
+.comp textarea{flex:1;resize:none;min-height:46px;max-height:140px;border-radius:22px;border:0;padding:12px 16px;font:inherit;font-size:15px;color:#fff;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);outline:none}
+.btn.sm{height:34px;padding:0 12px;font-size:13px}.btn.red{background:rgba(255,77,109,.25)}
+.sets{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.sets section{display:flex;flex-direction:column;gap:12px}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tog{width:52px;height:30px;border-radius:999px;border:0;background:rgba(255,255,255,.18);position:relative;cursor:pointer;flex:none}
+.tog::after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.tog.on{background:var(--mint)}.tog.on::after{transform:translateX(22px)}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.swatch{height:64px;border-radius:16px;border:0;cursor:pointer;background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:flex-end;padding:6px 8px}
+.swatch.on{box-shadow:0 0 0 3px var(--mint)}
+textarea.inp{height:auto;min-height:90px;padding:12px 16px;font:inherit;font-size:15px;resize:vertical}
+.fixed{background:rgba(95,242,200,.12);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.5}
+@media (max-width:820px){.inbox{grid-template-columns:1fr;height:auto}.inbox.open .clist{display:none}.inbox:not(.open) .thread{display:none}.thread{height:calc(100vh - 170px)}.sets{grid-template-columns:1fr}.b{max-width:85%}.tr{grid-template-columns:1.2fr 1fr 1.7fr .8fr .9fr 1.4fr}}
+.tr{grid-template-columns:1.2fr 1fr 1.6fr .8fr .9fr 1.5fr}
+
+.gate.wide{max-width:560px}
+.agents{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.agentbtn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 8px;border-radius:20px;border:0;color:#fff;cursor:pointer;background:rgba(255,255,255,.07);box-shadow:inset 1px 1px 0 rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.1)}
+.agentbtn.on{background:rgba(95,242,200,.16);box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),0 0 0 2px rgba(95,242,200,.7)}
+.aav{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)}
+.scrollx{overflow-x:auto;scrollbar-width:none;max-width:100%}.scrollx::-webkit-scrollbar{display:none}
+.tile{border:0;color:#fff;text-align:left;cursor:pointer;font:inherit}
+.tile.hot b{color:#ff9aa8}
+.hello{display:flex;flex-direction:column;gap:6px}
+.flist{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.flag{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:18px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.flag.open{box-shadow:inset 0 0 0 1px rgba(255,77,109,.45)}
+.ftext{padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.25);line-height:1.5;word-break:break-word}
+.ftext mark{background:rgba(255,77,109,.45);color:#fff;border-radius:4px;padding:0 2px}
+.pill.tiny{font-size:11px;padding:2px 8px;margin-top:4px;border:0;color:#fff;cursor:pointer}
+.tpl{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px 0}
+.b .who{display:block;font-size:11px;font-weight:800;opacity:.8;margin-bottom:2px}
+.replytog{display:flex;align-items:center;gap:6px}
+.replytog .tog{transform:scale(.85)}
+.modalbg{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{width:min(520px,100%);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+textarea.inp{height:auto;min-height:90px;padding:12px 16px;font:inherit;font-size:15px;resize:vertical}
+.backbtn{display:none}
+@media (max-width:820px){.backbtn{display:inline-flex}.agents{grid-template-columns:repeat(3,1fr)}.top{position:static}.tabs{width:100%}}
+.citem{display:flex;gap:10px;align-items:center;width:100%;padding:10px;border-radius:18px;border:0;background:transparent;color:#fff;text-align:left;cursor:pointer;font:inherit}
+.citem:hover{background:rgba(255,255,255,.06)}
+</style></head>
+<body><div class="wrap" id="app"><div class="gate glass card"><div class="row"><div class="logo"></div><div><h1>Nexa Support</h1><div class="mute small">Loading…</div></div></div></div></div>
+<script type="module">
+import CONFIG from '../config.js';
+const SUPPORT_EMAIL = 'nexaconnectofficial@gmail.com';
+const V = '11.10.0', base = CONFIG.firebase?.sdkBase || `https://www.gstatic.com/firebasejs/${V}/`;
+const [F, A] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js')]);
+const app = F.initializeApp(CONFIG.firebase, 'support'); const auth = A.getAuth(app);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} } };
+const TABS = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['reports', 'Reports'], ['people', 'People'], ['settings', 'Settings']];
+const hashTab = () => { const h = location.hash.replace('#', ''); return h === 'inbox' ? 'chats' : TABS.some(t => t[0] === h) ? h : 'home'; };
+const S = { step: 'loading', err: '', okMsg: '', busy: false, session: store.get('nexa.support.session') || '', agent: JSON.parse(store.get('nexa.support.agent') || 'null'), tab: hashTab(), cid: '', drafts: {}, sound: store.get('nexa.support.sound') !== '0', desk: store.get('nexa.support.desk') === '1', flagFilter: 'open', repFilter: 'open', q: '', people: [], agents: [] };
+const fn = CONFIG.supportEndpoint || '/.netlify/functions/support';
+async function api(action, extra = {}) {
+  const tok = await auth.currentUser.getIdToken();
+  const r = await fetch(fn, { method: 'POST', headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json' }, body: JSON.stringify({ action, session: S.session, ...extra }) });
+  const j = await r.json().catch(() => ({ error: 'Server error' }));
+  if (!r.ok) { const e = new Error(j.message || j.error || 'Something went wrong'); e.code = j.error; e.uid = j.uid; throw e; }
+  if (j.session && S.session) { S.session = j.session; store.set('nexa.support.session', j.session); }
+  return j;
+}
+const head = (t, sub) => `<div class="row"><div class="logo"></div><div><h1>${t}</h1><div class="mute small">${sub}</div></div></div>`;
+const msg = () => (S.err ? `<div class="err">${esc(S.err)}</div>` : '') + (S.okMsg ? `<div class="ok">${esc(S.okMsg)}</div>` : '');
+const initials = n => esc((n || '?').trim()[0]?.toUpperCase() || '?');
+const avatar = (u, sz = 44) => `<span class="av ${u.online ? 'on' : ''}" style="width:${sz}px;height:${sz}px;${u.avatar ? `background-image:url(${esc(u.avatar)})` : ''}">${u.avatar ? '' : initials(u.name)}</span>`;
+const hm = t => { if (!t) return ''; const d = new Date(t), td = new Date(); return d.toDateString() === td.toDateString() ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+const AGENT_COL = { shiv: 'linear-gradient(135deg,#5b7cff,#9b6bff)', arrick: 'linear-gradient(135deg,#2fd4c4,#3d7bff)', yaseen: 'linear-gradient(135deg,#ff8a4c,#ff4d6d)' };
+const TEMPLATES = [['Welcome', 'Welcome to Nexa! 🎉 We\'re so happy you\'re here. If you ever need help, just message Nexa Support.'], ['Thanks for reporting', 'Thanks for your report — our team is looking into it. We\'ll take action if it breaks the rules.'], ['Fixed', 'Good news — that\'s fixed now! Let us know if anything else comes up.'], ['Update', 'Hi! There\'s a new Nexa update with new features — check it out. 🚀']];
+
+function render() {
+  const el = $('#app');
+  if (S.step === 'loading') { el.innerHTML = `<div class="gate glass card">${head('Nexa Support', 'Loading…')}</div>`; return; }
+  if (S.step === 'signin') { el.innerHTML = `<form class="gate glass card" id="f-signin">${head('Nexa Support', 'For the Nexa Support team')}<label>Support email<input class="inp" value="${SUPPORT_EMAIL}" disabled></label><label>Password<input class="inp" id="pw" type="password" autocomplete="current-password" required autofocus></label>${msg()}<button class="btn pri" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Signing in…' : 'Continue'}</button><div class="row spread wrapflex small"><a class="mute" href="#" id="forgot">Forgot password?</a><a class="mute" href="#" id="create">First time? Create the support account</a></div></form>`; return; }
+  if (S.step === 'create') { el.innerHTML = `<form class="gate glass card" id="f-create">${head('Create the support account', 'One time only')}<div class="mute small" style="line-height:1.55">This makes the shared Nexa account for <b>${SUPPORT_EMAIL}</b> (shown in Nexa as <b>Nexa Support</b>, @support). Everyone on the team signs in with this email, then picks their own name.</div><label>Choose a password for the support email<input class="inp" id="pw1" type="password" minlength="8" required></label><label>Type it again<input class="inp" id="pw2" type="password" minlength="8" required></label>${msg()}<button class="btn pri" ${S.busy ? 'disabled' : ''}>Create account</button><button type="button" class="btn" id="back">Back</button></form>`; return; }
+  if (S.step === 'verify') { el.innerHTML = `<div class="gate glass card">${head('Check the support inbox', 'One-time check')}<div class="mute small" style="line-height:1.6">We sent a link to <b>${SUPPORT_EMAIL}</b>. Open that email, tap the link, then come back and tap <b>Done</b>.<br><br>Or, if you run the server: add <b>SUPPORT_UID</b> = <code style="word-break:break-all">${esc(S.uid || '')}</code> to its settings.</div>${msg()}<div class="row wrapflex"><button class="btn pri" id="vdone">Done</button><button class="btn" id="vsend">Send the link again</button><button class="btn" id="out">Sign out</button></div></div>`; return; }
+  if (S.step === 'pick') { el.innerHTML = `<div class="gate glass card wide">${head('Who are you?', 'Choose your account')}<div class="agents">${S.agents.map(a => `<button class="agentbtn ${S.pick === a.id ? 'on' : ''}" data-agent="${a.id}"><span class="aav" style="background:${AGENT_COL[a.id] || AGENT_COL.shiv}">${initials(a.name)}</span><b>${esc(a.name)}</b><span class="mute small">${a.locked ? 'Locked for a few minutes' : 'Nexa Support'}</span></button>`).join('')}</div>
+      ${S.pick ? `<form id="f-agent" style="display:flex;flex-direction:column;gap:12px"><label>${esc(S.agents.find(a => a.id === S.pick)?.name)}'s password<input class="inp" id="apw" type="password" autocomplete="current-password" required autofocus></label>${msg()}<button class="btn pri" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Checking…' : 'Sign in'}</button></form>` : msg()}
+      <button class="btn" id="out" style="align-self:flex-start">Use a different email</button></div>`; return; }
+  if (S.step === 'app') { el.innerHTML = vApp(); return; }
+}
+function topbar() {
+  const n = S.dash?.stats || {};
+  const badge = k => { const v = k === 'chats' ? (S.inbox?.unread ?? n.waiting) : k === 'flags' ? n.flags : k === 'reports' ? n.reports : 0; return v ? ` <span class="badge">${v}</span>` : ''; };
+  return `<div class="top glass row spread wrapflex"><div class="row"><div class="logo" style="width:40px;height:40px;border-radius:12px"></div><div><b style="font-size:18px">Nexa Support</b><div class="mute small">Signed in as <b>${esc(S.agent?.name || '')}</b> · <a href="#" id="switch" class="mute">switch</a></div></div></div>
+  <div class="tabs scrollx">${TABS.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}${badge(k)}</button>`).join('')}</div>
+  <div class="row"><button class="btn sm pri" id="newmsg">+ Message</button><button class="btn sm" id="lock">Lock</button></div></div>`;
+}
+function vApp() {
+  let body = '';
+  if (S.tab === 'home') body = vHome();
+  if (S.tab === 'chats') body = vChats();
+  if (S.tab === 'flags') body = vFlags();
+  if (S.tab === 'reports') body = vReports();
+  if (S.tab === 'people') body = vPeople();
+  if (S.tab === 'settings') body = vSettings();
+  return topbar() + (S.flash ? `<div class="fixed" style="margin-bottom:12px">${S.flash}</div>` : '') + body + (S.compose ? vCompose() : '') + (S.mustChange ? vMustChange() : '');
+}
+function vHome() {
+  const s = S.dash?.stats; if (!s) return '<div class="glass card">Loading…</div>';
+  const tile = (n, l, tab, hot) => `<button class="tile glass ${hot && n ? 'hot' : ''}" ${tab ? `data-tab="${tab}"` : ''}><span class="mute small">${l}</span><b>${n ?? '—'}</b></button>`;
+  const flags = (S.flags || []).filter(f => f.status === 'open').slice(0, 4), waiting = (S.inbox?.list || []).filter(c => c.unread).slice(0, 5);
+  return `<div class="hello glass card"><h2 style="margin:0">Hi ${esc(S.agent?.name || '')} 👋</h2><div class="mute">${s.waiting || s.flags || s.reports ? `${s.waiting ? `<b>${s.waiting}</b> chat${s.waiting === 1 ? '' : 's'} waiting · ` : ''}${s.flags ? `<b>${s.flags}</b> flagged message${s.flags === 1 ? '' : 's'} · ` : ''}${s.reports ? `<b>${s.reports}</b> open report${s.reports === 1 ? '' : 's'}` : ''}`.replace(/ · $/, '') : 'All caught up — nothing waiting. 🎉'}</div></div>
+  <div class="tiles" style="margin-top:14px">${tile(s.waiting, 'Chats waiting', 'chats', 1)}${tile(s.flags, 'Flagged messages', 'flags', 1)}${tile(s.reports, 'Open reports', 'reports', 1)}${tile(s.online, 'Online now')}${tile(s.users, 'People on Nexa')}${tile(s.chats, 'Help chats', 'chats')}${tile(s.bans, 'Banned', 'people')}</div>
+  <div class="grid2" style="margin-top:16px"><section class="glass card"><div class="row spread"><h2>🚩 Newest flags</h2><button class="btn sm" data-tab="flags">All flags</button></div>${flags.length ? flags.map(vFlagRow).join('') : '<div class="mute small">No offensive messages right now.</div>'}</section>
+  <section class="glass card"><div class="row spread"><h2>💬 Waiting for a reply</h2><button class="btn sm" data-tab="chats">All chats</button></div>${waiting.length ? waiting.map(c => `<button class="citem un" data-cid="${c.id}">${avatar(c, 38)}<span class="grow"><b class="ellip" style="display:block">${esc(c.name)}</b><span class="mute small ellip prev" style="display:block">${esc(c.last.text)}</span></span><span class="mute small">${hm(c.last.at)}</span></button>`).join('') : '<div class="mute small">No one is waiting.</div>'}</section></div>`;
+}
+function vChats() {
+  const ib = S.inbox; if (!ib) return `<div class="glass card">Loading chats…</div>`;
+  const cur = ib.list.find(c => c.id === S.cid);
+  const list = ib.list.length ? ib.list.map(c => `<button class="citem ${c.id === S.cid ? 'on' : ''} ${c.unread ? 'un' : ''}" data-cid="${c.id}">${avatar(c)}<span class="grow"><span class="row spread"><b class="ellip">${esc(c.name)}</b><span class="mute small">${hm(c.last.at)}</span></span><span class="mute small ellip prev" style="display:block">${c.last.from === 'me' ? 'Support: ' : ''}${esc(c.last.text || (c.readOnly ? 'Official message' : ''))}</span>${c.claimed ? `<span class="pill tiny">${esc(c.claimed)}</span>` : ''}</span>${c.unread ? '<span class="dot"></span>' : ''}</button>`).join('') : `<div class="mute" style="padding:24px;line-height:1.6;text-align:center">No chats yet.<br><span class="small">When someone taps <b>Help</b> in Nexa, it shows up here.</span></div>`;
+  let thread = `<div class="mute" style="margin:auto;text-align:center;padding:30px">Pick a chat to read and reply.</div>`;
+  if (cur) {
+    const t = S.thread?.cid === cur.id ? S.thread : null;
+    thread = `<div class="thead row spread"><div class="row"><button class="btn sm backbtn" id="back">‹</button>${avatar(cur, 40)}<div><b>${esc(cur.name)}</b><div class="mute small">${cur.handle ? '@' + esc(cur.handle) : ''}${cur.online ? ' · <span class="online">online</span>' : ''}${t?.typing ? ' · typing…' : ''}</div></div></div>
+      <div class="row wrapflex" style="gap:6px"><label class="replytog" title="Let them reply in this chat"><span class="small">Can reply</span><button class="tog ${t ? (t.readOnly ? '' : 'on') : cur.readOnly ? '' : 'on'}" id="tReply" type="button"></button></label><button class="btn sm" data-warn="${cur.uid}" data-name="${esc(cur.name)}">Warn</button>${cur.banned ? `<button class="btn sm" data-unban="${cur.uid}" data-name="${esc(cur.name)}">Unban</button>` : `<button class="btn sm red" data-ban="${cur.uid}" data-name="${esc(cur.name)}">Ban</button>`}</div></div>
+      <div class="msgs" id="msgs">${!t ? '<div class="mute" style="margin:auto">Loading…</div>' : t.msgs.map(m => m.system ? `<div class="b sys">${esc(m.text || m.label)}</div>` : `<div class="b ${m.mine ? 'me' : ''}">${m.mine && m.agent ? `<span class="who">${esc(m.agent)}</span>` : ''}${m.imgs.map(i => `<img src="${esc(i)}" alt="">`).join('')}${esc(m.text || (m.imgs.length ? '' : m.label))}<span class="t">${hm(m.at)}</span></div>`).join('')}</div>
+      <div class="tpl">${TEMPLATES.map(([k], i) => `<button class="pill tiny" data-tpl="${i}">${esc(k)}</button>`).join('')}</div>
+      <form class="comp" id="f-reply"><textarea id="rtext" rows="1" placeholder="Reply as ${esc(S.agent?.name || '')} · Nexa Support…">${esc(S.drafts[cur.id] || '')}</textarea><button class="btn pri" ${S.sendingReply ? 'disabled' : ''}>Send</button></form>`;
+  }
+  return `<div class="inbox ${cur ? 'open' : ''}"><div class="glass clist">${list}</div><div class="glass thread">${thread}</div></div>`;
+}
+const LEETC = { a: 'a4@', e: 'e3', i: 'i1!', o: 'o0', s: 's5$', t: 't7+', l: 'l1' };
+function hilite(text, words) { let h = esc(text); (words || []).forEach(w => { const pat = w.toLowerCase().split('').map(c => c === ' ' ? '\\s+' : '[' + (LEETC[c] || c).replace(/[$\]\\^-]/g, '\\$&') + ']+').join('[*._-]*'); try { h = h.replace(new RegExp('(' + pat + ')', 'ig'), '<mark>$1</mark>'); } catch {} }); return h; }
+function vFlagRow(f) {
+  const u = f.user || {};
+  return `<div class="flag ${f.status}"><div class="row spread wrapflex"><div class="row">${avatar(u, 36)}<div><b>${esc(u.name || f.fromName || 'Nexa user')}</b> <span class="mute small">${u.handle ? '@' + esc(u.handle) : ''}</span><div class="mute small">${hm(f.at)} · ${f.convType === 'group' ? 'in a group' + (f.convName ? ' “' + esc(f.convName) + '”' : '') : f.convType === 'channel' ? 'in a community' : 'in a direct chat'}${f.banned ? ' · <b style="color:#ff9aa8">banned</b>' : ''}</div></div></div>${f.status !== 'open' ? `<span class="pill tiny">${esc(f.action || 'done')} · ${esc(f.handledBy || '')}</span>` : ''}</div>
+    <div class="ftext">“${hilite(f.text, f.words)}”</div>
+    <div class="row wrapflex" style="gap:6px">${f.status === 'open' ? `<button class="btn sm" data-flag="${f.id}" data-do="warn">⚠️ Warn</button><button class="btn sm red" data-flag="${f.id}" data-do="ban">🚫 Ban</button><button class="btn sm" data-flag="${f.id}" data-do="dismiss">Not a problem</button>` : `<button class="btn sm" data-flag="${f.id}" data-do="reopen">Reopen</button>`}<button class="btn sm" data-chat="${f.from}" data-name="${esc(u.name || '')}">Message</button></div></div>`;
+}
+function vFlags() {
+  if (!S.flags) return '<div class="glass card">Loading flags…</div>';
+  const list = S.flags.filter(f => S.flagFilter === 'open' ? f.status === 'open' : f.status !== 'open');
+  return `<section class="glass card"><div class="row spread wrapflex"><div><h2>🚩 Flagged messages</h2><div class="mute small">Nexa flags messages with swearing, slurs or threats. Everyone on the team gets a notification.</div></div><div class="tabs"><button class="tab ${S.flagFilter === 'open' ? 'on' : ''}" data-ff="open">Open</button><button class="tab ${S.flagFilter === 'done' ? 'on' : ''}" data-ff="done">Handled</button></div></div>
+    <div class="flist">${list.length ? list.map(vFlagRow).join('') : `<div class="mute" style="padding:20px;text-align:center">${S.flagFilter === 'open' ? 'Nothing flagged right now. 🎉' : 'Nothing handled yet.'}</div>`}</div></section>`;
+}
+function vReports() {
+  if (!S.reports) return '<div class="glass card">Loading reports…</div>';
+  const list = S.reports.filter(r => S.repFilter === 'open' ? !r.resolved : r.resolved);
+  return `<section class="glass card"><div class="row spread wrapflex"><div><h2>📝 Reports</h2><div class="mute small">When someone taps Report in Nexa.</div></div><div class="tabs"><button class="tab ${S.repFilter === 'open' ? 'on' : ''}" data-rf="open">Open</button><button class="tab ${S.repFilter === 'done' ? 'on' : ''}" data-rf="done">Handled</button></div></div>
+    <div class="flist">${list.length ? list.map(r => `<div class="flag"><div class="row spread wrapflex"><div class="row">${avatar(r.target, 36)}<div><b>${esc(r.target.name || 'Nexa user')}</b> <span class="mute small">${r.target.handle ? '@' + esc(r.target.handle) : ''}</span><div class="mute small">Reported by ${esc(r.reporter.name || 'someone')} · ${hm(r.at)}${r.banned ? ' · <b style="color:#ff9aa8">banned</b>' : ''}</div></div></div><span class="pill">${esc(r.reason || 'Report')}</span></div>
+      ${r.details ? `<div class="ftext">${esc(r.details)}</div>` : ''}${r.msgText ? `<div class="ftext mute">Message: “${esc(r.msgText)}”</div>` : ''}
+      <div class="row wrapflex" style="gap:6px">${!r.resolved ? `<button class="btn sm" data-rep="${r.id}" data-do="warn">⚠️ Warn</button><button class="btn sm red" data-rep="${r.id}" data-do="ban">🚫 Ban</button><button class="btn sm" data-rep="${r.id}" data-do="dismiss">No action</button>` : `<span class="mute small">${esc(r.handledBy || '')}</span><button class="btn sm" data-rep="${r.id}" data-do="reopen">Reopen</button>`}${r.target.id ? `<button class="btn sm" data-chat="${r.target.id}" data-name="${esc(r.target.name || '')}">Message</button>` : ''}</div></div>`).join('') : `<div class="mute" style="padding:20px;text-align:center">${S.repFilter === 'open' ? 'No open reports. 🎉' : 'Nothing handled yet.'}</div>`}</div></section>`;
+}
+function vPeople() {
+  return `<section class="glass card"><h2>👥 Find someone</h2><form id="f-search" class="row" style="gap:8px"><input class="inp" id="pq" placeholder="Name or @username" value="${esc(S.q)}" autocomplete="off"><button class="btn pri">Search</button></form>
+    <div class="flist" style="margin-top:10px">${S.people.length ? S.people.map(u => `<div class="flag"><div class="row spread wrapflex"><div class="row">${avatar(u, 40)}<div><b>${esc(u.name || 'Nexa user')}</b> <span class="mute small">@${esc(u.handle)}</span><div class="mute small">Joined ${u.joined ? new Date(u.joined).toLocaleDateString() : '—'}${u.banned ? ' · <b style="color:#ff9aa8">banned</b>' : ''}</div></div></div>
+      <div class="row wrapflex" style="gap:6px"><button class="btn sm pri" data-chat="${u.id}" data-name="${esc(u.name)}">Message</button><button class="btn sm" data-warn="${u.id}" data-name="${esc(u.name)}">Warn</button><button class="btn sm" data-wlist="${u.id}" data-name="${esc(u.name)}">Warnings</button>${u.banned ? `<button class="btn sm" data-unban="${u.id}" data-name="${esc(u.name)}">Unban</button>` : `<button class="btn sm red" data-ban="${u.id}" data-name="${esc(u.name)}">Ban</button>`}</div></div>${S.wlist?.uid === u.id ? `<div class="ftext">${S.wlist.list.length ? S.wlist.list.map(w => `<div>⚠️ ${esc(w.reason)} <span class="mute small">— ${esc(w.byName || '')}, ${hm(w.at)}</span></div>`).join('') : 'No warnings yet.'}</div>` : ''}</div>`).join('') : `<div class="mute small" style="padding:12px">${S.searched ? 'No one matches that.' : 'Search to message, warn or ban someone.'}</div>`}</div></section>`;
+}
+function vCompose() {
+  const c = S.compose;
+  return `<div class="modalbg" id="mbg"><form class="modal glass card" id="f-compose"><div class="row spread"><h2 style="margin:0">Message ${esc(c.name || 'someone')}</h2><button type="button" class="btn sm" id="mclose">✕</button></div>
+    ${c.uid ? '' : `<div class="row" style="gap:8px"><input class="inp" id="cq" placeholder="Search name or @username" value="${esc(c.q || '')}" autocomplete="off"><button type="button" class="btn" id="csearch">Find</button></div><div class="flist">${(c.res || []).map(u => `<button type="button" class="citem" data-pickto="${u.id}" data-name="${esc(u.name)}">${avatar(u, 34)}<span class="grow"><b>${esc(u.name)}</b> <span class="mute small">@${esc(u.handle)}</span></span></button>`).join('')}</div>`}
+    ${c.uid ? `<div class="tpl">${TEMPLATES.map(([k], i) => `<button type="button" class="pill tiny" data-ctpl="${i}">${esc(k)}</button>`).join('')}</div><textarea class="inp" id="ctext" rows="4" placeholder="Write your message…" required>${esc(c.text || '')}</textarea>
+    <div class="setrow"><span><b>Let them reply</b><div class="mute small">Off = an official message they can read but can't answer.</div></span><button type="button" class="tog ${c.allow !== false ? 'on' : ''}" id="callow"></button></div>
+    <div class="mute small">Sent as <b>${esc(S.agent?.name)} · Nexa Support</b></div><button class="btn pri" ${S.busy ? 'disabled' : ''}>Send</button>` : ''}</form></div>`;
+}
+function vMustChange() {
+  return `<div class="modalbg"><form class="modal glass card" id="f-first"><h2 style="margin:0">Choose your own password</h2><div class="mute small" style="line-height:1.5">You signed in with the starting password. Pick your own so only you can use the <b>${esc(S.agent?.name)}</b> account.</div><input class="inp" id="fp1" type="password" minlength="6" placeholder="New password" required><input class="inp" id="fp2" type="password" minlength="6" placeholder="Type it again" required>${msg()}<div class="row" style="gap:8px;justify-content:flex-end"><button type="button" class="btn" id="later">Later</button><button class="btn pri">Save</button></div></form></div>`;
+}
+function vSettings() {
+  const notifOn = S.desk && 'Notification' in window && Notification.permission === 'granted';
+  const tog = (on, id) => `<button class="tog ${on ? 'on' : ''}" id="${id}" type="button"></button>`;
+  return `<div class="sets">
+  <section class="glass card"><h2>🔔 Notifications on this device</h2>
+    <div class="setrow"><span><b>Phone & computer alerts</b><div class="mute small">Get a notification for new help chats, flagged messages and reports — even when this app is closed.</div></span>${tog(S.pushOn, 'tPush')}</div>
+    <div class="setrow"><span><b>Pop-ups while open</b><div class="mute small">While this page is open in another tab.</div></span>${tog(notifOn, 'tDesk')}</div>
+    <div class="setrow"><span><b>Sound</b></span>${tog(S.sound, 'tSound')}</div>
+  </section>
+  <section class="glass card"><h2>🔑 My password (${esc(S.agent?.name)})</h2><form id="f-pw" style="display:flex;flex-direction:column;gap:10px"><input class="inp" id="op" type="password" placeholder="Current password" required><input class="inp" id="np1" type="password" minlength="6" placeholder="New password" required><input class="inp" id="np2" type="password" minlength="6" placeholder="New password again" required><button class="btn" style="align-self:flex-start">Change password</button></form></section>
+  <section class="glass card"><h2>🤖 Auto-reply</h2><div class="mute small">Sent once to each new person who messages Nexa Support. Leave empty for none.</div><textarea class="inp" id="autoReply" rows="3" maxlength="300" placeholder="Thanks for messaging Nexa Support! Someone from the team will reply soon.">${esc(S.dash?.ui?.autoReply || '')}</textarea><button class="btn" id="saveAuto" style="align-self:flex-start">Save</button></section>
+  <section class="glass card"><h2>📲 Install Nexa Support</h2>${matchMedia('(display-mode: standalone)').matches ? '<div class="fixed">✅ You\'re using the installed app.</div>' : S.installEvt ? '<button class="btn pri" id="install" style="align-self:flex-start">Install Nexa Support</button>' : '<ol class="mute small" style="padding-left:18px;line-height:1.8"><li><b>Computer:</b> the install icon at the right of the address bar</li><li><b>Android:</b> ⋮ → Add to Home screen → Install</li><li><b>iPhone:</b> Safari → Share → Add to Home Screen</li></ol>'}
+    <div class="setrow"><span><b>Sign out everywhere</b><div class="mute small">Signs every team member out of this app.</div></span><button class="btn sm red" id="logoutAll">Sign out all</button></div></section>
+  </div>`;
+}
+
+// ---------- data
+async function loadAll() {
+  try {
+    const [d, ib] = await Promise.all([api('dashboard'), api('inbox')]);
+    S.dash = d; const old = S.inbox; S.inbox = ib; checkNew(old, ib);
+    if (S.tab === 'flags' || S.tab === 'home' || !S.flags) { const f = await api('flags'); checkFlags(S.flags, f.list); S.flags = f.list; }
+    if (S.tab === 'reports' || !S.reports) S.reports = (await api('reports')).list;
+    document.title = ((ib.unread || 0) + (d.stats.flags || 0) ? `(${(ib.unread || 0) + (d.stats.flags || 0)}) ` : '') + 'Nexa Support';
+    renderKeep();
+  } catch (e) { if (e.code === 'session') return lockOut(e.message); }
+}
+async function loadThread() {
+  const cid = S.cid; if (!cid) return;
+  try { const r = await api('thread', { cid }); if (S.cid !== cid) return; const prev = S.thread?.cid === cid ? S.thread.msgs.length : -1; S.thread = { cid, ...r }; const c = S.inbox?.list.find(x => x.id === cid); if (c) c.unread = false; renderKeep(prev !== r.msgs.length ? 'force' : false); }
+  catch (e) { if (e.code === 'session') lockOut(e.message); }
+}
+let seenAt = +(store.get('nexa.support.seenAt') || 0), seenFlags = null;
+function checkNew(old, ib) {
+  const fresh = ib.list.filter(c => c.unread && c.last.at > seenAt);
+  if (old && fresh.length) fresh.forEach(c => alertNew(`💬 ${c.name} needs help`, c.last.text, () => { S.tab = 'chats'; S.cid = c.id; S.thread = null; render(); loadThread(); }, S.tab === 'chats' && S.cid === c.id));
+  if (fresh.length) { seenAt = Math.max(...fresh.map(c => c.last.at)); store.set('nexa.support.seenAt', String(seenAt)); }
+}
+function checkFlags(old, list) {
+  const ids = new Set(list.map(f => f.id));
+  if (seenFlags) list.filter(f => f.status === 'open' && !seenFlags.has(f.id)).forEach(f => alertNew('🚩 Offensive message', `${f.user?.name || f.fromName}: ${f.text}`, () => { S.tab = 'flags'; render(); }, S.tab === 'flags'));
+  seenFlags = ids;
+}
+function ping() { if (!S.sound) return; try { const ac = new (window.AudioContext || window.webkitAudioContext)(); [988, 1319].forEach((f, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; o.connect(g); g.connect(ac.destination); const t = ac.currentTime + i * .12; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .25); o.start(t); o.stop(t + .3); }); } catch {} }
+function alertNew(title, body, open, looking) {
+  ping();
+  looking = looking && document.visibilityState === 'visible';
+  if (!looking && S.desk && 'Notification' in window && Notification.permission === 'granted') { try { const n = new Notification(title, { body, icon: 'icon-192.png' }); n.onclick = () => { window.focus(); open(); n.close(); }; } catch {} }
+  if (!looking) { S.flash = `${esc(title)} — <a href="#" id="flashopen" style="color:var(--mint)">open</a>`; S.flashOpen = open; clearTimeout(S.flashT); S.flashT = setTimeout(() => { S.flash = ''; renderKeep(); }, 9000); }
+}
+function lockOut(m) { S.session = ''; store.set('nexa.support.session', ''); S.step = 'pick'; S.pick = S.agent?.id || ''; S.err = m || ''; render(); }
+function renderKeep(scroll) {
+  if (S.step !== 'app') return render();
+  const ta = $('#rtext'); if (ta && S.cid) S.drafts[S.cid] = ta.value; const had = document.activeElement === ta; const pos = ta?.selectionStart;
+  const ms = $('#msgs'); const atBottom = !ms || ms.scrollHeight - ms.scrollTop - ms.clientHeight < 80;
+  const keep = ['autoReply', 'op', 'np1', 'np2', 'pq', 'ctext', 'cq', 'fp1', 'fp2'].map(id => [id, $('#' + id)?.value, document.activeElement?.id === id]);
+  render();
+  keep.forEach(([id, v, f]) => { const el = $('#' + id); if (el && v != null) { el.value = v; if (f) el.focus(); } });
+  const t2 = $('#rtext'); if (t2 && had) { t2.focus(); t2.setSelectionRange(pos, pos); }
+  const m2 = $('#msgs'); if (m2 && (atBottom || scroll === 'force')) m2.scrollTop = m2.scrollHeight;
+}
+async function enterApp() { S.step = 'app'; render(); await loadAll(); if (S.tab === 'chats' && S.cid) loadThread(); if (S.pushOn) registerPush(true); }
+async function route() {
+  const u = auth.currentUser;
+  if (!u) { S.step = 'signin'; return render(); }
+  if ((u.email || '').toLowerCase() !== SUPPORT_EMAIL) { await A.signOut(auth); S.step = 'signin'; S.err = 'This app is only for the Nexa Support team.'; return render(); }
+  try { const st = await api('status'); S.agents = st.agents; if (S.session && S.agent) return enterApp(); S.step = 'pick'; render(); }
+  catch (e) { if (e.code === 'verify-email') { S.uid = e.uid; S.step = 'verify'; return render(); } S.err = e.message; S.step = 'signin'; render(); }
+}
+A.onAuthStateChanged(auth, () => route());
+
+// ---------- push notifications for the support team
+S.pushOn = store.get('nexa.support.push') === '1';
+async function registerPush(quiet) {
+  try {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) throw new Error('This browser can\'t do notifications.');
+    if (Notification.permission !== 'granted' && (await Notification.requestPermission()) !== 'granted') throw new Error('Notifications are blocked — allow them for this site.');
+    if (!CONFIG.firebase?.vapidKey || /PASTE/.test(CONFIG.firebase.vapidKey)) throw new Error('Push needs the Web Push key in config.js.');
+    const M = await import(base + 'firebase-messaging.js');
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const token = await M.getToken(M.getMessaging(app), { vapidKey: CONFIG.firebase.vapidKey, serviceWorkerRegistration: reg });
+    await api('registerDevice', { token }); store.set('nexa.support.pushToken', token);
+    S.pushOn = true; store.set('nexa.support.push', '1'); if (!quiet) S.flash = '✅ Alerts are on for this device.';
+  } catch (e) { S.pushOn = false; store.set('nexa.support.push', ''); if (!quiet) alert(e.message); }
+  renderKeep();
+}
+try { navigator.serviceWorker?.register('/sw.js'); } catch {}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; if (S.step === 'app') renderKeep(); });
+
+// ---------- forms
+document.addEventListener('submit', async e => {
+  e.preventDefault(); const id = e.target.id; const v = Object.fromEntries([...e.target.querySelectorAll('input,textarea')].map(i => [i.id, i.value])); S.err = ''; S.okMsg = '';
+  const busy = on => { S.busy = on; if (S.step !== 'app') render(); };
+  try {
+    if (id === 'f-signin') { busy(true); await A.signInWithEmailAndPassword(auth, SUPPORT_EMAIL, v.pw); }
+    if (id === 'f-create') { if (v.pw1 !== v.pw2) throw new Error('The passwords don\'t match.'); busy(true); const c = await A.createUserWithEmailAndPassword(auth, SUPPORT_EMAIL, v.pw1); try { await A.sendEmailVerification(c.user); } catch {} }
+    if (id === 'f-agent') { busy(true); const r = await api('login', { agent: S.pick, password: v.apw }); S.session = r.session; S.agent = r.agent; store.set('nexa.support.session', r.session); store.set('nexa.support.agent', JSON.stringify(r.agent)); S.mustChange = r.mustChange; S.busy = false; return enterApp(); }
+    if (id === 'f-first') { if (v.fp1 !== v.fp2) throw new Error('The passwords don\'t match.'); await api('changePassword', { old: 'nexaofficial', password: v.fp1 }); S.mustChange = false; S.flash = '✅ Your password is saved.'; return renderKeep(); }
+    if (id === 'f-pw') { if (v.np1 !== v.np2) throw new Error('The new passwords don\'t match.'); await api('changePassword', { old: v.op, password: v.np1 }); S.flash = '✅ Password changed.'; return renderKeep(); }
+    if (id === 'f-search') { S.q = v.pq; S.people = (await api('search', { q: v.pq })).list; S.searched = true; return renderKeep(); }
+    if (id === 'f-compose') { const c = S.compose; if (!c.uid) return; const text = ($('#ctext')?.value || '').trim(); if (!text) throw new Error('Write a message first.'); S.busy = true; renderKeep(); const r = await api('startChat', { uid: c.uid, text, allowReply: c.allow !== false }); S.compose = null; S.busy = false; S.tab = 'chats'; S.cid = r.cid; S.thread = null; await loadAll(); loadThread(); S.flash = '✅ Sent to ' + esc(c.name || 'them') + (c.allow === false ? ' (they can\'t reply)' : ''); return renderKeep(); }
+    if (id === 'f-reply') { const text = ($('#rtext')?.value || '').trim(); if (!text || !S.cid) return; const cid = S.cid; S.drafts[cid] = ''; if ($('#rtext')) $('#rtext').value = ''; S.sendingReply = true; S.thread?.msgs.push({ id: 'tmp', mine: true, agent: S.agent.name, at: Date.now(), text, imgs: [] }); renderKeep('force'); try { await api('reply', { cid, text }); } catch (er) { if (er.code === 'session') return lockOut(er.message); S.drafts[cid] = text; alert(er.message); } S.sendingReply = false; await loadThread(); loadAll(); setTimeout(() => $('#rtext')?.focus(), 30); return; }
+  } catch (err) {
+    S.busy = false;
+    if (S.step === 'app') { if (err.code === 'session') return lockOut(err.message); alert(err.message); return renderKeep(); }
+    S.err = /auth\/(wrong-password|invalid-credential|invalid-login|user-not-found)/.test(err.code || '') ? 'Wrong password — or the support account isn\'t created yet (tap “First time?”).' : /email-already-in-use/.test(err.code || '') ? 'The support account already exists — go back and sign in.' : /too-many-requests/.test(err.code || '') ? 'Too many tries. Wait a few minutes.' : err.message;
+  }
+  S.busy = false; render();
+});
+document.addEventListener('click', async e => {
+  const t = e.target.closest('button,a'); if (!t) return;
+  const d = t.dataset;
+  if (t.id === 'forgot') { e.preventDefault(); try { await A.sendPasswordResetEmail(auth, SUPPORT_EMAIL); S.okMsg = 'Reset link sent to ' + SUPPORT_EMAIL; } catch (er) { S.err = er.message; } return render(); }
+  if (t.id === 'create') { e.preventDefault(); S.err = ''; S.step = 'create'; return render(); }
+  if (t.id === 'back' && S.step === 'create') { S.step = 'signin'; return render(); }
+  if (t.id === 'vsend') { try { await A.sendEmailVerification(auth.currentUser); S.okMsg = 'Sent! Check the inbox (and spam).'; } catch (er) { S.err = er.message; } return render(); }
+  if (t.id === 'vdone') { await auth.currentUser.reload(); await auth.currentUser.getIdToken(true); return route(); }
+  if (t.id === 'out') { store.set('nexa.support.session', ''); S.session = ''; S.agent = null; await A.signOut(auth); return; }
+  if (d.agent) { S.pick = d.agent; S.err = ''; render(); setTimeout(() => $('#apw')?.focus(), 30); return; }
+  if (S.step !== 'app') return;
+  if (t.id === 'switch' || t.id === 'lock') { e.preventDefault(); S.session = ''; store.set('nexa.support.session', ''); if (t.id === 'switch') { S.agent = null; store.set('nexa.support.agent', ''); } S.step = 'pick'; S.pick = t.id === 'lock' ? S.agent?.id : ''; return render(); }
+  if (d.tab) { S.tab = d.tab; S.flash = ''; history.replaceState(null, '', '#' + d.tab); render(); loadAll(); if (S.tab === 'chats' && S.cid) loadThread(); return; }
+  if (t.id === 'flashopen') { e.preventDefault(); S.flash = ''; S.flashOpen?.(); return; }
+  if (d.cid) { if (S.cid && $('#rtext')) S.drafts[S.cid] = $('#rtext').value; S.tab = 'chats'; S.cid = d.cid; S.thread = null; history.replaceState(null, '', '#chats'); render(); loadThread(); return; }
+  if (t.id === 'back') { S.cid = ''; S.thread = null; return render(); }
+  if (d.ff) { S.flagFilter = d.ff; return render(); }
+  if (d.rf) { S.repFilter = d.rf; return render(); }
+  if (d.tpl != null) { const ta = $('#rtext'); if (ta) { ta.value = TEMPLATES[+d.tpl][1]; S.drafts[S.cid] = ta.value; ta.focus(); } return; }
+  if (d.ctpl != null) { const ta = $('#ctext'); if (ta) { ta.value = TEMPLATES[+d.ctpl][1]; S.compose.text = ta.value; } return; }
+  if (t.id === 'tReply') { const c = S.inbox.list.find(x => x.id === S.cid); const allow = !(S.thread ? !S.thread.readOnly : !c.readOnly); try { await api('setReply', { cid: S.cid, allow }); if (S.thread) S.thread.readOnly = !allow; c.readOnly = !allow; S.flash = allow ? '✅ They can reply in this chat.' : '🔒 This chat is now official-only — they can read but not reply.'; renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.flag) { const act = d.do; let reason = ''; if (act === 'warn') { reason = prompt('Warning they will see (leave as is or edit):', 'Your message broke the Nexa rules. Please be respectful to others.'); if (reason === null) return; } if (act === 'ban') { reason = prompt('Ban reason (they will see it):', 'Offensive messages'); if (reason === null) return; } try { await api('flagAction', { id: d.flag, do: act, reason }); const f = S.flags.find(x => x.id === d.flag); if (f) { f.status = act === 'reopen' ? 'open' : 'done'; f.action = act; f.handledBy = S.agent.name; if (act === 'ban') f.banned = true; } S.flash = act === 'warn' ? '⚠️ Warning sent.' : act === 'ban' ? '🚫 Banned.' : act === 'reopen' ? 'Reopened.' : 'Marked as fine.'; loadAll(); renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.rep) { const act = d.do; let reason = ''; if (act === 'warn') { reason = prompt('Warning they will see:', 'We got a report about you. Please be respectful to others on Nexa.'); if (reason === null) return; } if (act === 'ban') { reason = prompt('Ban reason (they will see it):', 'Breaking the Nexa rules'); if (reason === null) return; } try { await api('reportAction', { id: d.rep, do: act, reason }); const r = S.reports.find(x => x.id === d.rep); if (r) { r.resolved = act !== 'reopen'; r.handledBy = S.agent.name; } S.flash = 'Done.'; renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.warn) { const reason = prompt(`Official warning for ${d.name || 'this person'} — they'll see this on a big warning screen:`, 'Please keep Nexa friendly and respectful.'); if (!reason) return; try { const r = await api('warn', { uid: d.warn, reason }); S.flash = `⚠️ Warning #${r.n} sent to ${esc(d.name || 'them')}.`; renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.ban) { const reason = prompt(`Ban ${d.name || 'this person'}? They won't be able to message, add friends or post.\n\nReason (they'll see it):`, ''); if (reason === null) return; try { await api('ban', { uid: d.ban, reason }); S.flash = '🚫 ' + esc(d.name || 'User') + ' is banned.'; [S.inbox?.list || [], S.people].forEach(l => l.forEach(x => { if ((x.uid || x.id) === d.ban) x.banned = true; })); renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.unban) { if (!confirm(`Unban ${d.name || 'this person'}?`)) return; try { await api('unban', { uid: d.unban }); S.flash = '✅ Unbanned.'; [S.inbox?.list || [], S.people].forEach(l => l.forEach(x => { if ((x.uid || x.id) === d.unban) x.banned = false; })); renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.wlist) { try { const r = await api('warnings', { uid: d.wlist }); S.wlist = { uid: d.wlist, list: r.list }; renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (d.chat) { S.compose = { uid: d.chat, name: d.name, allow: true, text: '' }; renderKeep(); setTimeout(() => $('#ctext')?.focus(), 30); return; }
+  if (t.id === 'newmsg') { S.compose = { uid: '', name: '', allow: true, q: '', res: [] }; renderKeep(); setTimeout(() => $('#cq')?.focus(), 30); return; }
+  if (t.id === 'mclose') { S.compose = null; return renderKeep(); }
+  if (t.id === 'csearch') { const q = $('#cq').value; S.compose.q = q; S.compose.res = (await api('search', { q })).list; return renderKeep(); }
+  if (d.pickto) { S.compose.uid = d.pickto; S.compose.name = d.name; renderKeep(); setTimeout(() => $('#ctext')?.focus(), 30); return; }
+  if (t.id === 'callow') { S.compose.text = $('#ctext')?.value || ''; S.compose.allow = S.compose.allow === false; return renderKeep(); }
+  if (t.id === 'later') { S.mustChange = false; return renderKeep(); }
+  if (t.id === 'tSound') { S.sound = !S.sound; store.set('nexa.support.sound', S.sound ? '1' : '0'); if (S.sound) ping(); return renderKeep(); }
+  if (t.id === 'tDesk') { if (!('Notification' in window)) return alert('This browser doesn\'t support notifications.'); if (S.desk && Notification.permission === 'granted') S.desk = false; else S.desk = (await Notification.requestPermission()) === 'granted'; store.set('nexa.support.desk', S.desk ? '1' : ''); return renderKeep(); }
+  if (t.id === 'tPush') { if (S.pushOn) { const tok = store.get('nexa.support.pushToken'); if (tok) api('unregisterDevice', { token: tok }).catch(() => {}); S.pushOn = false; store.set('nexa.support.push', ''); return renderKeep(); } return registerPush(false); }
+  if (t.id === 'saveAuto') { try { await api('autoReply', { text: $('#autoReply').value }); S.dash.ui = { autoReply: $('#autoReply').value }; S.flash = '✅ Auto-reply saved.'; renderKeep(); } catch (er) { alert(er.message); } return; }
+  if (t.id === 'install' && S.installEvt) { S.installEvt.prompt(); await S.installEvt.userChoice.catch(() => {}); S.installEvt = null; return renderKeep(); }
+  if (t.id === 'logoutAll') { if (!confirm('Sign every team member out of Nexa Support?')) return; try { await api('logoutAll'); } catch {} return lockOut('Everyone was signed out.'); }
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'rtext' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f-reply')?.requestSubmit(); } if (e.key === 'Escape' && S.compose) { S.compose = null; renderKeep(); } });
+document.addEventListener('input', e => { if (e.target.id === 'rtext') { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; if (S.cid) S.drafts[S.cid] = e.target.value; } if (e.target.id === 'ctext' && S.compose) S.compose.text = e.target.value; });
+window.addEventListener('hashchange', () => { if (S.step === 'app') { S.tab = hashTab(); render(); loadAll(); } });
+// keep it fresh: every 8 seconds while open (every 30 in the background)
+let tick = 0; setInterval(() => { if (S.step !== 'app') return; tick++; const vis = document.visibilityState === 'visible'; if (vis || tick % 4 === 0) loadAll(); if (vis && S.tab === 'chats' && S.cid) loadThread(); }, 8000);
+</script></body></html>
