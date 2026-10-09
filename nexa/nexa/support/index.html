@@ -130,7 +130,7 @@ const store = { get: k => { try { return localStorage.getItem(k); } catch { retu
 const TABS = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['reports', 'Reports'], ['people', 'People'], ['updates', 'Updates'], ['settings', 'Settings']];
 const hashTab = () => { const h = location.hash.replace('#', ''); return h === 'inbox' ? 'chats' : TABS.some(t => t[0] === h) ? h : 'home'; };
 const S = { step: 'loading', err: '', okMsg: '', busy: false, session: store.get('nexa.support.session') || '', agent: JSON.parse(store.get('nexa.support.agent') || 'null'), tab: hashTab(), cid: '', drafts: {}, sound: store.get('nexa.support.sound') !== '0', desk: store.get('nexa.support.desk') === '1', flagFilter: 'open', repFilter: 'open', q: '', people: [], agents: [] };
-const fn = CONFIG.supportEndpoint || '/.netlify/functions/support';
+const fn = CONFIG.supportEndpoint || '/api/support';
 async function api(action, extra = {}) {
   const r = await fetch(fn, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, session: S.session, ...extra }) });
   const j = await r.json().catch(() => ({ error: 'Server error' }));
@@ -405,6 +405,6 @@ document.addEventListener('click', async e => {
 document.addEventListener('keydown', e => { if (e.target.id === 'rtext' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f-reply')?.requestSubmit(); } if (e.key === 'Escape' && S.compose) { S.compose = null; renderKeep(); } });
 document.addEventListener('input', e => { if (e.target.id === 'rtext') { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; if (S.cid) S.drafts[S.cid] = e.target.value; } if (e.target.id === 'ctext' && S.compose) S.compose.text = e.target.value; });
 window.addEventListener('hashchange', () => { if (S.step === 'app') { S.tab = hashTab(); render(); loadAll(); } });
-// keep it fresh: every 8 seconds while open (every 30 in the background)
-let tick = 0; setInterval(() => { if (S.step !== 'app') return; tick++; const vis = document.visibilityState === 'visible'; if (vis || tick % 4 === 0) loadAll(); if (vis && S.tab === 'chats' && S.cid) loadThread(); }, 8000);
+// keep it fresh: every 15 seconds while open (every minute in the background)
+let tick = 0; setInterval(() => { if (S.step !== 'app') return; tick++; const vis = document.visibilityState === 'visible'; if (vis || tick % 4 === 0) loadAll(); if (vis && S.tab === 'chats' && S.cid) loadThread(); }, 15000);
 </script></body></html>
