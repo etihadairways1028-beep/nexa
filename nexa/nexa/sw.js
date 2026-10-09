@@ -1,9 +1,9 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '16.7';
-const NOTES = ["Nexa has moved to a new home — faster and always on", "Contact support: choose Shiv, Arrick or Yaseen", "Updates arrive for everyone — tap Update now", "Nexa Support: welcome reply and the Nexa logo", "Steadier glass, smoother calls and group photos"];
-const CACHE = 'nexa-shell-v35';
+const VERSION = '16.8';
+const NOTES = ["Nexa now runs on its own server at nexaconnect-chat.int.yt", "Nexa for computer: download it in Settings › Help & guide", "Calls that can't connect now stop with a clear message", "Welcome emails for new accounts", "Contact support: choose Shiv, Arrick or Yaseen"];
+const CACHE = 'nexa-shell-v36';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {

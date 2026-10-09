@@ -1269,7 +1269,7 @@ function vSettings() {
     <div class="setrow"><span><b>Download your data</b><div class="mute small">Your profile, friends, chats and events in one file.</div></span><button class="btn sm" data-a="exportOpen">${ic('download', 14)} Download</button></div>
     <div class="row" style="gap:10px"><button class="btn" data-a="logout">${ic('logout', 18)} Log out</button></div>
     <div style="padding:18px;border-radius:18px;border:1px solid rgba(255,77,109,.35);background:rgba(255,77,109,.06)"><b>Delete account</b><div class="mute small" style="margin:4px 0 12px">Removes your profile and signs you out. Messages you sent stay visible to people you sent them to.</div><button class="btn sm danger" data-a="deleteAccount">Delete my account</button></div>`;
-  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the Nexa Support team and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Contact support</button>`}</div><div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
+  if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the Nexa Support team and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Contact support</button>`}</div>${window.nexaDesktop ? '' : `<div class="setrow"><span><b>Nexa for computer</b><div class="mute small">The Nexa app for Windows, Mac and Linux — its own window, starts with your computer, lives in the tray.</div></span><a class="btn sm pri" href="https://github.com/etihadairways1028-beep/nexa/releases/latest" target="_blank" rel="noopener">${ic('download', 14)} Download</a></div>`}<div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
   return `<div class="settings">
     <aside class="setnav glass card">${`<div class="disp hide-m" style="font-size:20px;font-weight:600;padding:6px 10px 12px">Settings</div>`}${secs.map(([k, i, l]) => `<button class="${s === k ? 'on' : ''}" data-a="setSec" data-v="${k}">${ic(i, 18)}${l}</button>`).join('')}</aside>
     <section class="setbody glass card scroll" data-keep-scroll="set"><div class="${A('set' + s)}">${body}</div></section>
@@ -2599,7 +2599,7 @@ async function startCall(kind) {
   P.flushOut();
   pushNotify('call', { id });
   S.call.unDoc = db().listenDoc('calls/' + id, d => onCallDoc(d));
-  S.call.timeout = setTimeout(() => { if (S.call?.id === id && !S.call.startedAt) { db().update('calls/' + id, { status: 'missed' }).catch(() => {}); if (S.call.state === 'connecting') { toast('The call couldn\'t connect. Try again in a moment.'); db().update('calls/' + id, { status: 'ended' }).catch(() => {}); return endLocal(); } sendMessage({ system: true, text: `Missed ${kind === 'video' ? 'video' : 'voice'} call` }, c.id); toast('No answer'); endLocal(); } }, 40000);
+  S.call.timeout = setTimeout(() => { if (S.call?.id === id && !S.call.startedAt) { db().update('calls/' + id, { status: 'missed' }).catch(() => {}); if (S.call.state === 'connecting' || S.call.state === 'reconnecting') { toast(hasRelay() ? 'The call couldn\'t connect. Try again in a moment.' : 'The call couldn\'t connect — your networks block direct calls and Nexa\'s call relay isn\'t set up yet.'); db().update('calls/' + id, { status: 'ended' }).catch(() => {}); return endLocal(); } sendMessage({ system: true, text: `Missed ${kind === 'video' ? 'video' : 'voice'} call` }, c.id); toast('No answer'); endLocal(); } }, 40000);
 }
 async function onCallDoc(d) {
   const call = S.call; if (!call) return;
@@ -2639,6 +2639,7 @@ async function acceptCall() {
   await db().update('calls/' + inc.id, { answer: { type: ans.type, sdp: ans.sdp }, status: 'accepted', acceptedAt: now() });
   P.flushOut();
   armWatchdog(S.call);
+  { const cid = inc.id; S.call.timeout = setTimeout(() => { if (S.call?.id === cid && !S.call.startedAt) { toast(hasRelay() ? 'The call couldn\'t connect. Try again, or check Settings › Help & guide › Test calls.' : 'The call couldn\'t connect — your networks block direct calls and Nexa\'s call relay isn\'t set up yet.'); hangUp(); } }, 35000); }
   S.call.unDoc = db().listenDoc('calls/' + inc.id, x => onCallDoc(x));
 }
 function declineCall() { const inc = S.incoming; if (!inc) return; ring(false); S.incoming = null; paintCall(); db().update('calls/' + inc.id, { status: 'declined' }).catch(() => {}); }
@@ -5687,7 +5688,8 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '16.7';
+const APP_VERSION = '16.8';
+if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
 function ownerLocked(uid) { const h = (U(uid)?.handle || S.peopleRes.find(x => x.id === uid)?.handle || '').toLowerCase(); return h === 'support' || (h === 'owner' && (S.profile?.handle || '').toLowerCase() !== 'shiv'); }
@@ -5794,3 +5796,12 @@ setInterval(() => {
   const n = (S.notifs || []).find(x => x.type === 'update_ask' && !x.read); if (!n || n.id === updAskSeen) return;
   updAskSeen = n.id; checkRemote();
 }, 3000);
+
+/* ================= v16.8: welcome email for new accounts (sent by the Nexa server, once) ================= */
+setInterval(async () => {
+  if (S.view !== 'app' || !S.me || !S.profile || !S.profile.handle || welcomeMail.sent) return;
+  welcomeMail.sent = true;
+  if (now() - (S.profile.createdAt || 0) > 864e5 || lsGet('nexa.welcomeMail.' + S.me, false)) return;
+  try { const tok = await S.be.auth.idToken(); if (!tok) return; const r = await fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ kind: 'welcome' }) }); if (r.ok) lsSet('nexa.welcomeMail.' + S.me, true); } catch {}
+}, 6000);
+function welcomeMail() {}
