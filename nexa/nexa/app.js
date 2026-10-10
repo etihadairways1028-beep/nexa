@@ -3881,13 +3881,15 @@ const fresh = (t) => now() - (t || 0) < 60000;
 const roomLive = rid => { const r = (S.rooms || []).find(x => x.id === rid); return r ? Object.entries(r.participants || {}).filter(([, t]) => fresh(t)).map(([u]) => u) : []; };
 function watchRooms() { unsubs.base.push(db().listen('rooms', [['audience', 'array-contains', S.me]], r => { S.rooms = r; r.forEach(x => Object.keys(x.participants || {}).forEach(watchUser)); render(); if (S.room) paintRoom(); })); }
 let R = null; // active room state
-async function joinRoom(rid, kind, name, meta) {
+async function joinRoom(rid, kind, name, meta, opts = {}) {
   if (S.call) return toast('Finish your call first.');
   if (R) { if (R.id === rid) { R.min = false; return paintRoom(); } await leaveRoom(); }
   if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) return toast('Voice and video rooms aren\'t supported in this browser.');
   const iceP = loadIce();
-  let local; try { local = await getMedia(kind); }
-  catch { return toast(kind === 'video' ? 'Camera or microphone access was blocked.' : 'Microphone access was blocked.'); }
+  // video rooms: the camera is optional — "Audio only" joins with just the microphone (camera can be turned on later)
+  const camOn = kind === 'video' && opts.cam !== false;
+  let local; try { local = await getMedia(camOn ? 'video' : 'voice'); }
+  catch { return toast(camOn ? 'Camera or microphone access was blocked.' : 'Microphone access was blocked.'); }
   await iceP;
   let room = await db().get('rooms/' + rid).catch(() => null);
   const audience = meta.audience;
@@ -3895,9 +3897,9 @@ async function joinRoom(rid, kind, name, meta) {
   else if (audience && audience.some(u => !(room.audience || []).includes(u))) await db().update('rooms/' + rid, { audience: ops.union(...audience) }).catch(() => {});
   const others0 = Object.entries(room.participants || {}).filter(([u, t]) => u !== S.me && fresh(t)).map(([u]) => u);
   if (others0.length >= MAX_ROOM - 1) { local.getTracks().forEach(t => t.stop()); return toast('This room is full.'); }
-  R = { id: rid, kind, name, local, peers: {}, muted: false, camOff: false, min: false, joinedAt: now(), screen: null, seen: new Set() };
+  R = { id: rid, kind, name, local, peers: {}, muted: false, camOff: kind === 'video' && !camOn, min: false, joinedAt: now(), screen: null, seen: new Set() };
   S.room = rid;
-  await db().update('rooms/' + rid, { ['participants.' + S.me]: now() });
+  await db().update('rooms/' + rid, { ['participants.' + S.me]: now(), ...(kind === 'video' ? { ['cams.' + S.me]: camOn } : {}) });
   R.hb = setInterval(() => db().update('rooms/' + rid, { ['participants.' + S.me]: now() }).catch(() => {}), 20000);
   R.unSig = db().listen(`rooms/${rid}/sig`, [['to', '==', S.me]], list => list.forEach(onSignal));
   R.unRoom = db().listenDoc('rooms/' + rid, d => { if (!R || !d) return; R.doc = d; const live = Object.entries(d.participants || {}).filter(([u, t]) => u !== S.me && fresh(t)).map(([u]) => u); Object.keys(R.peers).forEach(u => { if (!live.includes(u)) dropPeer(u); }); paintRoom(); });
@@ -3909,7 +3911,10 @@ function makePeer(u, initiator) {
   const pc = new RTCPeerConnection(ICE()), remote = new MediaStream(), sess = initiator ? S.me + '_' + now().toString(36) : null;
   const P = R.peers[u] = { pc, remote, sess, pending: [], level: 0 };
   R.local.getTracks().forEach(t => pc.addTrack(t, R.local));
-  if (R.screen && R.kind === 'video') { const vs = pc.getSenders().find(s => s.track && s.track.kind === 'video'); vs && vs.replaceTrack(R.screen.getVideoTracks()[0]); }
+  // camera off: keep an empty video slot so the camera (or a screen share) can be switched on later without reconnecting
+  // (the one who calls adds it now; the one who answers opens up the caller's video slot when the offer arrives)
+  if (R.kind === 'video' && !R.local.getVideoTracks().length && initiator) pc.addTransceiver('video', { direction: 'sendrecv', streams: [R.local] });
+  if (R.screen && R.kind === 'video') { const vs = videoSender(pc); vs && vs.replaceTrack(R.screen.getVideoTracks()[0]); }
   pc.ontrack = e => { (e.streams[0] ? e.streams[0].getTracks() : [e.track]).forEach(t => { if (!remote.getTracks().includes(t)) remote.addTrack(t); }); paintRoom(true); };
   pc.onicecandidate = e => { if (e.candidate && P.sess) sig(u, 'cand', { cand: e.candidate.toJSON(), sess: P.sess }); };
   pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') dropPeer(u); paintRoom(); };
@@ -3927,6 +3932,7 @@ async function onSignal(s) {
     if (R.peers[u] && R.peers[u].sess !== s.sess) dropPeer(u);
     const P = makePeer(u, false); P.sess = s.sess;
     await P.pc.setRemoteDescription(new RTCSessionDescription(s.sdp));
+    if (R.kind === 'video') P.pc.getTransceivers().forEach(t => { if (t.mid != null && t.receiver.track && t.receiver.track.kind === 'video' && t.direction !== 'sendrecv') { try { t.direction = 'sendrecv'; } catch {} } });
     P.pending.splice(0).forEach(c => P.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
     const a = await P.pc.createAnswer(); await P.pc.setLocalDescription(a); retuneRoom();
     sig(u, 'answer', { sdp: { type: a.type, sdp: a.sdp }, sess: s.sess });
@@ -3949,18 +3955,38 @@ async function leaveRoom() {
   paintRoom(); render();
 }
 function roomMute() { if (!R) return; R.muted = !R.muted; R.local.getAudioTracks().forEach(t => t.enabled = !R.muted); paintRoom(); }
-function roomCam() { if (!R) return; R.camOff = !R.camOff; R.local.getVideoTracks().forEach(t => t.enabled = !R.camOff); paintRoom(); }
+const videoSender = pc => { const all = pc.getTransceivers().filter(x => (x.sender.track && x.sender.track.kind === 'video') || (x.receiver.track && x.receiver.track.kind === 'video')); const t = all.find(x => x.mid != null) || all[0]; return t ? t.sender : null; };
+// camera on/off in a room: the camera really switches off (light goes out), and back on without reconnecting
+async function roomCam() {
+  if (!R || R.kind !== 'video') return;
+  if (R.camOff) {
+    let t; try { t = (await navigator.mediaDevices.getUserMedia({ video: isPhoneDev() ? { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 }, facingMode: 'user' } : { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 30 } } })).getVideoTracks()[0]; }
+    catch { return toast('Camera access was blocked. Allow it in your browser settings.'); }
+    try { t.contentHint = 'motion'; } catch {}
+    if (!R) { t.stop(); return; }
+    R.local.getVideoTracks().forEach(x => { x.stop(); R.local.removeTrack(x); });
+    R.local.addTrack(t); R.camOff = false;
+    if (!R.screen) Object.values(R.peers).forEach(P => { const s = videoSender(P.pc); s && s.replaceTrack(t); });
+  } else {
+    R.camOff = true;
+    R.local.getVideoTracks().forEach(x => { x.stop(); R.local.removeTrack(x); });
+    if (!R.screen) Object.values(R.peers).forEach(P => { const s = videoSender(P.pc); s && s.replaceTrack(null); });
+  }
+  db().update('rooms/' + R.id, { ['cams.' + S.me]: !R.camOff }).catch(() => {});
+  retuneRoom(); paintRoom(true);
+}
 async function toggleShare(target) {
   // target: 'room' or 'call'
   const ctx = target === 'call' ? S.call : R; if (!ctx) return;
   const senders = target === 'call' ? [ctx.pc] : Object.values(ctx.peers).map(p => p.pc);
-  const camTrack = ctx.local.getVideoTracks()[0];
-  if (ctx.screen) { ctx.screen.getTracks().forEach(t => t.stop()); ctx.screen = null; senders.forEach(pc => { const s = pc.getSenders().find(x => x.track && x.track.kind === 'video' || (x.track === null && camTrack)); s && s.replaceTrack(camTrack); }); target === 'call' ? paintCall() : paintRoom(true); return; }
+  const camTrack = ctx.local.getVideoTracks()[0] || null;
+  if (ctx.screen) { ctx.screen.getTracks().forEach(t => t.stop()); ctx.screen = null; senders.forEach(pc => { const s = videoSender(pc); s && s.replaceTrack(camTrack); }); if (target !== 'call') db().update('rooms/' + R.id, { ['cams.' + S.me]: !R.camOff }).catch(() => {}); target === 'call' ? paintCall() : paintRoom(true); return; }
   if (!navigator.mediaDevices?.getDisplayMedia) return toast('Screen sharing isn\'t supported on this device.');
-  if (!camTrack) return toast('Screen sharing works in video calls.');
+  if (target === 'call' && !camTrack) return toast('Screen sharing works in video calls.');
   let st; try { st = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); } catch { return; }
   ctx.screen = st; const vt = st.getVideoTracks()[0];
-  senders.forEach(pc => { const s = pc.getSenders().find(x => x.track && x.track.kind === 'video'); s && s.replaceTrack(vt); });
+  senders.forEach(pc => { const s = videoSender(pc); s && s.replaceTrack(vt); });
+  if (target !== 'call') db().update('rooms/' + R.id, { ['cams.' + S.me]: true }).catch(() => {});
   vt.onended = () => { if (ctx.screen === st) toggleShare(target); };
   target === 'call' ? paintCall() : paintRoom(true);
 }
@@ -3993,7 +4019,7 @@ function paintRoom(force) {
   layer.querySelectorAll('.tile').forEach(t => {
     const u = t.dataset.u, stream = u === S.me ? (R.screen || R.local) : R.peers[u]?.remote, el = t.querySelector('video,audio');
     if (el && stream && el.srcObject !== stream) { el.srcObject = stream; el.play && el.play().catch(() => {}); }
-    const hasV = R.kind === 'video' && stream && stream.getVideoTracks().some(x => x.readyState === 'live') && !(u === S.me && R.camOff && !R.screen);
+    const hasV = R.kind === 'video' && stream && stream.getVideoTracks().some(x => x.readyState === 'live') && !(u === S.me && R.camOff && !R.screen) && (u === S.me || (R.doc?.cams || {})[u] !== false);
     t.classList.toggle('has-video', !!hasV);
   });
 }
@@ -4067,7 +4093,8 @@ Object.assign(actions, {
   commJoinYes: async () => { const iv = S.modal?.inv; if (!iv) return; S.busy = true; render(); try { const cm = await joinCommunity(iv.communityId, iv.code); S.modal = null; confetti(); const gen = (cm?.channels || []).find(c => c.kind === 'text'); if (gen) setTimeout(() => openConv(gen.id), 500); } catch { toast('This invite doesn\'t work anymore.'); S.modal = null; } S.busy = false; render(); },
   // rooms
   roomJoin: d => { const cm = d.c ? commOf(d.c) : null; joinRoom(d.v, d.k || 'voice', d.n || 'Room', { scope: cm ? 'community' : 'friends', ref: d.c || S.me, audience: cm ? cm.members : [S.me, ...friendIds()] }); },
-  hangoutOpen: () => joinRoom('hg_' + S.me, 'voice', `${S.profile.name.split(' ')[0]}'s hangout`, { scope: 'friends', ref: S.me, audience: [S.me, ...friendIds()] }),
+  hangoutOpen: () => { if (S.room === 'hg_' + S.me && R) { R.min = false; return paintRoom(true); } S.modal = { type: 'roomPick', rid: 'hg_' + S.me, name: `${S.profile.name.split(' ')[0]}'s hangout`, meta: { scope: 'friends', ref: S.me, audience: [S.me, ...friendIds()] } }; render(); },
+  roomPickGo: d => { const m = S.modal; if (!m || m.type !== 'roomPick') return; S.modal = null; render(); joinRoom(m.rid, 'video', m.name, m.meta, { cam: d.v === 'cam' }); },
   groupCall: async () => {
     const c = convOf(S.conv); if (!c) return;
     const rid = 'gc_' + c.id;
@@ -4101,7 +4128,7 @@ function vLiveCard() {
   return `<section class="panel glass card react livecard">
     <div class="row spread"><h2 class="h2 row" style="gap:8px">${all.length ? '<span class="live">LIVE</span>' : ic('volume', 18)} Hang out</h2><button class="btn sm ${mineLive ? '' : 'pri'}" data-a="hangoutOpen" ${friendIds().length ? '' : 'disabled title="Add friends first"'}>${mineLive ? 'Open my room' : 'Start my hangout'}</button></div>
     ${all.length ? `<div class="list">${all.map(({ r, who }) => `<button class="item" data-a="roomJoinId" data-v="${r.id}">${`<span class="stack">${who.slice(0, 3).map(u => av(u, 30)).join('')}</span>`}<span class="grow"><b class="ellip" style="display:block">${esc(r.name || 'Room')}</b><span class="mute small ellip" style="display:block">${who.map(u => u === S.me ? 'You' : dname(u).split(' ')[0]).join(', ')}</span></span><span class="btn sm pri" aria-hidden="true">${S.room === r.id ? 'Open' : 'Join'}</span></button>`).join('')}</div>`
-      : `<div class="mute small">Drop-in voice rooms — start one and friends can jump in anytime. Up to ${MAX_ROOM} people.</div>`}
+      : `<div class="mute small">Drop-in hangouts — camera on or just voice, your choice. Friends can jump in anytime. Up to ${MAX_ROOM} people.</div>`}
   </section>`;
 }
 async function quickReply(chat, text) {
@@ -4124,7 +4151,7 @@ Object.assign(actions, {
   folderPut: d => { const list = (S.prefs.folders || []).map(x => x.id === d.v ? { ...x, convs: x.convs.includes(S.conv) ? x.convs.filter(y => y !== S.conv) : [...x.convs, S.conv] } : x); savePrefs({ folders: list }); },
   fxReplay: d => playFx(d.v),
   albumView: d => { const p = (S.album || []).find(x => x.id === d.v); if (p) { S.lightbox = p.img; render(); } },
-  roomJoinId: d => { const r = (S.rooms || []).find(x => x.id === d.v); if (!r) return; joinRoom(r.id, r.kind || 'voice', r.name || 'Room', { scope: r.scope, ref: r.ref, audience: r.audience }); },
+  roomJoinId: d => { const r = (S.rooms || []).find(x => x.id === d.v); if (!r) return; if (r.id.startsWith('hg_') && S.room !== r.id) { S.modal = { type: 'roomPick', rid: r.id, name: r.name || 'Hangout', meta: { scope: r.scope, ref: r.ref, audience: r.audience } }; return render(); } joinRoom(r.id, r.kind || 'voice', r.name || 'Room', { scope: r.scope, ref: r.ref, audience: r.audience }); },
   saveWidgets: async () => {
     const f = S.form, w = S.profile.widgets || {};
     await db().update('users/' + S.me, { 'widgets.song': (f.wSong ?? w.song ?? '').trim().slice(0, 60), 'widgets.game': (f.wGame ?? w.game ?? '').trim().slice(0, 40) });
@@ -5657,7 +5684,7 @@ setTimeout(async function whatsNewCheck() {
 }, 2500);
 
 // Test hook: only on a local dev server, never on the live site.
-if (location.hostname === 'localhost') Object.assign(window, { S, actions });
+if (location.hostname === 'localhost') { Object.assign(window, { S, actions }); Object.defineProperty(window, 'R', { get: () => R }); }
 
 /* ================= v16.3: group photos ================= */
 // Square, centre-cropped photo for a group chat. Owners and admins can change it; everyone in the group sees it.
@@ -5688,7 +5715,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '16.8';
+const APP_VERSION = '16.9';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -5805,3 +5832,137 @@ setInterval(async () => {
   try { const tok = await S.be.auth.idToken(); if (!tok) return; const r = await fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ kind: 'welcome' }) }); if (r.ok) lsSet('nexa.welcomeMail.' + S.me, true); } catch {}
 }, 6000);
 function welcomeMail() {}
+
+/* ================= v16.9: birthday surprise cards, update requests that really update, icon refresh help, hangout camera choice ================= */
+// ---------- birthday cards: anyone in the card delivers it on the day (not only the person who started it),
+// the birthday person gets a full-screen surprise + a notification for every message, and everyone can edit/remove theirs
+const CARD_EMOJI = ['🎉', '🎂', '🎈', '🥳', '💙', '✨', '🎁', '🌟'];
+deliverCards = async function () {
+  for (const c of (S.cards || []).filter(c => !c.sent && daysUntilBday(c.for) === 0 && !cardsSent.has(c.id) && Object.keys(c.sigs || {}).length)) {
+    cardsSent.add(c.id);
+    // only one person sends it: whoever creates this lock first
+    try { await db().set('cardSends/' + c.id, { by: S.me, at: now() }); } catch { continue; }
+    await db().update('cards/' + c.id, { sent: true, sentAt: now() }).catch(() => {});
+    const sigs = Object.values(c.sigs || {}).sort((a, b) => (a.at || 0) - (b.at || 0));
+    const cid = await ensureDM(c.for).catch(() => null);
+    if (cid) await sendMessage({ bdayCard: { card: c.id, sigs: sigs.map(s => ({ from: s.from, t: s.t, e: s.e || '' })), n: sigs.length } }, cid).catch(() => {});
+    for (const s of sigs.slice(0, 25)) notify(c.for, { type: 'card', title: `${s.e || '💌'} ${dname(s.from).split(' ')[0]} wrote you a birthday message`, body: String(s.t || '').slice(0, 140), link: { page: 'home' } });
+  }
+};
+// the birthday person: watch for cards made for me, and surprise me on the day
+let cardSurpriseOn = false;
+function watchMyCards() {
+  if (cardSurpriseOn || !S.me) return; cardSurpriseOn = true;
+  unsubs.base.push(db().listen('cards', [['for', '==', S.me], ['sent', '==', true]], r => {
+    S.myCards = r.filter(c => now() - (c.sentAt || 0) < 7 * 864e5);
+    const seen = S.prefs.cardsSeen || {};
+    const fresh = S.myCards.find(c => !seen[c.id]);
+    if (fresh && !S.modal && S.view === 'app') { S.modal = { type: 'bdaySurprise', id: fresh.id, i: 0 }; render(); setTimeout(() => { try { confetti(); } catch {} }, 300); }
+  }));
+}
+setInterval(() => { if (S.view === 'app' && S.me && S.profile) watchMyCards(); }, 3000);
+Object.assign(actions, {
+  cardSignSave: async () => {
+    const t = (S.form.cdSig || '').trim(); if (!t) return toast('Write a message first');
+    const id = S.modal.id; const e = S.form.cdEmoji || ''; S.modal = null; render();
+    await db().update('cards/' + id, { ['sigs.' + S.me]: { from: S.me, t: t.slice(0, 300), e, at: now() } }); toast('Saved — they\'ll see it on their birthday');
+  },
+  cardSigRemove: async () => { const id = S.modal?.id; if (!id) return; S.modal = null; render(); await db().update('cards/' + id, { ['sigs.' + S.me]: ops.del() }); toast('Your message was removed'); },
+  cardDelete: () => { const id = S.modal?.id; if (!id) return; confirmModal('Delete this card?', 'Everyone\'s messages in it are deleted. This can\'t be undone.', 'Delete', async () => { await db().del('cards/' + id).catch(() => toast('Couldn\'t delete it')); toast('Card deleted'); }); },
+  cardEmoji: d => { S.form.cdEmoji = S.form.cdEmoji === d.v ? '' : d.v; render(); },
+  cardOpen: d => { S.form.cdSig = ((S.cards || []).find(x => x.id === d.v)?.sigs || {})[S.me]?.t || ''; S.form.cdEmoji = ((S.cards || []).find(x => x.id === d.v)?.sigs || {})[S.me]?.e || ''; S.modal = { type: 'cardSign', id: d.v }; render(); },
+  cardSign: d => actions.cardOpen(d),
+  bdayNext: () => { const m = S.modal; if (!m) return; const c = (S.myCards || []).find(x => x.id === m.id); const n = Object.keys(c?.sigs || {}).length; if (m.i + 1 < n) { m.i++; render(); try { confetti(); } catch {} } else actions.bdayDone(); },
+  bdayDone: () => { const m = S.modal; if (!m) return; savePrefs({ cardsSeen: { ...(S.prefs.cardsSeen || {}), [m.id]: now() } }); S.modal = null; render(); },
+  bdayThanks: async () => { const m = S.modal; const c = (S.myCards || []).find(x => x.id === m?.id); actions.bdayDone(); if (!c) return; for (const u of Object.keys(c.sigs || {}).filter(u => u !== S.me).slice(0, 25)) notify(u, { type: 'card', title: `💙 ${S.profile.name.split(' ')[0]} loved your birthday message`, body: 'Thank you so much! 🥳', link: { page: 'home' } }); toast('Thanks sent to everyone 💙'); }
+});
+// the Home "Birthdays coming up" card also lists the cards you're part of, so you can edit, remove or delete
+const _vCardNudgesV169 = vCardNudges;
+vCardNudges = function () {
+  const mine = (S.cards || []).filter(c => !c.sent && (c.sigs || {})[S.me]);
+  const base = _vCardNudgesV169();
+  if (!mine.length) return base;
+  const rows = mine.map(c => `<div class="item">${av(c.for, 40)}<span class="grow"><b style="display:block">${esc(dname(c.for).split(' ')[0])}'s card</b><span class="mute small">You signed ✓ · ${Object.keys(c.sigs || {}).length} message${Object.keys(c.sigs || {}).length === 1 ? '' : 's'}${daysUntilBday(c.for) != null ? ' · sends in ' + daysUntilBday(c.for) + ' day' + (daysUntilBday(c.for) === 1 ? '' : 's') : ''}</span></span><button class="btn sm" data-a="cardOpen" data-v="${c.id}">${ic('pen', 14)} Edit</button></div>`).join('');
+  if (base) return base.replace('</section>', rows + '</section>');
+  return `<section class="panel glass card"><div class="row spread"><h2 class="h2 row" style="gap:8px">${ic('gift', 18)} Birthday cards</h2></div>${rows}</section>`;
+};
+vCardBubble = function (m, quote) {
+  const c = m.bdayCard;
+  return `<div class="bub bcard">${quote}<div class="bchead">${ic('gift', 22, 2)}<b class="disp">Happy birthday!</b></div><span class="small" style="opacity:.85">A card from ${c.n} friend${c.n === 1 ? '' : 's'}</span>
+    ${(c.sigs || []).map(s => `<div class="bsig">${av(s.from, 28)}<span><b class="small">${s.e ? s.e + ' ' : ''}${esc(dname(s.from).split(' ')[0])}</b><span style="display:block">${esc(s.t)}</span></span></div>`).join('')}</div>`;
+};
+
+// ---------- updates: a request from the owner/support page opens the real update screen (not just a message)
+setInterval(async () => {
+  if (S.view !== 'app') return;
+  const n = (S.notifs || []).find(x => x.type === 'update_ask' && !x.read); if (!n) return;
+  db().update('notifications/' + n.id, { read: true }).catch(() => {});
+  n.read = true;
+  await checkRemote();
+  if (!S.updateReady && !S.mustUpdate) S.forceUpd = true;
+  if (!S.modal || S.modal.type !== 'updAvail') { S.modal = { type: 'updAvail' }; render(); }
+}, 2500);
+// "Update now" with no new version waiting = get a completely fresh copy of Nexa (logo and all)
+actions.updNow = () => { lsSet('nexa.iconCheck', '1'); if (S.updateReady || S.mustUpdate) return doUpdate(); S.updating = true; lsSet('nexa.justUpdated', '1'); render(); hardRefresh(); };
+
+// ---------- the home-screen icon: iPhone, iPad and Samsung keep the old icon until it's added again
+const ICON_VER = 'v4';
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const iosDev = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const samsungDev = () => /SamsungBrowser/.test(navigator.userAgent);
+setTimeout(function iconCheck() {
+  if (S.view !== 'app' || S.modal) { if ((iconCheck.n = (iconCheck.n || 0) + 1) < 40) setTimeout(iconCheck, 3000); return; }
+  if (!isStandalone() || !(iosDev() || samsungDev()) || lsGet('nexa.iconVer', '') === ICON_VER) return;
+  S.modal = { type: 'iconGuide' }; render();
+}, 9000);
+Object.assign(actions, {
+  iconGuide: () => { S.menu = null; S.modal = { type: 'iconGuide' }; render(); },
+  iconDone: () => { lsSet('nexa.iconVer', ICON_VER); S.modal = null; render(); }
+});
+
+const _vModal5V169 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'updAvail' && S.forceUpd && !S.updateReady && !S.mustUpdate) {
+    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update Nexa</h2><div class="mute" style="text-align:center;line-height:1.5">Nexa asked everyone to update. Tap <b>Update now</b> to get the newest version — the app, the look and the logo.</div>
+      <button class="btn pri updbig" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update now'}</button></div>`;
+  }
+  if (m.type === 'roomPick') {
+    return head('Join the hangout', 'Camera on, or just your voice — you can switch any time.') + `<div class="col" style="gap:10px">
+      <button class="helppick" data-a="roomPickGo" data-v="cam"><span class="hpn">${ic('video', 18)}</span><span class="grow"><b>With camera</b><span class="mute small">Friends see and hear you</span></span><span class="hpgo">${ic('back', 18)}</span></button>
+      <button class="helppick any" data-a="roomPickGo" data-v="voice"><span class="hpn">${ic('mic', 18)}</span><span class="grow"><b>Audio only</b><span class="mute small">Camera stays off — turn it on later if you want</span></span><span class="hpgo">${ic('back', 18)}</span></button></div>`;
+  }
+  if (m.type === 'cardSign') {
+    const c = (S.cards || []).find(x => x.id === m.id); if (!c) return head('Card');
+    const mineSig = (c.sigs || {})[S.me], first = esc(dname(c.for).split(' ')[0]);
+    return head(`${first}'s birthday card`, `${Object.keys(c.sigs || {}).length} signed · ${first} sees it on their birthday${daysUntilBday(c.for) != null ? ' (in ' + daysUntilBday(c.for) + ' day' + (daysUntilBday(c.for) === 1 ? '' : 's') + ')' : ''}`) +
+      `${Object.values(c.sigs || {}).filter(s => s.from !== S.me).map(s => `<div class="bsig">${av(s.from, 28)}<span><b class="small">${s.e ? s.e + ' ' : ''}${esc(dname(s.from).split(' ')[0])}</b><span class="mute small" style="display:block">${esc(s.t)}</span></span></div>`).join('')}
+      <label class="field">Your message<textarea class="inp" id="cd-sig" data-model="form.cdSig" rows="3" maxlength="300" placeholder="Happy birthday! 🎉" data-autofocus>${esc(f.cdSig || '')}</textarea></label>
+      <div class="row" style="gap:6px;flex-wrap:wrap">${CARD_EMOJI.map(e => `<button class="pill ${f.cdEmoji === e ? 'on' : ''}" style="font-size:18px" data-a="cardEmoji" data-v="${e}">${e}</button>`).join('')}</div>
+      <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="row" style="gap:8px">${mineSig ? '<button class="btn sm danger" data-a="cardSigRemove">Remove my message</button>' : ''}${c.by === S.me ? '<button class="btn sm danger" data-a="cardDelete">Delete card</button>' : ''}</div>
+      <div class="row" style="gap:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn pri" data-a="cardSignSave">${mineSig ? 'Save' : 'Sign'}</button></div></div>`;
+  }
+  if (m.type === 'bdaySurprise') {
+    const c = (S.myCards || []).find(x => x.id === m.id); if (!c) return head('Birthday');
+    const sigs = Object.values(c.sigs || {}).sort((a, b) => (a.at || 0) - (b.at || 0)); const s = sigs[m.i] || sigs[0]; const last = m.i + 1 >= sigs.length;
+    return `<div class="bdaywow col"><div class="bdaytop">🎂</div><div class="kicker" style="text-align:center">Happy birthday, ${esc(S.profile.name.split(' ')[0])}!</div><h2 class="disp" style="margin:0;text-align:center;font-size:24px">${sigs.length} friend${sigs.length === 1 ? '' : 's'} made you a card</h2>
+      ${s ? `<div class="bdaymsg">${av(s.from, 64)}<b>${s.e ? s.e + ' ' : ''}${esc(dname(s.from))}</b><p>${esc(s.t)}</p></div>` : ''}
+      <div class="bdaydots">${sigs.map((_, i) => `<i class="${i === m.i ? 'on' : ''}"></i>`).join('')}</div>
+      ${last ? `<div class="row" style="gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn" data-a="bdayDone">Close</button><button class="btn pri" data-a="bdayThanks">💙 Thank everyone</button></div>` : `<button class="btn pri updbig" data-a="bdayNext">Next message (${m.i + 2}/${sigs.length})</button>`}</div>`;
+  }
+  if (m.type === 'iconGuide') {
+    const ios = iosDev();
+    const steps = ios
+      ? ['Press and hold the Nexa icon on your Home Screen', 'Tap <b>Remove App</b> → <b>Remove from Home Screen</b> (your account and chats are safe)', 'Open <b>Safari</b> and go to <b>www.nexaconnect.qd.je</b>', 'Tap the <b>Share</b> button (square with an arrow) → <b>Add to Home Screen</b> → <b>Add</b>']
+      : ['Press and hold the Nexa icon', 'Tap <b>Remove</b> / <b>Uninstall</b> (your account and chats are safe)', 'Open <b>www.nexaconnect.qd.je</b> in your browser', 'Tap the menu (☰ or ⋮) → <b>Add page to</b> / <b>Add to Home screen</b> → <b>Add</b>'];
+    return head('Get the new Nexa logo', ios ? 'iPhone and iPad keep the old icon until Nexa is added again — it takes 30 seconds.' : 'Samsung phones keep the old icon until Nexa is added again — it takes 30 seconds.') +
+      `<div class="col" style="gap:10px"><div class="row" style="gap:14px;align-items:center;justify-content:center"><img src="icon-192-v4.png" alt="New Nexa logo" style="width:72px;height:72px;border-radius:18px;box-shadow:0 10px 30px -8px #5b7cff99"></div>
+      ${steps.map((t, i) => `<div class="helppick" style="cursor:default"><span class="hpn">${i + 1}</span><span class="grow">${t}</span></div>`).join('')}
+      <div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Later</button><button class="btn pri" data-a="iconDone">Done</button></div></div>`;
+  }
+  return _vModal5V169(m, f, head);
+};
+// Help & guide: a button to see the icon steps any time
+{
+  const _vSettingsV169 = vSettings;
+  vSettings = function () { let h = _vSettingsV169(); if ((iosDev() || samsungDev()) && h.includes('data-a="testCalls"')) h = h.replace('<div class="setrow"><span><b>Test calls</b>', `<div class="setrow"><span><b>App icon</b><div class="mute small">Old Nexa logo on your home screen? Here's how to get the new one.</div></span><button class="btn sm" data-a="iconGuide">Show me</button></div><div class="setrow"><span><b>Test calls</b>`); return h; };
+}

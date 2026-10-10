@@ -1481,3 +1481,12 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 .helppick .hpn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;font-weight:800;font-size:17px;color:#fff;background:linear-gradient(135deg,var(--ac),var(--ac2))}
 .helppick.any .hpn{background:rgba(255,255,255,.12)}
 .helppick .hpgo{display:inline-flex;transform:scaleX(-1);opacity:.6}
+
+/* ===== v16.9: birthday surprise ===== */
+.bdaywow{gap:14px;align-items:stretch;text-align:center;padding:6px 0}
+.bdaytop{font-size:58px;line-height:1;text-align:center;animation:bdaypop .9s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bdaypop{from{transform:scale(.3) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+.bdaymsg{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 18px;border-radius:22px;background:linear-gradient(160deg,rgba(255,138,76,.18),rgba(155,107,255,.16));border:1px solid rgba(255,255,255,.14);animation:bdayin .45s ease}
+.bdaymsg p{margin:0;font-size:17px;line-height:1.5;color:var(--text);white-space:pre-wrap}
+@keyframes bdayin{from{transform:translateY(12px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+.bdaydots{display:flex;gap:6px;justify-content:center}.bdaydots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25)}.bdaydots i.on{background:var(--ac);width:20px;border-radius:6px}
