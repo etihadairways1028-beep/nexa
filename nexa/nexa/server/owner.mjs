@@ -307,6 +307,16 @@ export default async (req) => {
     const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
     await setReply(db, body.cid, c, me, !!body.allow); return ok({ done: true });
   }
+  // send everyone the "Update available" screen (+ a push)
+  if (body.action === 'askUpdate') {
+    if (now - (sec.lastUpdAsk || 0) < 60e3) return json({ error: 'Wait a minute between update requests.' }, 429);
+    await ref.update({ lastUpdAsk: now });
+    const note = String(body.note || '').trim().slice(0, 120);
+    const ids = (await db.collection('users').select().get()).docs.map(d => d.id).filter(u => u !== me);
+    for (let i = 0; i < ids.length; i += 400) { const b = db.batch(); ids.slice(i, i + 400).forEach(u => b.set(db.collection('notifications').doc(), { to: u, from: me, type: 'update_ask', title: '🚀 Update Nexa', body: note || 'A new version of Nexa is ready — tap Update now.', at: now, read: false })); await b.commit(); }
+    let pushed = 0; for (let i = 0; i < ids.length; i += 25) { const r = await Promise.all(ids.slice(i, i + 25).map(u => deliver(db, u, { kind: 'notification', title: '🚀 Update Nexa', body: note || 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd_all_' + now }, 86400).catch(() => 0))); pushed += r.filter(Boolean).length; }
+    return ok({ people: ids.length, pushed });
+  }
   if (body.action === 'announce') {
     const t = String(body.text || '').trim().slice(0, 300); if (!t) return json({ error: 'Write your announcement first' }, 400);
     if (now - (sec.lastAnnounce || 0) < 60e3) return json({ error: 'Wait a minute between announcements.' }, 429);
