@@ -5715,7 +5715,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '16.9';
+const APP_VERSION = '17.0';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -5965,4 +5965,305 @@ vModal5 = function (m, f, head) {
 {
   const _vSettingsV169 = vSettings;
   vSettings = function () { let h = _vSettingsV169(); if ((iosDev() || samsungDev()) && h.includes('data-a="testCalls"')) h = h.replace('<div class="setrow"><span><b>Test calls</b>', `<div class="setrow"><span><b>App icon</b><div class="mute small">Old Nexa logo on your home screen? Here's how to get the new one.</div></span><button class="btn sm" data-a="iconGuide">Show me</button></div><div class="setrow"><span><b>Test calls</b>`); return h; };
+}
+
+/* ================= v17.0: Profiles 2.0 — live "Playing…" activity, profile panel in DMs, free decorations, effects & name styles, game collection ================= */
+// [id, name, steam app id (for the cover art), emoji, colour 1, colour 2, program names Nexa for computer looks for]
+const GAMES = [
+  ['msfs20', 'Microsoft Flight Simulator', 1250410, '✈️', '#2b6cff', '#7fd1ff', ['flightsimulator']],
+  ['msfs24', 'Microsoft Flight Simulator 2024', 2537590, '🛫', '#1f4fd8', '#9ad7ff', ['flightsimulator2024']],
+  ['xp12', 'X-Plane 12', 2014780, '🛩️', '#0e2a5c', '#4aa3ff', ['x-plane']],
+  ['ksp', 'Kerbal Space Program', 220200, '🚀', '#1b5e20', '#ffb300', ['ksp_x64', 'ksp']],
+  ['mc', 'Minecraft', 0, '⛏️', '#3a7d2c', '#8bc34a', ['minecraft.windows', 'minecraft']],
+  ['roblox', 'Roblox', 0, '🟥', '#e53935', '#ff8a80', ['robloxplayerbeta']],
+  ['fortnite', 'Fortnite', 0, '🪂', '#5b2bd8', '#29b6f6', ['fortniteclient-win64-shipping']],
+  ['valorant', 'VALORANT', 0, '🎯', '#ff4655', '#1f2326', ['valorant-win64-shipping']],
+  ['cs2', 'Counter-Strike 2', 730, '💥', '#d9a441', '#1b2838', ['cs2']],
+  ['gta5', 'Grand Theft Auto V', 271590, '🚗', '#2e7d32', '#ffca28', ['gta5', 'gta5_enhanced']],
+  ['rl', 'Rocket League', 252950, '⚽', '#1565c0', '#ff6d00', ['rocketleague']],
+  ['apex', 'Apex Legends', 1172470, '🔺', '#b71c1c', '#ff7043', ['r5apex', 'r5apex_dx12']],
+  ['fh5', 'Forza Horizon 5', 1551360, '🏎️', '#ff4081', '#ffab40', ['forzahorizon5']],
+  ['fc25', 'EA SPORTS FC 25', 2669320, '⚽', '#00c853', '#1de9b6', ['fc25']],
+  ['cod', 'Call of Duty', 1938090, '🪖', '#37474f', '#a1887f', ['cod', 'blackops6']],
+  ['ow2', 'Overwatch 2', 2357570, '🛡️', '#ff9800', '#ffe0b2', ['overwatch']],
+  ['lol', 'League of Legends', 0, '🗡️', '#0a8fbf', '#c89b3c', ['league of legends']],
+  ['dota2', 'Dota 2', 570, '🧙', '#b71c1c', '#212121', ['dota2']],
+  ['rust', 'Rust', 252490, '🪓', '#bf360c', '#ffab91', ['rustclient']],
+  ['amongus', 'Among Us', 945360, '👾', '#c62828', '#29b6f6', ['among us']],
+  ['fallguys', 'Fall Guys', 1097150, '🫘', '#ff4fb1', '#ffd54f', ['fallguys_client_game', 'fallguys_client']],
+  ['elden', 'ELDEN RING', 1245620, '💍', '#5d4037', '#ffd180', ['eldenring']],
+  ['cp77', 'Cyberpunk 2077', 1091500, '🌃', '#c9b800', '#00b8d4', ['cyberpunk2077']],
+  ['rdr2', 'Red Dead Redemption 2', 1174180, '🤠', '#8d1c1c', '#ffcc80', ['rdr2']],
+  ['terraria', 'Terraria', 105600, '🌳', '#2e7d32', '#64b5f6', ['terraria']],
+  ['stardew', 'Stardew Valley', 413150, '🌾', '#7cb342', '#ffe082', ['stardew valley']],
+  ['lethal', 'Lethal Company', 1966720, '📦', '#c62828', '#424242', ['lethal company']],
+  ['ets2', 'Euro Truck Simulator 2', 227300, '🚛', '#1565c0', '#ffb300', ['eurotrucks2']],
+  ['beamng', 'BeamNG.drive', 284160, '🚙', '#ff6f00', '#ffd54f', ['beamng.drive.x64', 'beamng.drive']],
+  ['gd', 'Geometry Dash', 322170, '🔷', '#00b0ff', '#76ff03', ['geometrydash']],
+  ['rivals', 'Marvel Rivals', 2767030, '🦸', '#d50000', '#ffd600', ['marvel-win64-shipping']],
+  ['genshin', 'Genshin Impact', 0, '🌬️', '#4fc3f7', '#ffe082', ['genshinimpact']],
+  ['pubg', 'PUBG: BATTLEGROUNDS', 578080, '🍳', '#f9a825', '#263238', ['tslgame']],
+  ['r6', 'Rainbow Six Siege', 359550, '🔫', '#263238', '#90a4ae', ['rainbowsix', 'rainbowsix_be']],
+  ['brawl', 'Brawl Stars', 0, '⭐', '#ffca28', '#7c4dff', []],
+  ['clash', 'Clash Royale', 0, '👑', '#1e88e5', '#ffca28', []],
+  ['pogo', 'Pokémon GO', 0, '⚪', '#e53935', '#90caf9', []],
+  ['chess', 'Chess', 0, '♟️', '#5d4037', '#d7ccc8', []]
+];
+const gameOf = id => GAMES.find(g => g[0] === id) || null;
+const steamArt = (g, kind) => g && g[2] ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${g[2]}/${kind === 'tall' ? 'library_600x900' : 'header'}.jpg` : '';
+// game picture: coloured tile + emoji underneath, the real cover art on top when it loads
+function gameArt(g, kind = 'head', label = false) {
+  if (!g) return '';
+  const src = steamArt(g, kind);
+  return `<span class="gart gart-${kind}" style="--g1:${g[4]};--g2:${g[5]}"><i>${g[3]}</i>${label ? `<b>${esc(g[1])}</b>` : ''}${src ? `<img src="${src}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+}
+const ACT_VERB = { play: 'Playing', listen: 'Listening to', watch: 'Watching', do: '' };
+const ACT_ICON = { play: 'game', listen: 'music', watch: 'video', do: 'spark' };
+function actOf(uid) {
+  const u = uid === S.me ? S.profile : U(uid); const a = u?.activity;
+  if (!a || !a.n || !a.since) return null;
+  if (uid !== S.me && (u.showActivity === false || presence(uid) === 'offline')) return null;
+  if (a.until && a.until < now()) return null;
+  if (now() - a.since > 24 * 3600e3) return null;
+  return a;
+}
+const fmtEl = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`; };
+const actTime = a => `<span class="acttime" data-since="${a.since}" data-morph-skip="1">${fmtEl(now() - a.since)}</span>`;
+setInterval(() => { document.querySelectorAll('.acttime[data-since]').forEach(el => { const t = fmtEl(Date.now() - +el.dataset.since); if (el.textContent !== t) el.textContent = t; }); }, 1000);
+const actLine = a => a ? `${ACT_VERB[a.t] ? ACT_VERB[a.t] + ' ' : ''}${a.n}` : '';
+// the "Playing" card (like the one on a gamer's profile — but with the game's art and a live timer)
+function vActCard(uid, compact) {
+  const a = actOf(uid); if (!a) return '';
+  const g = a.t === 'play' ? gameOf(a.g) : null, mine = uid === S.me;
+  const hang = (S.rooms || []).find(x => roomLive(x.id).includes(uid) && x.id !== S.room);
+  return `<div class="actcard ${compact ? 'sm' : ''}" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}">
+    <div class="row spread"><span class="kick">${ic(ACT_ICON[a.t] || 'spark', 13)} ${a.t === 'do' ? 'Right now' : ACT_VERB[a.t] || 'Activity'}</span>${a.src === 'desktop' ? `<span class="autotag" title="Spotted by Nexa for computer">${ic('scan', 11)} live</span>` : ''}</div>
+    <div class="row" style="gap:12px;align-items:center">${g ? gameArt(g, 'tall') : `<span class="gart gart-tall" style="--g1:var(--ac);--g2:var(--warm)"><i>${a.t === 'listen' ? '🎧' : a.t === 'watch' ? '🍿' : '✨'}</i></span>`}
+      <span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(a.n)}</b>${a.d ? `<span class="small ellip" style="display:block;opacity:.85">${esc(a.d)}</span>` : ''}<span class="small row" style="gap:6px;margin-top:4px;color:#7dffb0">${ic(ACT_ICON[a.t] || 'spark', 12)} ${actTime(a)}</span></span></div>
+    ${mine ? `<div class="row" style="gap:8px"><button class="btn sm grow" data-a="actOpen">Change</button><button class="btn sm" data-a="actClear">Stop</button></div>`
+      : hang ? `<button class="btn sm pri" data-a="roomJoinId" data-v="${hang.id}">${ic('video', 14)} Join their hangout</button>`
+      : isFriend(uid) && !compact ? `<button class="btn sm" data-a="dm" data-v="${uid}">${ic('msg', 14)} Ask to join</button>` : ''}
+  </div>`;
+}
+
+// ---------- free profile styles: avatar decorations, card effects, name styles, profile colours
+const DECOS = [['none', 'None'], ['aurora', 'Aurora ring'], ['neon', 'Neon pulse'], ['fire', 'On fire'], ['halo', 'Halo'], ['orbit', 'Orbit'], ['plane', 'Jet stream'], ['crown', 'Crown'], ['sakura', 'Sakura'], ['galaxy', 'Galaxy']];
+const PFX_LIST = [['none', 'None'], ['stars', 'Starfield'], ['snow', 'Snowfall'], ['hearts', 'Hearts'], ['clouds', 'Clouds'], ['aurora', 'Northern lights'], ['bubbles', 'Bubbles'], ['confetti', 'Confetti'], ['rain', 'Neon rain']];
+const NSTYLES = [['plain', 'Plain'], ['gradient', 'Gradient'], ['glow', 'Glow'], ['rainbow', 'Rainbow'], ['gold', 'Gold'], ['neon', 'Neon'], ['fire', 'Fire']];
+const PTHEMES = [['#5b7cff', '#9b6bff'], ['#ff4d6d', '#ffb547'], ['#2fd4c4', '#3fbf6f'], ['#0f2027', '#2c5364'], ['#ff8a4c', '#e45fb4'], ['#1a2a6c', '#fdbb2d'], ['#141e30', '#7c4dff'], ['#00c6ff', '#0072ff']];
+const styleOf = (uid, draft) => { const u = uid === S.me ? S.profile : U(uid); const s = { ...(u?.pstyle || {}), ...(draft || {}) }; const ok = /^#[0-9a-f]{6}$/i; return { deco: s.deco || 'none', fx: s.fx || 'none', name: s.name || 'plain', c1: ok.test(s.c1 || '') ? s.c1 : (ok.test(u?.color || '') ? u.color : '#5b7cff'), c2: ok.test(s.c2 || '') ? s.c2 : '#9b6bff', themed: !!(s.c1 && ok.test(s.c1)) }; };
+const FX_ICONS = { snow: '❄', hearts: '💗', clouds: '☁️', bubbles: '', confetti: '', stars: '', aurora: '', rain: '' };
+function fxLayer(k) {
+  if (!k || k === 'none') return '';
+  let h = '';
+  const n = { stars: 26, snow: 22, hearts: 12, clouds: 6, bubbles: 14, confetti: 26, rain: 22, aurora: 0 }[k] || 0;
+  for (let i = 0; i < n; i++) { const r = (hash(k + i) % 1000) / 1000, r2 = (hash(i + k + 'y') % 1000) / 1000; h += `<i style="--x:${(r * 100).toFixed(1)}%;--y:${(r2 * 100).toFixed(1)}%;--d:${(3 + r2 * 6).toFixed(2)}s;--w:${(-r * 8).toFixed(2)}s;--s:${(.6 + r * .8).toFixed(2)};--h:${Math.round(r2 * 360)}">${FX_ICONS[k] || ''}</i>`; }
+  return `<div class="pfx pfx-${k}" aria-hidden="true">${h}</div>`;
+}
+function decoAv(uid, size, draft) {
+  const st = styleOf(uid, draft), d = st.deco;
+  const extra = { crown: '<b class="dx">👑</b>', plane: '<b class="dx dxo">✈️</b>', sakura: '<b class="dx">🌸</b>', orbit: '<b class="dx dxo"></b>', halo: '<b class="dx"></b>', galaxy: '<b class="dx dxo">✦</b>' }[d] || '';
+  return `<span class="deco deco-${d}" style="--sz:${size}px;--c1:${st.c1};--c2:${st.c2}">${av(uid, size, true)}${extra}</span>`;
+}
+const nameStyled = (uid, text, draft, cls = '') => { const st = styleOf(uid, draft); return `<span class="pname ns-${st.name} ${cls}" style="--c1:${st.c1};--c2:${st.c2}">${esc(text)}</span>`; };
+const smallBadges = u => BADGES.filter(b => (u?.badges || {})[b[0]]).map(b => `<span class="sbdg" style="--c:${b[4]}" title="${esc(b[1])} — ${esc(b[2])}">${ic(b[3], 13)}</span>`).join('');
+
+// ---------- the profile card (the panel next to a DM, and the live preview in Profile studio)
+function vSide(uid, draft, preview) {
+  const mine = uid === S.me, u = mine ? S.profile : U(uid);
+  if (!u) return `<aside class="dmside glass card"><div class="empty">Loading…</div></aside>`;
+  const st = styleOf(uid, draft), wg = u.widgets || {};
+  const dw = draft || {};
+  const games = (dw.games || wg.games || []).map(gameOf).filter(Boolean), fav = gameOf(dw.fav !== undefined ? dw.fav : wg.fav);
+  const banner = safeImg(u.banner) ? `background:url(${u.banner}) center/cover` : `background:linear-gradient(135deg,${st.c1},${st.c2})`;
+  const groups = S.convs.filter(c => c.type === 'group' && (c.members || []).includes(uid) && (c.members || []).includes(S.me)).length;
+  const nk = mine ? '' : nickOf(uid);
+  return `<aside class="dmside glass card ${st.themed ? 'themed' : ''}" style="--c1:${st.c1};--c2:${st.c2}" data-key="side_${uid}">
+    <div class="ds-banner" style="${banner}">${fxLayer(st.fx)}</div>
+    <div class="ds-top">${decoAv(uid, 84, draft)}${mine && !preview ? `<button class="ibtn sm ds-edit" aria-label="Edit profile" title="Profile studio" data-a="studioOpen">${ic('brush', 15)}</button>` : ''}</div>
+    <div class="ds-body scroll" data-keep-scroll="side">
+      <div>${nameStyled(uid, nk || u.name || 'Nexa user', draft, 'big')}<div class="mute small">@${esc(u.handle || '')}${nk ? ' · ' + esc(u.name) : ''}</div></div>
+      ${smallBadges(u) ? `<div class="sbdgs">${smallBadges(u)}</div>` : ''}
+      ${moodOf(uid) ? `<span class="moodtag" style="align-self:flex-start">${ic('clock', 13)} ${esc(moodOf(uid))}</span>` : ''}
+      ${vActCard(uid, true) || (mine && !preview ? `<button class="actempty" data-a="actOpen">${ic('game', 16)}<span class="grow">Show what you're playing</span>${ic('plus', 14)}</button>` : '')}
+      ${u.bio ? `<div class="ds-bio">${esc(u.bio)}</div>` : ''}
+      ${fav ? `<div class="ds-sec">Favourite game</div><div class="favgame">${gameArt(fav, 'tall')}<span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(fav[1])}</b>${(dw.favNote ?? wg.favNote) ? `<span class="small ellip" style="display:block;opacity:.8">${esc(dw.favNote ?? wg.favNote)}</span>` : ''}</span></div>` : ''}
+      ${games.length ? `<div class="ds-sec">Game collection · ${games.length}</div><div class="gstrip">${games.slice(0, 8).map(g => `<span title="${esc(g[1])}">${gameArt(g, 'tall')}</span>`).join('')}${games.length > 8 ? `<span class="gmore">+${games.length - 8}</span>` : ''}</div>` : ''}
+      ${wg.song ? `<div class="ds-sec">On repeat</div><div class="row small" style="gap:8px">${ic('music', 14)}<b class="ellip">${esc(wg.song)}</b></div>` : ''}
+      <div class="ds-sec">Member since</div><div class="small">${new Date(u.createdAt || now()).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+      ${!mine && groups ? `<div class="small mute">${ic('group', 13)} ${groups} shared group${groups === 1 ? '' : 's'}</div>` : ''}
+      ${preview ? '' : `<button class="btn ds-full" data-a="profile" data-v="${uid}">View full profile</button>`}
+    </div>
+  </aside>`;
+}
+const sideOn = () => S.prefs.dmSide !== false && innerWidth >= 1180;
+const _vMessagesV17 = vMessages;
+vMessages = function () {
+  let h = _vMessagesV17();
+  const c = convOf(S.conv);
+  if (c && c.type === 'dm' && sideOn() && !isRequestForMe(c)) {
+    h = h.replace('<div class="msgs-page ', '<div class="msgs-page hasside ');
+    const i = h.lastIndexOf('</div>');
+    h = h.slice(0, i) + vSide(others(c)[0]) + h.slice(i);
+  }
+  return h;
+};
+const _vChatV17 = vChat;
+vChat = function (c) {
+  let h = _vChatV17(c);
+  if (c.type !== 'dm') return h;
+  const other = others(c)[0], a = actOf(other), g = a && a.t === 'play' ? gameOf(a.g) : null;
+  if (innerWidth >= 1180) h = h.replace('<button class="ibtn hide-m" aria-label="Chat info"', `<button class="ibtn ${sideOn() ? 'on' : ''}" aria-label="Show profile" title="${sideOn() ? 'Hide' : 'Show'} profile" data-a="dmSide">${ic('user', 18)}</button><button class="ibtn hide-m" aria-label="Chat info"`);
+  if (a && !sideOn()) h = h.replace('</header>', `</header><button class="actstrip" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}" data-a="profile" data-v="${other}">${g ? gameArt(g, 'icon') : ic(ACT_ICON[a.t] || 'spark', 16)}<span class="grow ellip"><b>${esc(dname(other).split(' ')[0])}</b> is ${esc(actLine(a).replace(/^Playing/, 'playing').replace(/^Listening/, 'listening').replace(/^Watching/, 'watching'))}</span>${actTime(a)}</button>`);
+  return h;
+};
+
+// ---------- full profile page: decoration, effect, name style, activity, game collection
+const _vProfileV17 = vProfile;
+vProfile = function () {
+  let h = _vProfileV17();
+  const uid = S.profileUid || S.me, mine = uid === S.me, u = mine ? S.profile : U(uid);
+  if (!u) return h;
+  const st = styleOf(uid), wg = u.widgets || {};
+  h = h.replace(/(<div class="cover-art"[^>]*>)/, `$1${fxLayer(st.fx)}`);
+  if (st.themed && !safeImg(u.banner)) h = h.replace(/<div class="cover-art" style="[^"]*"/, `<div class="cover-art" style="background:linear-gradient(135deg,${st.c1},${st.c2})"`);
+  h = h.replace(av(uid, 128, true), decoAv(uid, 128));
+  h = h.replace('<h1 class="h1" style="font-size:30px">', `<h1 class="h1 pname ns-${st.name}" style="font-size:30px;--c1:${st.c1};--c2:${st.c2}">`);
+  h = h.replace('<div style="font-size:15px;line-height:1.6;max-width:580px">', `${vActCard(uid) || (mine ? `<button class="actempty" style="max-width:420px" data-a="actOpen">${ic('game', 16)}<span class="grow">Show friends what you're playing or listening to</span>${ic('plus', 14)}</button>` : '')}<div style="font-size:15px;line-height:1.6;max-width:580px">`);
+  if (mine) h = h.replace(`${ic('pen', 16)} Edit profile</button>`, `${ic('pen', 16)} Edit profile</button><button class="btn studio-btn" data-a="studioOpen">${ic('brush', 16)} Profile studio</button>`);
+  const games = (wg.games || []).map(gameOf).filter(Boolean), fav = gameOf(wg.fav);
+  if (games.length || fav || mine) {
+    const panel = `<div class="panel glass card"><div class="row spread"><h2 class="h2">${ic('game', 18)} Games</h2>${mine ? '<button class="small" style="color:var(--ac2);font-weight:800" data-a="studioOpen" data-v="games">Edit</button>' : `<span class="mute small">${games.length}</span>`}</div>
+      ${fav ? `<div class="favgame big">${gameArt(fav, 'head')}<span class="grow" style="min-width:0"><span class="kick">Favourite game</span><b style="display:block;font-size:17px">${esc(fav[1])}</b>${wg.favNote ? `<span class="small" style="opacity:.85">${esc(wg.favNote)}</span>` : ''}</span></div>` : ''}
+      ${games.length ? `<div class="ggrid">${games.map(g => `<span class="gcell" title="${esc(g[1])}">${gameArt(g, 'tall')}<span class="small ellip">${esc(g[1])}</span></span>`).join('')}</div>` : mine ? '<div class="mute small">Add up to 20 games you like — friends see them on your profile.</div>' : ''}</div>`;
+    h = h.replace('<div class="panel glass card"><div class="row spread"><h2 class="h2">Badges</h2>', panel + '<div class="panel glass card"><div class="row spread"><h2 class="h2">Badges</h2>');
+  }
+  return h;
+};
+
+// ---------- Home: "Active now" — friends who are playing / listening right now
+const _vHomeV17 = vHome;
+vHome = function () {
+  let h = _vHomeV17();
+  const act = friendIds().map(u => [u, actOf(u)]).filter(([, a]) => a).sort((x, y) => x[1].since - y[1].since).slice(0, 5);
+  if (!act.length) return h;
+  const card = `<section class="panel glass card activenow"><div class="row spread"><h2 class="h2">Active now</h2><span class="small" style="color:#7dffb0;font-weight:800">${act.length}</span></div>
+    <div class="col" style="gap:8px">${act.map(([u, a]) => { const g = a.t === 'play' ? gameOf(a.g) : null; return `<button class="anow" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}" data-a="profile" data-v="${u}">${decoAv(u, 40)}<span class="grow" style="min-width:0;text-align:left"><b class="ellip" style="display:block">${esc(dname(u))}</b><span class="small ellip" style="display:block;opacity:.85">${esc(actLine(a))}</span></span>${g ? gameArt(g, 'icon') : `<span class="gart gart-icon" style="--g1:var(--ac);--g2:var(--warm)"><i>${a.t === 'listen' ? '🎧' : a.t === 'watch' ? '🍿' : '✨'}</i></span>`}</button>`; }).join('')}</div></section>`;
+  // the friends column can appear twice (side column on big screens, inline on phones) — add it before each
+  const mark = '<h2 class="h2">Online friends</h2>'; let out = '', rest = h, done = false;
+  for (let i = rest.indexOf(mark); i > 0; i = rest.indexOf(mark)) { const s0 = rest.lastIndexOf('<section', i); if (s0 < 0) break; out += rest.slice(0, s0) + card + rest.slice(s0, i + mark.length); rest = rest.slice(i + mark.length); done = true; }
+  return done ? out + rest : h;
+};
+
+// ---------- set your activity
+async function setActivity(a) {
+  S.profile.activity = a; render();
+  await db().update('users/' + S.me, { activity: a });
+}
+Object.assign(actions, {
+  dmSide: () => { savePrefs({ dmSide: S.prefs.dmSide === false }); render(); },
+  actOpen: () => { const a = S.profile.activity || {}; Object.assign(S.form, { acT: a.t || 'play', acG: a.g || '', acN: a.t !== 'play' || !a.g ? (a.n || '') : '', acD: a.d || '', acQ: '', acFor: 0 }); S.menu = null; S.modal = { type: 'act' }; render(); },
+  acType: d => { S.form.acT = d.v; render(); },
+  acGame: d => { S.form.acG = S.form.acG === d.v ? '' : d.v; render(); },
+  acFor: d => { S.form.acFor = +d.v; render(); },
+  actSave: async () => {
+    const f = S.form, g = f.acT === 'play' ? gameOf(f.acG) : null, n = (g ? g[1] : (f.acN || '').trim()).slice(0, 60);
+    if (!n) return toast(f.acT === 'play' ? 'Pick a game or type its name' : 'Type what it is');
+    S.modal = null;
+    await setActivity({ t: f.acT, g: g ? g[0] : '', n, d: (f.acD || '').trim().slice(0, 80), since: now(), until: f.acFor ? now() + f.acFor * 60000 : 0, src: 'manual' });
+    toast('Friends can see it now');
+  },
+  actClear: async () => { S.modal = null; await setActivity(null); toast('Activity cleared'); },
+  studioOpen: d => {
+    const st = S.profile.pstyle || {}, wg = S.profile.widgets || {};
+    Object.assign(S.form, { stTab: d.v || 'style', stDeco: st.deco || 'none', stFx: st.fx || 'none', stName: st.name || 'plain', stC1: st.c1 || S.profile.color || '#5b7cff', stC2: st.c2 || '#9b6bff', stGames: [...(wg.games || [])], stFav: wg.fav || '', stFavNote: wg.favNote || '', stQ: '' });
+    S.menu = null; S.modal = { type: 'studio' }; render();
+  },
+  stTab: d => { S.form.stTab = d.v; render(); },
+  stSet: d => { S.form[d.k] = d.v; render(); },
+  stTheme: d => { const [a, b] = d.v.split(','); S.form.stC1 = a; S.form.stC2 = b; render(); },
+  stGame: d => { const l = S.form.stGames || (S.form.stGames = []); const i = l.indexOf(d.v); if (i >= 0) { l.splice(i, 1); if (S.form.stFav === d.v) S.form.stFav = ''; } else if (l.length >= 20) toast('Up to 20 games'); else l.push(d.v); render(); },
+  stFav: d => { S.form.stFav = S.form.stFav === d.v ? '' : d.v; if (S.form.stFav && !(S.form.stGames || []).includes(d.v)) (S.form.stGames || (S.form.stGames = [])).unshift(d.v); render(); },
+  studioSave: async () => {
+    const f = S.form;
+    const pstyle = { deco: f.stDeco, fx: f.stFx, name: f.stName, c1: f.stC1, c2: f.stC2 };
+    const widgets = { ...(S.profile.widgets || {}), games: (f.stGames || []).slice(0, 20), fav: f.stFav || '', favNote: (f.stFavNote || '').trim().slice(0, 60) };
+    S.profile.pstyle = pstyle; S.profile.widgets = widgets; S.modal = null; render();
+    await db().update('users/' + S.me, { pstyle, widgets, color: f.stC1 });
+    toast('Profile saved ✨');
+  },
+  actPrivacy: () => { const v = S.profile.showActivity === false; S.profile.showActivity = v; render(); db().update('users/' + S.me, { showActivity: v }); },
+  autoGames: () => { const v = S.profile.autoGames === false; S.profile.autoGames = v; render(); db().update('users/' + S.me, { autoGames: v }); if (!v && S.profile.activity?.src === 'desktop') setActivity(null); }
+});
+
+function gamePicker(sel, act, q, starFav) {
+  const qq = (q || '').trim().toLowerCase();
+  const list = GAMES.filter(g => !qq || g[1].toLowerCase().includes(qq));
+  return `<div class="gpick">${list.map(g => { const on = Array.isArray(sel) ? sel.includes(g[0]) : sel === g[0]; return `<button class="gpc ${on ? 'on' : ''}" data-a="${act}" data-v="${g[0]}" title="${esc(g[1])}">${gameArt(g, 'tall')}<span class="small ellip">${esc(g[1])}</span>${on ? `<span class="gchk">${ic('check', 12, 3)}</span>` : ''}${starFav && on ? `<span class="gfav ${starFav === g[0] ? 'on' : ''}" data-a="stFav" data-v="${g[0]}" title="Make favourite">★</span>` : ''}</button>`; }).join('') || '<div class="mute small">No game with that name — type it in the box below instead.</div>'}</div>`;
+}
+
+const _vModal5V17 = vModal5;
+vModal5 = function (m, f, head) {
+  if (m.type === 'act') {
+    const types = [['play', 'game', 'Playing'], ['listen', 'music', 'Listening'], ['watch', 'video', 'Watching'], ['do', 'spark', 'Doing']];
+    return head('Your activity', 'Friends see it on your profile and next to your chats, with a live timer.') + `
+      <div class="pills">${types.map(([k, i, l]) => `<button class="pill ${f.acT === k ? 'on' : ''}" data-a="acType" data-v="${k}">${ic(i, 14)} ${l}</button>`).join('')}</div>
+      ${f.acT === 'play' ? `<label class="search" style="flex:none;max-width:none">${ic('search', 16)}<input id="acQ" data-model="form.acQ" data-rerender="1" value="${esc(f.acQ || '')}" placeholder="Search games" aria-label="Search games"></label>
+        <div class="scroll" style="max-height:230px" data-keep-scroll="acg">${gamePicker(f.acG, 'acGame', f.acQ)}</div>
+        ${f.acG ? '' : `<label class="field">Not in the list?<input class="inp" id="acN" data-model="form.acN" value="${esc(f.acN || '')}" maxlength="60" placeholder="Game name"></label>`}`
+      : `<label class="field">${f.acT === 'listen' ? 'Song, artist or podcast' : f.acT === 'watch' ? 'Show, film or video' : 'What are you doing?'}<input class="inp" id="acN" data-model="form.acN" value="${esc(f.acN || '')}" maxlength="60" placeholder="${f.acT === 'listen' ? 'Drake – Hotline Bling' : f.acT === 'watch' ? 'Stranger Things' : 'Homework 📚'}"></label>`}
+      <label class="field">Details <span style="font-weight:500">(optional)</span><input class="inp" id="acD" data-model="form.acD" value="${esc(f.acD || '')}" maxlength="80" placeholder="${f.acT === 'play' ? 'Flying KLAX → KSFO / Ranked with the squad' : 'Anything to add'}"></label>
+      <div class="field">Clear after<div class="pills">${[[0, 'Until I stop'], [30, '30 min'], [60, '1 hour'], [240, '4 hours'], [720, '12 hours']].map(([v, l]) => `<button class="pill ${(+f.acFor || 0) === v ? 'on' : ''}" data-a="acFor" data-v="${v}">${l}</button>`).join('')}</div></div>
+      <div class="row" style="gap:10px;justify-content:flex-end">${S.profile.activity ? '<button class="btn" data-a="actClear">Clear activity</button>' : ''}<button class="btn pri" data-a="actSave">Show it</button></div>
+      <div class="mute small" style="line-height:1.5">${window.nexaDesktop ? `${ic('scan', 13)} Nexa for computer shows your game automatically when you start one.` : `${ic('scan', 13)} Tip: with <b>Nexa for computer</b>, your game shows up by itself when you start playing.`}</div>`;
+  }
+  if (m.type === 'studio') {
+    const tab = f.stTab || 'style';
+    const draft = { deco: f.stDeco, fx: f.stFx, name: f.stName, c1: f.stC1, c2: f.stC2, games: f.stGames, fav: f.stFav, favNote: f.stFavNote };
+    let body = '';
+    if (tab === 'style') body = `
+      <div class="sec">Avatar decoration</div><div class="stgrid">${DECOS.map(([k, l]) => `<button class="sttile ${f.stDeco === k ? 'on' : ''}" data-a="stSet" data-k="stDeco" data-v="${k}">${decoAv(S.me, 46, { ...draft, deco: k })}<span class="small">${l}</span></button>`).join('')}</div>
+      <div class="sec">Profile effect</div><div class="stgrid">${PFX_LIST.map(([k, l]) => `<button class="sttile fxt ${f.stFx === k ? 'on' : ''}" data-a="stSet" data-k="stFx" data-v="${k}" style="--c1:${f.stC1};--c2:${f.stC2}"><span class="fxprev">${fxLayer(k)}</span><span class="small">${l}</span></button>`).join('')}</div>
+      <div class="sec">Name style</div><div class="stgrid names">${NSTYLES.map(([k, l]) => `<button class="sttile ${f.stName === k ? 'on' : ''}" data-a="stSet" data-k="stName" data-v="${k}">${nameStyled(S.me, S.profile.name.split(' ')[0], { ...draft, name: k })}<span class="small mute">${l}</span></button>`).join('')}</div>
+      <div class="sec">Profile colours</div><div class="row" style="gap:8px;flex-wrap:wrap">${PTHEMES.map(([a, b]) => `<button class="thsw ${f.stC1 === a && f.stC2 === b ? 'on' : ''}" style="background:linear-gradient(135deg,${a},${b})" aria-label="Colours ${a} and ${b}" data-a="stTheme" data-v="${a},${b}"></button>`).join('')}
+        <label class="thsw pick" title="Pick your own">${ic('palette', 14)}<input type="color" class="sr" data-model="form.stC1" data-rerender="1" value="${esc(f.stC1)}"></label><label class="thsw pick" title="Second colour" style="background:${f.stC2}">${ic('palette', 14)}<input type="color" class="sr" data-model="form.stC2" data-rerender="1" value="${esc(f.stC2)}"></label></div>
+      <div class="mute small">Banner picture, bio and photo are in Settings › Profile. Everything here is free — no subscription, ever.</div>`;
+    if (tab === 'games') body = `
+      <div class="mute small">Tap games you like (up to 20). Tap the ★ on one to make it your favourite.</div>
+      <label class="search" style="flex:none;max-width:none">${ic('search', 16)}<input id="stQ" data-model="form.stQ" data-rerender="1" value="${esc(f.stQ || '')}" placeholder="Search games" aria-label="Search games"></label>
+      ${gamePicker(f.stGames || [], 'stGame', f.stQ, f.stFav || '-')}
+      ${f.stFav ? `<label class="field">Something about ${esc(gameOf(f.stFav)?.[1] || 'it')} <span style="font-weight:500">(optional)</span><input class="inp" id="stFavNote" data-model="form.stFavNote" data-rerender="1" value="${esc(f.stFavNote || '')}" maxlength="60" placeholder="My fav game in the whole world"></label>` : ''}`;
+    if (tab === 'activity') body = `
+      <div class="setrow"><span><b>Activity</b><span class="mute small" style="display:block">${S.profile.activity ? esc(actLine(S.profile.activity)) : 'Nothing right now'}</span></span><button class="btn sm pri" data-a="actOpen">${S.profile.activity ? 'Change' : 'Set activity'}</button></div>
+      <div class="setrow"><span><b>Show my activity to friends</b><span class="mute small" style="display:block">Hidden when you appear offline</span></span><button class="tog ${S.profile.showActivity !== false ? 'on' : ''}" role="switch" aria-checked="${S.profile.showActivity !== false}" aria-label="Show my activity" data-a="actPrivacy"></button></div>
+      <div class="setrow"><span><b>Detect my games</b><span class="mute small" style="display:block">Nexa for computer shows the game you're playing, and clears it when you stop</span></span><button class="tog ${S.profile.autoGames !== false ? 'on' : ''}" role="switch" aria-checked="${S.profile.autoGames !== false}" aria-label="Detect my games" data-a="autoGames"></button></div>`;
+    return `<div class="studio"><div class="st-ctl col">
+      ${head('Profile studio', 'Make your profile yours — see it change live.')}
+      <div class="pills">${[['style', 'brush', 'Style'], ['games', 'game', 'Games'], ['activity', 'spark', 'Activity']].map(([k, i, l]) => `<button class="pill ${tab === k ? 'on' : ''}" data-a="stTab" data-v="${k}">${ic(i, 14)} ${l}</button>`).join('')}</div>
+      <div class="col scroll st-body" data-keep-scroll="studio">${body}</div>
+      <div class="row" style="gap:10px;justify-content:flex-end"><button class="btn" data-a="closeModal">Cancel</button><button class="btn pri" data-a="studioSave">Save profile</button></div>
+    </div><div class="st-prev"><div class="kick" style="text-align:center;margin-bottom:8px">Live preview</div>${vSide(S.me, draft, true)}</div></div>`;
+  }
+  return _vModal5V17(m, f, head);
+};
+// Settings › Profile: a big way in to Profile studio
+{
+  const _vSettingsV17 = vSettings;
+  vSettings = function () {
+    let h = _vSettingsV17();
+    if (S.setSec === 'profile') h = h.replace('<h2 class="h1" style="font-size:24px">Profile</h2>', `<h2 class="h1" style="font-size:24px">Profile</h2><button class="studiocta" data-a="studioOpen"><span class="sc-ic">${ic('brush', 20)}</span><span class="grow" style="text-align:left"><b>Profile studio</b><span class="small" style="display:block;opacity:.85">Decorations, effects, name styles, your games and what you're playing — all free</span></span>${ic('back', 16)}</button>`);
+    return h;
+  };
+}
+
+// ---------- Nexa for computer: spots the game you're playing and shows it (and clears it when you stop)
+if (window.nexaDesktop && window.nexaDesktop.watchGames) {
+  try {
+    window.nexaDesktop.watchGames(GAMES.filter(g => g[6].length).map(g => [g[0], g[6]]), id => {
+      if (!S.me || !S.profile || S.profile.autoGames === false) return;
+      const cur = S.profile.activity;
+      if (id) { const g = gameOf(id); if (!g) return; if (cur && cur.src === 'desktop' && cur.g === id) return; if (cur && cur.src === 'manual' && cur.t !== 'play' && !(cur.until && cur.until < now())) return; setActivity({ t: 'play', g: id, n: g[1], d: '', since: now(), until: 0, src: 'desktop' }); }
+      else if (cur && cur.src === 'desktop') setActivity(null);
+    });
+  } catch {}
 }
