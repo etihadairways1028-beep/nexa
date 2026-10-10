@@ -5715,7 +5715,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '17.0';
+const APP_VERSION = '17.0.1';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -6080,7 +6080,8 @@ function vSide(uid, draft, preview) {
   const nk = mine ? '' : nickOf(uid);
   return `<aside class="dmside glass card ${st.themed ? 'themed' : ''}" style="--c1:${st.c1};--c2:${st.c2}" data-key="side_${uid}">
     <div class="ds-banner" style="${banner}">${fxLayer(st.fx)}</div>
-    <div class="ds-top">${decoAv(uid, 84, draft)}${mine && !preview ? `<button class="ibtn sm ds-edit" aria-label="Edit profile" title="Profile studio" data-a="studioOpen">${ic('brush', 15)}</button>` : ''}</div>
+    ${!preview && sideMode() === 'drawer' ? `<button class="ibtn sm ds-close" aria-label="Close profile" data-a="dmSide">${ic('x', 15)}</button>` : ''}
+    <div class="ds-top">${decoAv(uid, 64, draft)}${mine && !preview ? `<button class="ibtn sm ds-edit" aria-label="Edit profile" title="Profile studio" data-a="studioOpen">${ic('brush', 15)}</button>` : ''}</div>
     <div class="ds-body scroll" data-keep-scroll="side">
       <div>${nameStyled(uid, nk || u.name || 'Nexa user', draft, 'big')}<div class="mute small">@${esc(u.handle || '')}${nk ? ' · ' + esc(u.name) : ''}</div></div>
       ${smallBadges(u) ? `<div class="sbdgs">${smallBadges(u)}</div>` : ''}
@@ -6096,13 +6097,16 @@ function vSide(uid, draft, preview) {
     </div>
   </aside>`;
 }
-const sideOn = () => S.prefs.dmSide !== false && innerWidth >= 1180;
+// big screens: the panel sits beside the chat (on unless you hide it).
+// medium screens: it slides over the chat only when you tap the person button, so the chat never gets squashed.
+const sideMode = () => innerWidth >= 1440 ? (S.prefs.dmSide !== false ? 'col' : '') : innerWidth >= 900 ? (S.sideOpen ? 'drawer' : '') : '';
+const sideOn = () => !!sideMode();
 const _vMessagesV17 = vMessages;
 vMessages = function () {
   let h = _vMessagesV17();
   const c = convOf(S.conv);
   if (c && c.type === 'dm' && sideOn() && !isRequestForMe(c)) {
-    h = h.replace('<div class="msgs-page ', '<div class="msgs-page hasside ');
+    h = h.replace('<div class="msgs-page ', `<div class="msgs-page ${sideMode() === 'col' ? 'hasside' : 'sidedrawer'} `);
     const i = h.lastIndexOf('</div>');
     h = h.slice(0, i) + vSide(others(c)[0]) + h.slice(i);
   }
@@ -6113,7 +6117,7 @@ vChat = function (c) {
   let h = _vChatV17(c);
   if (c.type !== 'dm') return h;
   const other = others(c)[0], a = actOf(other), g = a && a.t === 'play' ? gameOf(a.g) : null;
-  if (innerWidth >= 1180) h = h.replace('<button class="ibtn hide-m" aria-label="Chat info"', `<button class="ibtn ${sideOn() ? 'on' : ''}" aria-label="Show profile" title="${sideOn() ? 'Hide' : 'Show'} profile" data-a="dmSide">${ic('user', 18)}</button><button class="ibtn hide-m" aria-label="Chat info"`);
+  if (innerWidth >= 900) h = h.replace('<button class="ibtn hide-m" aria-label="Chat info"', `<button class="ibtn ${sideOn() ? 'on' : ''}" aria-label="Show profile" title="${sideOn() ? 'Hide' : 'Show'} profile" data-a="dmSide">${ic('user', 18)}</button><button class="ibtn hide-m" aria-label="Chat info"`);
   if (a && !sideOn()) h = h.replace('</header>', `</header><button class="actstrip" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}" data-a="profile" data-v="${other}">${g ? gameArt(g, 'icon') : ic(ACT_ICON[a.t] || 'spark', 16)}<span class="grow ellip"><b>${esc(dname(other).split(' ')[0])}</b> is ${esc(actLine(a).replace(/^Playing/, 'playing').replace(/^Listening/, 'listening').replace(/^Watching/, 'watching'))}</span>${actTime(a)}</button>`);
   return h;
 };
@@ -6161,7 +6165,7 @@ async function setActivity(a) {
   await db().update('users/' + S.me, { activity: a });
 }
 Object.assign(actions, {
-  dmSide: () => { savePrefs({ dmSide: S.prefs.dmSide === false }); render(); },
+  dmSide: () => { if (innerWidth >= 1440) savePrefs({ dmSide: S.prefs.dmSide === false }); else S.sideOpen = !S.sideOpen; render(); },
   actOpen: () => { const a = S.profile.activity || {}; Object.assign(S.form, { acT: a.t || 'play', acG: a.g || '', acN: a.t !== 'play' || !a.g ? (a.n || '') : '', acD: a.d || '', acQ: '', acFor: 0 }); S.menu = null; S.modal = { type: 'act' }; render(); },
   acType: d => { S.form.acT = d.v; render(); },
   acGame: d => { S.form.acG = S.form.acG === d.v ? '' : d.v; render(); },

@@ -1,9 +1,9 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '17.0';
+const VERSION = '17.0.1';
 const NOTES = ["Profile studio: free avatar decorations, profile effects, name styles and colours", "Show what you're playing, listening to or watching — with a live timer", "Profile panel next to your DMs, and \"Active now\" on Home", "Game collection and favourite game on your profile", "Nexa for computer spots the game you're playing by itself"];
-const CACHE = 'nexa-shell-v38';
+const CACHE = 'nexa-shell-v39';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {

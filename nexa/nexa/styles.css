@@ -1625,9 +1625,47 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 .studiocta svg:last-child{transform:rotate(180deg)}
 .sc-ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(255,255,255,.2)}
 .studio-btn{background:linear-gradient(120deg,color-mix(in oklab,#9b6bff 30%,transparent),color-mix(in oklab,#ff4fb1 22%,transparent));border-color:color-mix(in oklab,#9b6bff 50%,transparent)}
-@media (max-width:1179px){.msgs-page.hasside .dmside{display:none}}
 @media (max-width:860px){.studio{grid-template-columns:1fr;max-height:88vh;overflow-y:auto}.st-prev{border-left:0;border-top:1px solid var(--line2)}.st-ctl{min-height:auto}.st-body{overflow:visible}}
 @media (prefers-reduced-motion:reduce){.pfx i,.pfx,.deco::before,.deco .dx,.ns-rainbow,.ns-neon,.studiocta::after{animation:none!important}}
 /* with the profile panel open the chat is narrower: keep the header tidy (these are also in the ⋯ menu) */
 .msgs-page.hasside .chathead [data-a="chatInfo"],.msgs-page.hasside .chathead [data-a="bgPop"],.msgs-page.hasside .chathead [data-a="wide"]{display:none}
-@media (max-width:1500px){.msgs-page.hasside{grid-template-columns:290px minmax(0,1fr) 290px}.msgs-page.hasside .chathead [data-a="find"]{display:none}}
+
+/* v17.0.1: smaller, tidier profile panel; slides over the chat on medium screens */
+.msgs-page.hasside{grid-template-columns:300px minmax(0,1fr) 264px}
+.msgs-page.hasside.wide{grid-template-columns:0 minmax(0,1fr) 264px}
+@media (min-width:1700px){.msgs-page.hasside{grid-template-columns:340px minmax(0,1fr) 288px}}
+.msgs-page{position:relative}
+.msgs-page.sidedrawer .dmside{position:absolute;right:10px;top:10px;bottom:10px;width:272px;z-index:30;box-shadow:0 24px 60px -10px rgba(0,0,0,.65);animation:dsIn .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes dsIn{from{transform:translateX(24px);opacity:0}}
+.ds-close{position:absolute;right:10px;top:10px;z-index:3;background:rgba(0,0,0,.35)}
+.ds-banner{height:76px}
+.ds-top{height:30px;padding:0 14px}
+.ds-top .deco{left:14px;top:-36px}
+.ds-top .deco>.av{box-shadow:0 0 0 4px var(--ground)}
+.ds-edit{top:6px}
+.ds-body{gap:9px;padding:6px 14px 14px;font-size:13px}
+.pname.big{font-size:16.5px}
+.ds-body .mute.small{font-size:12px}
+.ds-bio{font-size:12.5px;padding:8px 10px;line-height:1.5}
+.ds-sec{font-size:10px;margin-bottom:-4px}
+.sbdg{width:22px;height:22px;border-radius:7px}.sbdg svg{width:12px;height:12px}
+.dmside .moodtag{font-size:12px;padding:4px 9px}
+.dmside .actcard{padding:10px;gap:8px;border-radius:13px}
+.dmside .actcard .gart-tall{width:38px;height:50px;border-radius:8px}.dmside .actcard .gart-tall i{font-size:18px}
+.dmside .actcard b{font-size:13px}
+.dmside .actcard .btn.sm{padding:6px 10px;font-size:12px}
+.dmside .favgame{padding:8px;gap:10px;border-radius:12px}
+.dmside .favgame .gart-tall{width:34px;height:46px;border-radius:7px}.dmside .favgame .gart-tall i{font-size:16px}
+.dmside .favgame b{font-size:13px}
+.gstrip .gart-tall,.gmore{width:32px;height:43px;border-radius:7px}.gstrip .gart-tall i{font-size:15px}
+.dmside .actempty{padding:8px 10px;font-size:12.5px;border-radius:12px}
+.ds-full{padding:9px 12px;font-size:13px;min-height:0}
+.st-prev .dmside{min-height:400px}
+/* chat header: the name never gets squeezed out — long status lines are cut with "…" */
+.chathead>button.row{min-width:0;flex:1 1 auto}
+.chathead>button.row>.grow{min-width:0;overflow:hidden}
+.chathead>button.row>.grow>.row{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chathead>button.row>.grow>.row svg{vertical-align:-2px;margin-right:4px}
+.chathead>.ibtn{flex:none}
+.msgs-page.sidedrawer .dmside{background:color-mix(in oklab,var(--ground) 94%,transparent);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px)}
+.msgs-page.sidedrawer .dmside.themed{background:linear-gradient(180deg,color-mix(in oklab,var(--c1) 18%,var(--ground)),color-mix(in oklab,var(--c2) 14%,var(--ground)))}
