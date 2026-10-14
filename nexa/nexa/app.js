@@ -83,7 +83,7 @@ const P = {
 const ic = (n, s = 20, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
 let logoN = 0;
 // Nexa mark: a folded, glowing ribbon "N"
-const logo = (s = 34, frame = true, cls = '') => `<img class="nlogo nlogo-img ${cls}" src="icon-192-v4.png" width="${s}" height="${s}" alt="" aria-hidden="true" style="border-radius:${Math.round(s * .26)}px">`;
+const logo = (s = 34, frame = true, cls = '') => `<img class="nlogo nlogo-img ${cls}" src="${festIcon()}" width="${s}" height="${s}" alt="" aria-hidden="true" style="border-radius:${Math.round(s * .26)}px">`;
 
 /* ---------------- constants ---------------- */
 const BGS = [
@@ -305,7 +305,7 @@ function deviceNotify(title, body, onClick, tag, from) {
   if (n0 > 1) title = `${title} (${n0} new messages)`;
   // The sender's photo is the big picture; the small Nexa badge shows it came from Nexa.
   const pic = from ? safeImg((S.pics || {})[from] || U(from)?.avatar) : '';
-  const opts = { body: st.lines.join('\n'), icon: pic || 'icon-192-v4.png', badge: 'badge-96.png', tag, renotify: true };
+  const opts = { body: st.lines.join('\n'), icon: pic || festIcon(), badge: 'badge-96.png', tag, renotify: true };
   try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); onClick && onClick(); n.close(); }; }
   catch { navigator.serviceWorker?.ready.then(r => r.showNotification(title, opts)).catch(() => {}); }
 }
@@ -387,6 +387,8 @@ function applyTheme() {
 const db = () => S.be.db;
 function stopAll() {
   unsubs.base.forEach(u => u && u()); unsubs.base = [];
+  // watchers that start once per account must start again for the next account
+  try { invWatchOn = false; lfgOn = false; cardSurpriseOn = false; S.lfg = []; S.invited = null; S.myCards = []; S.homeEdit = false; } catch {}
   Object.values(unsubs.users).forEach(u => u && u()); unsubs.users = {};
   if (unsubs.msgs) unsubs.msgs(); unsubs.msgs = null; unsubs.msgsId = null;
 }
@@ -463,7 +465,7 @@ setInterval(() => {
   tick++; if (S.prefsLoaded && S.profile && !S.prefs.guideDone && !lsGet('nexa.guideDone', false) && !S.modal && S.tour == null && !S.guideShown) actions.guideOpen();
   checkReminders(); runScheduled(); if (tick % 4 === 2) checkBadges(); if (!S.pushChecked && S.profile && S.prefs.deviceNotifs && 'Notification' in window && Notification.permission === 'granted') { S.pushChecked = true; registerPush(true); } if (!S.devChecked && S.profile && S.prefs) { S.devChecked = true; checkDevice(); } if (tick % 15 === 1) checkBirthdays();
   if (tick % 15 === 0 && (S.profile?.mood || S.convs.length)) render();
-  const typingLive = S.convs.some(c => Object.values(c.typing || {}).some(t => now() - t < 9000));
+  const typingLive = S.convs.some(c => Object.entries(c.typing || {}).some(([u, t]) => u !== S.me && now() - t < 9000));
   if (typingLive || tick % 8 === 0) render();
 }, 4000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { heartbeat(); markRead(); } });
@@ -529,6 +531,9 @@ function morphNode(a, b) {
   if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
   const tag = a.tagName;
   const oldVal = a.getAttribute('value'), oldChecked = a.hasAttribute('checked');
+  // only keep an element's insides untouched if it was ALREADY that skip element — otherwise an old element reused
+  // for it keeps its old contents (e.g. the chat-list resize handle showed a leftover "Settings" label)
+  const wasSkip = a.hasAttribute('data-morph-skip');
   for (const at of [...a.attributes]) if (!b.hasAttribute(at.name)) a.removeAttribute(at.name);
   for (const at of b.attributes) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
   if (tag === 'INPUT') {
@@ -536,10 +541,18 @@ function morphNode(a, b) {
     const nc = b.hasAttribute('checked'); if (nc !== oldChecked) a.checked = nc;
     return;
   }
-  if (tag === 'TEXTAREA') { const nv = b.textContent; if (a.defaultValue !== nv) { a.defaultValue = nv; if (a.value !== nv) a.value = nv; } return; }
-  if (a.hasAttribute('data-morph-skip')) return;
+  if (tag === 'TEXTAREA') {
+    const nv = b.textContent;
+    if (a.defaultValue !== nv) { a.defaultValue = nv; if (a.value !== nv) a.value = nv; }
+    // the app emptied this box (e.g. a message was just sent) but what's on screen still has text: empty it too.
+    // (typing that happened before the last screen update is never touched)
+    else if (nv === '' && a.value !== '' && a.dataset.model && modelEmpty(a.dataset.model)) a.value = '';
+    return;
+  }
+  if (wasSkip && b.hasAttribute('data-morph-skip')) return;
   morphKids(a, b);
 }
+function modelEmpty(path) { try { if (path === 'draft') return !(S.draft || {})[S.conv]; let o = S; for (const k of path.split('.')) { if (o == null) return true; o = o[k]; } return !o; } catch { return false; } }
 function morphKids(a, b) {
   const keyed = new Map();
   for (const n of a.childNodes) { const k = mkey(n); if (k) keyed.set(k, n); }
@@ -582,7 +595,7 @@ function doRender() {
   html += vOverlays();
   morph(root, html);
   seenPrev = seenNext;
-  root.querySelectorAll('[data-keep-scroll]').forEach(el => { if (scrollers[el.dataset.keepScroll] != null) el.scrollTop = scrollers[el.dataset.keepScroll]; });
+  root.querySelectorAll('[data-keep-scroll]').forEach(el => { const v = scrollers[el.dataset.keepScroll]; if (v != null) el.scrollTop = v; else if (el.dataset.keepScroll.includes(':')) el.scrollTop = 0; }); // a different page starts at the top
   const s2 = $('#stream');
   if (s2 && S.keepBottom != null) { s2.scrollTop = s2.scrollHeight - S.keepBottom; if (s2.scrollHeight > S.keepBottom + 50) S.keepBottom = null; }
   else if (s2) s2.scrollTop = (atBottom || prevConv !== s2.dataset.conv) ? s2.scrollHeight : prevTop;
@@ -591,7 +604,7 @@ function doRender() {
   const auto = $('[data-autofocus]'); if (auto && !focusId && !auto.dataset.done) { auto.focus(); }
   autosize();
 }
-function autosize() { const t = $('#composer'); if (t) { t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; } }
+function autosize() { const t = $('#composer'); if (t) { t.style.height = 'auto'; if (!t.value) return; /* empty box = one line (a long placeholder in a narrow box used to make it 160px tall) */ t.style.height = Math.min(160, t.scrollHeight) + 'px'; } }
 
 /* ---------------- auth ---------------- */
 function vAuth() {
@@ -680,13 +693,13 @@ function vShell() {
       <span class="lens" data-key="tablens" aria-hidden="true" style="--i:${Math.max(0, ['home', 'messages', 'people', 'events', 'me'].indexOf(pg === 'settings' || (pg === 'profile' && S.profileUid === S.me) ? 'me' : pg))};--show:${['home', 'messages', 'people', 'events'].includes(pg) || pg === 'settings' || (pg === 'profile' && S.profileUid === S.me) ? 1 : 0}"></span>
       ${[['home', 'home', 'Home', 0], ['messages', 'msg', 'Chats', c.msg], ['people', 'people', 'People', c.req], ['events', 'cal', 'Events', 0], ['me', 'user', 'Me', 0]].map(([k, i, l, n]) => `<button data-tour="${k === 'me' ? 'settings' : k}" class="${(pg === k || (k === 'me' && (pg === 'settings' || (pg === 'profile' && S.profileUid === S.me)))) ? 'on' : ''}" data-a="${k === 'me' ? 'profile' : 'go'}" data-v="${k === 'me' ? S.me : k}">${ic(i, 22)}${l}${n ? `<span class="badge">${n}</span>` : ''}</button>`).join('')}
     </nav>
-    ${(pg === 'home' || (pg === 'messages' && !S.conv)) ? `<button class="fab" aria-label="New message" data-a="newChat">${ic('pen', 24, 2)}</button>` : ''}
+    ${(pg === 'messages' && !S.conv) ? `<button class="fab" aria-label="New message" data-a="newChat">${ic('pen', 24, 2)}</button>` : ''}
   </div>`;
 }
 function vPage() {
   const k = S.page + (S.page === 'profile' ? S.profileUid : '');
   const m = { owner: vOwner, explore: vExplore, memories: vMemories, admin: vAdmin, home: vHome, messages: vMessages, people: vPeople, events: vEvents, notifications: vNotifs, profile: vProfile, settings: vSettings }[S.page] || vHome;
-  return `<main class="page${A('page:' + k)} ${['home', 'people', 'profile', 'explore', 'memories'].includes(S.page) ? 'pad-scroll' : ''}" data-keep-scroll="page">${m()}</main>`;
+  return `<main class="page${A('page:' + k)} ${['home', 'people', 'profile', 'explore', 'memories'].includes(S.page) ? 'pad-scroll' : ''}" data-keep-scroll="page:${S.page}${S.page === 'profile' ? ':' + (S.profileUid || '') : ''}">${m()}</main>`;
 }
 
 /* ---------------- home ---------------- */
@@ -907,7 +920,7 @@ function vChat(c) {
   const sub = ty.length ? `<span style="color:var(--ac)">${isGroup ? esc(ty.map(u => dname(u).split(' ')[0]).join(', ')) + ' typing…' : 'typing…'}</span>`
     : cm ? `${esc(cm.name)} · ${c.members.length} members`
     : c.type === 'event' ? `Event chat · ${c.members.length} going${ev ? ' · ' + new Date(ev.date + 'T00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}`
-    : isGroup ? `${c.members.length} members` : (U(other)?.deleted ? 'Account deleted' : (moodOf(other) ? esc(moodOf(other)) + ' · ' : '') + presLabel(presence(other)) + (presence(other) === 'offline' && U(other)?.lastSeen ? ' · seen ' + fmtWhen(U(other).lastSeen) : ''));
+    : isGroup ? `${c.members.length} members` : (U(other)?.deleted ? 'Account deleted' : (moodOf(other) ? esc(moodOf(other)) + ' · ' : '') + presLabel(presence(other)) + (presence(other) === 'offline' && U(other)?.lastSeen ? ' · seen ' + fmtWhen(U(other).lastSeen) : '') + `<span class="tzsub">${tzLine(other)}</span>`);
   const lastMine = [...all].reverse().find(m => m.from === S.me && !m.deleted);
   let receipt = '';
   if (lastMine && all[all.length - 1]?.id === lastMine.id) {
@@ -960,7 +973,7 @@ function vChat(c) {
   const th = thm;
   return `<section class="chat glass card fs-${S.prefs.textSize}${A('chat' + c.id)}" style="${th ? `--ac:${th.c3};--ac2:color-mix(in oklab,${th.c3} 70%,#fff)` : ''}">
     <div class="chatbg ${bgCls}" style="background:${bgCss}"></div>
-    <header class="chathead">
+    <header class="chathead" data-key="chathead">
       <button class="ibtn back" aria-label="Back to chats" data-a="closeConv">${ic('back')}</button>
       <button class="row grow" style="gap:12px;text-align:left;min-width:0" data-a="${cm ? 'commOpen' : c.type === 'event' ? 'eventOpen' : isGroup ? 'groupInfo' : 'profile'}" data-v="${cm ? cm.id : c.type === 'event' ? c.eventId : isGroup ? c.id : other}">${convAv(c, 44)}<span class="grow"><b class="ellip" style="display:block;font-size:16px">${streakBadge(c)}${esc(convName(c))}${!isGroup && nickOf(other) ? ` <span class="mute small" style="font-weight:600">· ${esc(U(other)?.name || '')}</span>` : ''}</b><span class="small mute row" style="gap:6px">${isMuted(c.id) ? ic('bellOff', 13) : ''}${c.ttl ? ic('timer', 13) : ''}${sub}</span></span></button>
       ${c.type === 'dm' && !cantCall(c) && !reqIn && !reqOut ? `<button class="ibtn" aria-label="Voice call" title="Voice call" data-a="call" data-v="audio">${ic('phone', 18)}</button><button class="ibtn" aria-label="Video call" title="Video call" data-a="call" data-v="video">${ic('video', 18)}</button>` : ''}
@@ -973,15 +986,15 @@ function vChat(c) {
     </header>
     ${S.bgPop ? vBgPop(c) : ''}
     ${S.findOpen ? `<div class="findbar glass${A('find')}">${ic('search', 16)}<input id="findQ" data-model="find" value="${esc(S.find)}" placeholder="Search this conversation" aria-label="Search this conversation" data-autofocus><span class="mute small">${q ? msgs.length + ' found' : ''}</span><button class="ibtn sm" aria-label="Close search" data-a="find">${ic('x', 16)}</button></div>` : ''}
-    ${pinned && !S.findOpen ? `<div class="pinbar glass">${ic('pin', 16)}<b style="color:var(--warm)">Pinned</b><button class="grow ellip" style="text-align:left" data-a="jumpPin">${esc(c.pinned.text || 'Attachment')}</button><button class="ibtn sm" aria-label="Unpin" data-a="unpin">${ic('x', 14)}</button></div>` : ''}
-    <div class="stream" id="stream" data-conv="${c.id}" role="log" aria-live="polite" aria-label="Messages">
+    ${pinned && !S.findOpen ? `<div class="pinbar glass" data-key="pinbar">${ic('pin', 16)}<b style="color:var(--warm)">Pinned</b><button class="grow ellip" style="text-align:left" data-a="jumpPin">${esc(c.pinned.text || 'Attachment')}</button><button class="ibtn sm" aria-label="Unpin" data-a="unpin">${ic('x', 14)}</button></div>` : ''}
+    <div class="stream" data-key="stream" id="stream" data-conv="${c.id}" role="log" aria-live="polite" aria-label="Messages">
       ${S.msgs[c.id] === undefined ? skelBubbles() : ''}
       ${S.hasMore[c.id] && !q ? `<button class="btn sm" style="align-self:center;margin:6px 0 10px" data-a="loadMore">Load earlier messages</button>` : ''}
       ${S.msgs[c.id] === undefined ? '' : msgs.length ? out : q ? `<div class="empty"><b>No messages match "${esc(S.find)}"</b></div>` : `<div class="empty">${convAv(c, 72, false)}<b class="disp" style="font-size:18px">${esc(convName(c))}</b><span>${c.type === 'event' ? 'Everyone going to this event is here. Plan the details!' : isGroup ? `Group with ${c.members.length} members. Say hi to everyone.` : 'This is the start of your conversation.'}</span></div>`}
       ${!q ? receipt : ''}
       ${ty.length && !q ? `<div class="typing${A('ty' + c.id)}" aria-label="typing"><i></i><i></i><i></i></div>` : ''}
     </div>
-    <div class="composer-wrap">
+    <div class="composer-wrap" data-key="cwrap">
       ${sugg ? `<div class="suggs${A('sugg')}">${sugg.loading ? `<span class="chip" style="display:inline-flex;gap:8px;align-items:center">${ic('spark', 14)} Thinking…</span>` : sugg.items.map((t, i) => `<button class="chip" data-a="useSugg" data-i="${i}">${esc(t)}</button>`).join('')}<button class="ibtn sm" aria-label="Close suggestions" data-a="closeSugg">${ic('x', 14)}</button></div>` : ''}
       ${S.picker ? vPicker() : ''}
       ${S.attach ? vAttach() : ''}
@@ -992,7 +1005,7 @@ function vChat(c) {
       ${reqIn && !cantSend ? `<div class="reqbanner glass${A('reqb' + c.id)}"><div>${av(other, 44)}</div><div class="grow"><b>${esc(dname(other))} wants to message you</b><div class="mute small">@${esc(U(other)?.handle || '')} · Not your friend yet. Accept to reply — they won't know you've seen this until you do.</div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm danger" data-a="reqBlock">Block</button><button class="btn sm" data-a="reqDelete">Delete</button><button class="btn sm pri" data-a="reqAccept">Accept</button></div></div>`
       : cantSend ? `<div class="ctx glass mute ${roLock ? 'rolock' : ''}">${roLock ? `${ic('lock', 16)} <span><b>Official message</b> · Only Nexa can send messages in this chat.</span>` : dmBlocked(c) ? `You blocked this person. <button class="btn sm" data-a="unblock" data-v="${other}">Unblock</button>` : 'This account no longer exists.'}</div>`
       : rec ? `<div class="composer glass recbar${A('rec')}"><button class="ibtn" style="border:0" aria-label="Cancel recording" data-a="recCancel">${ic('trash', 18)}</button><span class="recdot"></span><span id="recTime" class="vt" style="min-width:40px" data-morph-skip="1">0:00</span><span class="bars live grow" id="recBars" data-morph-skip="1"></span><button class="send" aria-label="Send voice message" data-a="recSend">${ic('send', 20, 2)}</button></div>`
-      : `${vPlanSugg(c)}${vMentionPop(c)}<div class="composer glass">
+      : `${vPlanSugg(c)}${vMentionPop(c)}<div class="composer glass" data-key="crow">
         <button class="ibtn ${S.attach ? 'on' : ''}" style="border:0" aria-label="Attach" title="Photos, poll, link" data-a="attach">${ic('plus', 20, 2)}</button>
         <label class="ibtn hide-xs" style="cursor:pointer;border:0" aria-label="Send photos" title="Send photos">${ic('photo')}<input type="file" accept="image/*" multiple class="sr" data-file="sendPhotos"></label>
         <button class="ibtn ${S.picker ? 'on' : ''}" style="border:0" aria-label="Emoji, stickers and GIFs" title="Emoji, stickers & GIFs" data-a="picker">${ic('smile')}</button>
@@ -1136,7 +1149,7 @@ function vNotifs() {
   if (f === 'events') list = list.filter(n => n.type?.startsWith('event'));
   if (f === 'other') list = list.filter(n => !n.type?.startsWith('friend') && !n.type?.startsWith('event'));
   return `<div class="panel glass card" style="height:100%;padding:24px;gap:14px;max-width:900px">
-    <div class="row spread"><h1 class="h1 hide-m">Notifications</h1><div class="row" style="gap:8px"><button class="btn sm" data-a="markAll" ${S.notifs.some(n => !n.read) ? '' : 'disabled'}>Mark all read</button><button class="btn sm" data-a="clearNotifs" ${S.notifs.length ? '' : 'disabled'}>Clear</button></div></div>
+    <div class="row spread"><h1 class="h1 hide-m">Notifications</h1><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto"><button class="btn sm" data-a="markAll" ${S.notifs.some(n => !n.read) ? '' : 'disabled'}>Mark all read</button><button class="btn sm" data-a="clearNotifs" ${S.notifs.length ? '' : 'disabled'}>Clear</button></div></div>
     <div class="pills">${[['all', 'All'], ['friends', 'Friends'], ['events', 'Events'], ['other', 'Other']].map(([k, l]) => `<button class="pill ${f === k ? 'on' : ''}" data-a="nf" data-v="${k}">${l}</button>`).join('')}</div>
     <div class="list scroll" style="flex:1" data-keep-scroll="nt">${list.length ? list.map(n => notifRow(n)).join('') : `<div class="empty"><div class="ring">${ic('bell', 24)}</div><b>You're all caught up</b><span>Friend requests, invites and event updates will appear here. New messages show as badges on Messages.</span></div>`}</div>
   </div>`;
@@ -1272,7 +1285,7 @@ function vSettings() {
   if (s === 'shortcuts') body = `<h2 class="h1" style="font-size:24px">Help &amp; guide</h2><div class="setrow"><span><b>Need help?</b><div class="mute small">${isOwner() ? 'This is the @owner account — when people tap Help (or ? on phones) at the top, their message comes straight to your Chats here.' : 'Message the Nexa Support team and they\'ll help you out.'}</div></span>${isOwner() ? '' : `<button class="btn sm pri" data-a="dmOwner">${ic('help', 14)} Contact support</button>`}</div>${window.nexaDesktop ? '' : `<div class="setrow"><span><b>Nexa for computer</b><div class="mute small">The Nexa app for Windows, Mac and Linux — its own window, starts with your computer, lives in the tray.</div></span><a class="btn sm pri" href="https://github.com/etihadairways1028-beep/nexa/releases/latest" target="_blank" rel="noopener">${ic('download', 14)} Download</a></div>`}<div class="setrow"><span><b>Test calls</b><div class="mute small">Checks that voice and video calls can connect between different networks.</div>${vCallTest()}</span><button class="btn sm" data-a="testCalls">${ic('phone', 14)} ${S.callTest?.running ? 'Testing…' : 'Test'}</button></div><div class="setrow"><span><b>How to use Nexa</b><div class="mute small">The step-by-step guide for new people.</div></span><button class="btn sm pri" data-a="guideOpen">Open guide</button></div><div class="setrow"><span><b>Take the tour again</b><div class="mute small">A quick walk-through of Nexa.</div></span><button class="btn sm" data-a="tourStart">Start tour</button></div><div>${[['Ctrl / ⌘ + K', 'Search & jump anywhere'], ['Ctrl / ⌘ + J', 'Open Nexa AI'], ['Alt + 1–6', 'Home, Messages, People, Events, Notifications, Settings'], ['/', 'Focus search on the current page'], ['Enter', 'Send message'], ['Shift + Enter', 'New line'], ['↑ (empty message)', 'Edit your last message'], ['Ctrl / ⌘ + F (in chat)', 'Search this conversation'], ['Esc', 'Close / cancel reply or edit']].map(([k, d]) => `<div class="setrow"><span>${d}</span><span class="kbd">${k}</span></div>`).join('')}</div>`;
   return `<div class="settings">
     <aside class="setnav glass card">${`<div class="disp hide-m" style="font-size:20px;font-weight:600;padding:6px 10px 12px">Settings</div>`}${secs.map(([k, i, l]) => `<button class="${s === k ? 'on' : ''}" data-a="setSec" data-v="${k}">${ic(i, 18)}${l}</button>`).join('')}</aside>
-    <section class="setbody glass card scroll" data-keep-scroll="set"><div class="${A('set' + s)}">${body}</div></section>
+    <section class="setbody glass card scroll" data-keep-scroll="set:${s}"><div class="${A('set' + s)}">${body}</div></section>
   </div>`;
 }
 
@@ -1431,7 +1444,7 @@ function vModal() {
       <div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Cancel</button><button class="btn pri" data-a="createEvent" ${S.busy ? 'disabled' : ''}>Create event</button></div>`;
   }
   if (m.type === 'report') {
-    const reasons = ['Spam', 'Harassment or bullying', 'Inappropriate content', 'Pretending to be someone', 'Something else'];
+    const reasons = ['Harassment or bullying', 'Inappropriate or sexual content', 'Threats or violence', 'Someone might hurt themselves', 'Spam or scam', 'Pretending to be someone', 'Hate speech', 'Something else'];
     return head('Report ' + esc(U(m.uid)?.name || 'user'), m.mid ? 'Reporting a message' : 'Reports are private — they won\'t know it was you.') + `
       <div class="col" style="gap:6px">${reasons.map(r => `<button class="item ${f.repReason === r ? 'on' : ''}" data-a="repReason" data-v="${r}">${ic(f.repReason === r ? 'check' : 'flag', 18)}<span>${r}</span></button>`).join('')}</div>
       <label class="field">Details <span style="font-weight:500">(optional)</span><textarea class="inp" id="rep-details" data-model="form.repDetails" rows="2" maxlength="500">${esc(f.repDetails || '')}</textarea></label>
@@ -1556,7 +1569,7 @@ const confirmModal = (title, body, yes, fn, danger = true) => { S.modal = { type
 let typingSent = 0;
 function onTyping() {
   const c = convOf(S.conv);
-  if (!c || S.profile?.typingOn === false) return;
+  if (!c || S.profile?.typingOn === false || !(S.draft[c.id] || '').trim()) return;
   if (now() - typingSent > 2500) { typingSent = now(); db().update('conversations/' + c.id, { ['typing.' + S.me]: now() }).catch(() => {}); }
 }
 let msgLabel = m => m.todo ? 'To-do: ' + (m.todo.title || 'List') : m.bdayCard ? 'Birthday card' : m.video ? (m.video.round ? 'Video message' : 'Video') + (m.text ? ' · ' + m.text : '') : m.live ? 'Live location' : m.stickerImg ? 'Sticker' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.game ? ({ ttt: 'Tic-tac-toe', rps: 'Rock, paper, scissors', c4: 'Connect Four', word: 'Word guess', trivia: 'Trivia battle' }[m.game.t] || 'Game') : m.theme ? 'Chat theme' : m.audio ? 'Voice message' : m.sticker ? 'Sticker' : m.poll ? 'Poll: ' + m.poll.q : m.gif ? 'GIF' : (m.images && m.images.length > 1) ? m.images.length + ' photos' + (m.text ? ' · ' + m.text : '') : (m.images || m.image) ? 'Photo' + (m.text ? ' · ' + m.text : '') : (m.text || '');
@@ -1623,7 +1636,7 @@ const actions = {
   aiOpen: () => { S.ai.open = true; S.palette = false; render(); setTimeout(() => $('#aiQ')?.focus(), 50); },
   aiClose: () => { S.ai.open = false; render(); },
   aiAsk: d => askAi(d.v),
-  closeModal: () => { if (S.modal?.type === 'guide') { lsSet('nexa.guideDone', true); savePrefs({ guideDone: true }); } if (S.modal?.type === 'event') stopAlbum(); S.modal = null; S.authErr = ''; S.form.pick = []; S.form.pickQ = ''; render(); },
+  closeModal: () => { if (S.modal?.type === 'iconGuide') lsSet('nexa.iconVer', ICON_VER); if (S.modal?.type === 'guide') { lsSet('nexa.guideDone', true); savePrefs({ guideDone: true }); } if (S.modal?.type === 'event') stopAlbum(); S.modal = null; S.authErr = ''; S.form.pick = []; S.form.pickQ = ''; render(); },
   closeMenu: () => { S.menu = null; render(); },
   lightbox: (d) => { const m = (S.msgs[S.conv] || []).find(x => x.id === d.v); if (m) { S.lightbox = (m.images || [])[+d.i || 0] || m.image; render(); } },
   lightboxClose: () => { S.lightbox = ''; render(); },
@@ -1758,8 +1771,8 @@ const actions = {
   },
   dmOwner: async () => {
     S.menu = null; S.palette = false;
-    if (isOwner()) return toast('You\'re the owner — people\'s help messages come to your Chats.');
-    const uid = await findOwner(); if (!uid) return toast('Couldn\'t reach the owner right now. Try again in a bit.');
+    if (isOwner()) return toast('You\'re Nexa Support — people\'s help messages come to your Chats.');
+    const uid = await findOwner(); if (!uid) return toast('Couldn\'t reach Nexa Support right now. Try again in a bit.');
     if (blocked(uid)) return toast('Unblock Nexa Support first');
     const id = await ensureDM(uid, true); if (!id) return;
     openConv(id);
@@ -1801,7 +1814,7 @@ const actions = {
   wide: () => { S.wide = !S.wide; render(); },
   chatBg: d => savePrefs({ chatBgs: { ...(S.prefs.chatBgs || {}), [S.conv]: { preset: d.v } } }),
   convMenu: (d, el) => { const r = el.getBoundingClientRect(); S.menu = { type: 'conv', x: r.right - 230, y: r.bottom + 6 }; S.bgPop = false; render(); },
-  selMsg: (d, el, ev) => { if (innerWidth <= 700 && !ev.target.closest('button,a,img')) { S.selMsg = S.selMsg === d.v ? null : d.v; render(); } },
+  selMsg: (d, el, ev) => { if ((innerWidth <= 700 || matchMedia('(hover: none)').matches) && !ev.target.closest('button,a,img')) { S.selMsg = S.selMsg === d.v ? null : d.v; render(); } },
   reply: d => { const m = (S.msgs[S.conv] || []).find(x => x.id === d.v); S.replyTo = m; S.editing = null; S.selMsg = null; render(); $('#composer')?.focus(); },
   edit: d => { const m = (S.msgs[S.conv] || []).find(x => x.id === d.v); if (!m) return; S.editing = m; S.replyTo = null; S.draft[S.conv] = m.text; S.selMsg = null; render(); setTimeout(() => { const t = $('#composer'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 30); },
   cancelCtx: () => { if (S.editing) S.draft[S.conv] = ''; S.replyTo = null; S.editing = null; render(); },
@@ -2003,6 +2016,7 @@ const actions = {
     const repId = await db().add('reports', { reporter: S.me, target: m.uid, reason: S.form.repReason, details: (S.form.repDetails || '').slice(0, 500), convId: m.mid ? S.conv : '', messageId: m.mid || '', excerpt: msg ? msgLabel(msg).slice(0, 300) : '', at: now() });
     S.modal = null; render(); if (repId) pushNotify('report', { id: repId });
     if (S.form.repBlock) await doBlock(m.uid);
+    if (/hurt themselves/.test(S.form.repReason)) { S.modal = { type: 'careNote' }; render(); return; }
     toast('Thanks — your report was sent.');
   },
   // ---------- moments
@@ -2119,7 +2133,7 @@ const files = {
     S.attach = false; if (fl.length > 6) toast('Sending the first 6 photos.');
     const q = list.length === 1 ? [1280, .8] : list.length <= 2 ? [1024, .74] : [800, .7];
     const imgs = await Promise.all(list.map(async f => S.be.storage ? storeImg(await compress(f, 2048, .85), 'photos') : compress(f, q[0], q[1])));
-    const text = (S.draft[S.conv] || '').trim(); S.draft[S.conv] = ''; saveDraftSoon(); render();
+    const text = (S.draft[S.conv] || '').trim(); S.draft[S.conv] = ''; clearDraftNow(S.conv); render();
     const sensitive = imgs.every(u => String(u).startsWith('data:')) ? await classifyImages(imgs) : false;
     await sendMessage({ images: imgs, text, ...(sensitive ? { sensitive: true } : {}) });
   },
@@ -2144,7 +2158,7 @@ async function submitComposer() {
   const c = convOf(S.conv); if (!c) return;
   const text = (S.draft[c.id] || '').trim();
   if (!text) return;
-  S.draft[c.id] = ''; saveDraftSoon();
+  S.draft[c.id] = ''; clearDraftNow(c.id);
   if (S.editing) {
     const m = S.editing; S.editing = null; render();
     await db().update(`conversations/${c.id}/messages/${m.id}`, { text, editedAt: now() });
@@ -2357,8 +2371,8 @@ async function boot() {
   splash.className = 'splash';
   splash.innerHTML = `<div class="splash-mark">${logo(112, false, 'build')}</div><div class="word">NEXA</div><div class="tagline">A messaging app like never before</div>`;
   document.body.appendChild(splash);
-  setTimeout(() => splash.remove(), 2700);
-  try { S.be = await createBackend(CONFIG); }
+  const t0 = Date.now(); setTimeout(() => splash.remove(), 2700);
+  try { S.be = await createBackend(CONFIG); setTimeout(() => { splash.classList.add('out'); setTimeout(() => splash.remove(), 300); }, Math.max(0, 900 - (Date.now() - t0))); }
   catch (e) { $('#app').innerHTML = `<div class="onb"><div class="card glass col" style="text-align:center;align-items:center">${logo(56)}<h2 class="h1" style="font-size:22px">Can't reach Nexa right now</h2><p class="mute">Check your internet connection and try again.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`; return; }
   S.be.auth.onChange(u => {
     stopAll();
@@ -2493,7 +2507,11 @@ function newPC(callId, mine, theirs) {
   pc.ontrack = e => { (e.streams[0] ? e.streams[0].getTracks() : [e.track]).forEach(t => { if (!remote.getTracks().includes(t)) remote.addTrack(t); }); attachMedia(); const rv = document.getElementById('callRemote'); rv && rv.play && rv.play().catch(() => {}); paintCall(); };
   pc.onicecandidate = e => { if (!e.candidate) return; const c = e.candidate.toJSON(); P.ready ? db().add(`calls/${callId}/${mine}`, c).catch(() => {}) : outbox.push(c); };
   P.flushOut = () => { P.ready = true; outbox.splice(0).forEach(c => db().add(`calls/${callId}/${mine}`, c).catch(() => {})); };
-  P.flushIn = () => pending.splice(0).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
+  // A candidate only fits the description it was made for (its ufrag). After a connection restart, new candidates
+  // can arrive before the new description does — keep them until it's there instead of throwing them away.
+  const rUfrag = () => ((pc.remoteDescription && pc.remoteDescription.sdp || '').match(/a=ice-ufrag:(\S+)/) || [])[1];
+  const apply = c => (!pc.remoteDescription || (c.usernameFragment && rUfrag() && c.usernameFragment !== rUfrag())) ? pending.push(c) : pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+  P.flushIn = () => pending.splice(0).forEach(apply);
   pc.onconnectionstatechange = () => {
     if (!S.call || S.call.pc !== pc) return;
     S.call.state = pc.connectionState;
@@ -2504,11 +2522,13 @@ function newPC(callId, mine, theirs) {
     paintCall();
   };
   const seen = new Set();
-  P.unC = db().listen(`calls/${callId}/${theirs}`, [], r => r.forEach(cd => {
+  // Start listening for the other side's candidates only once the call record exists —
+  // the database refuses (and permanently stops) a listener that starts before it does.
+  P.listen = () => P.unC || (P.unC = db().listen(`calls/${callId}/${theirs}`, [], r => r.forEach(cd => {
     if (seen.has(cd.id)) return; seen.add(cd.id);
     const { id, ...cand } = cd;
-    pc.remoteDescription ? pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {}) : pending.push(cand);
-  }));
+    apply(cand);
+  })));
   return P;
 }
 // If a call doesn't connect (or drops), restart the connection — the second time through the relay only.
@@ -2521,11 +2541,23 @@ function retryCall(why) {
   return true;
 }
 async function renegotiate(call) {
-  try { const offer = await call.pc.createOffer({ iceRestart: true }); await call.pc.setLocalDescription(offer); await db().update('calls/' + call.id, { offer2: { type: offer.type, sdp: offer.sdp, n: (call.retries || 1) } }); } catch (e) { console.warn('restart failed', e); }
+  if (call.restarting || call.pc.signalingState !== 'stable') return;
+  call.restarting = true;
+  try {
+    const n = call.offerN = (call.offerN || 0) + 1;
+    const offer = await call.pc.createOffer({ iceRestart: true }); await call.pc.setLocalDescription(offer);
+    // the callee picks relay-only from n >= 2, so send the try number (not the counter) for that
+    await db().update('calls/' + call.id, { offer2: { type: offer.type, sdp: offer.sdp, n, relay: (call.retries || 1) >= 2 } });
+  } catch (e) { console.warn('restart failed', e); } finally { call.restarting = false; }
 }
-function armWatchdog(call) {
+function armWatchdog(call, waited = 0) {
   clearTimeout(call.watch);
-  call.watch = setTimeout(() => { if (S.call === call && call.pc.connectionState !== 'connected' && (call.role === 'callee' || call.answered)) retryCall('slow'); }, 9000);
+  call.watch = setTimeout(() => {
+    if (S.call !== call || call.pc.connectionState === 'connected' || !(call.role === 'callee' || call.answered)) return;
+    // relays over TCP/TLS can take a while: while the connection is still being checked, give it up to ~25 s
+    if (call.pc.iceConnectionState === 'checking' && waited < 10000) return armWatchdog(call, waited + 5000);
+    if (retryCall('slow')) armWatchdog(call);
+  }, waited ? 5000 : 15000);
 }
 const isPhoneDev = () => matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 async function getMedia(kind) {
@@ -2597,6 +2629,7 @@ async function startCall(kind) {
   S.call.unQ = watchQuality(() => S.call?.id === id ? S.call : null, q => { if (S.call?.id === id && S.call.net !== q) { S.call.net = q; paintCall(); } });
   await db().set('calls/' + id, { from: S.me, to, conv: c.id, kind, status: 'ringing', at: now(), offer: { type: offer.type, sdp: offer.sdp } });
   P.flushOut();
+  if (S.call?.id === id) S.call.unC = P.listen();
   pushNotify('call', { id });
   S.call.unDoc = db().listenDoc('calls/' + id, d => onCallDoc(d));
   S.call.timeout = setTimeout(() => { if (S.call?.id === id && !S.call.startedAt) { db().update('calls/' + id, { status: 'missed' }).catch(() => {}); if (S.call.state === 'connecting' || S.call.state === 'reconnecting') { toast(hasRelay() ? 'The call couldn\'t connect. Try again in a moment.' : 'The call couldn\'t connect — your networks block direct calls and Nexa\'s call relay isn\'t set up yet.'); db().update('calls/' + id, { status: 'ended' }).catch(() => {}); return endLocal(); } sendMessage({ system: true, text: `Missed ${kind === 'video' ? 'video' : 'voice'} call` }, c.id); toast('No answer'); endLocal(); } }, 40000);
@@ -2606,17 +2639,21 @@ async function onCallDoc(d) {
   if (!d) return endLocal();
   if (call.role === 'caller' && d.answer && !call.pc.currentRemoteDescription) {
     try { await call.pc.setRemoteDescription(new RTCSessionDescription(d.answer)); call.flushIn(); call.state = 'connecting'; call.answered = true; armWatchdog(call); paintCall(); } catch {}
+    // they answered: the "no answer" timer is replaced by a fair amount of time to connect
+    clearTimeout(call.timeout);
+    call.timeout = setTimeout(() => { if (S.call === call && !call.startedAt) { toast(hasRelay() ? 'The call couldn\'t connect. Try again, or check Settings › Help & guide › Test calls.' : 'The call couldn\'t connect — your networks block direct calls and Nexa\'s call relay isn\'t set up yet.'); hangUp(); } }, 40000);
   }
   // connection restarts
   if (call.role === 'callee' && d.offer2 && d.offer2.n !== call.seenOffer2) {
     call.seenOffer2 = d.offer2.n;
-    try { call.pc.setConfiguration(ICE((d.offer2.n || 1) >= 2)); await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.offer2.type, sdp: d.offer2.sdp })); const a = await call.pc.createAnswer(); await call.pc.setLocalDescription(a); await db().update('calls/' + call.id, { answer2: { type: a.type, sdp: a.sdp, n: d.offer2.n } }); } catch (e) { console.warn(e); }
+    try { call.pc.setConfiguration(ICE(d.offer2.relay ?? (d.offer2.n || 1) >= 2)); await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.offer2.type, sdp: d.offer2.sdp })); call.flushIn(); const a = await call.pc.createAnswer(); await call.pc.setLocalDescription(a); await db().update('calls/' + call.id, { answer2: { type: a.type, sdp: a.sdp, n: d.offer2.n } }); } catch (e) { console.warn(e); }
   }
-  if (call.role === 'caller' && d.answer2 && d.answer2.n !== call.seenAnswer2 && call.pc.signalingState === 'have-local-offer') {
+  // only the answer to OUR latest restart offer fits
+  if (call.role === 'caller' && d.answer2 && d.answer2.n === call.offerN && d.answer2.n !== call.seenAnswer2 && call.pc.signalingState === 'have-local-offer') {
     call.seenAnswer2 = d.answer2.n;
-    try { await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.answer2.type, sdp: d.answer2.sdp })); } catch (e) { console.warn(e); }
+    try { await call.pc.setRemoteDescription(new RTCSessionDescription({ type: d.answer2.type, sdp: d.answer2.sdp })); call.flushIn(); armWatchdog(call); } catch (e) { console.warn(e); }
   }
-  if (call.role === 'caller' && d.restartReq && d.restartReq !== call.seenRestart) { call.seenRestart = d.restartReq; call.retries = (call.retries || 0); if (call.pc.connectionState !== 'connected') { call.retries++; try { call.pc.setConfiguration(ICE(call.retries >= 2)); } catch {} renegotiate(call); } }
+  if (call.role === 'caller' && d.restartReq && d.restartReq !== call.seenRestart && call.pc.signalingState === 'stable' && !call.restarting) { call.seenRestart = d.restartReq; call.retries = (call.retries || 0); if (call.pc.connectionState !== 'connected') { call.retries++; try { call.pc.setConfiguration(ICE(call.retries >= 2)); } catch {} renegotiate(call); } }
   if (['ended', 'declined', 'missed', 'busy'].includes(d.status)) {
     if (call.role === 'caller' && d.status === 'declined') toast(`${esc(dname(call.peer))} declined the call`);
     if (call.role === 'caller' && d.status === 'busy') toast(`${esc(dname(call.peer))} is on another call`);
@@ -2632,6 +2669,7 @@ async function acceptCall() {
   const P = newPC(inc.id, 'toC', 'fromC');
   local.getTracks().forEach(t => P.pc.addTrack(t, local));
   S.call = { id: inc.id, kind: inc.kind, peer: inc.from, conv: inc.conv, role: 'callee', local, ...P, state: 'connecting', muted: false, camOff: false };
+  S.call.unC = P.listen();
   paintCall();
   await P.pc.setRemoteDescription(new RTCSessionDescription(d.offer)); P.flushIn();
   const ans = await P.pc.createAnswer(); await P.pc.setLocalDescription(ans); tuneSenders(P.pc, 1);
@@ -2702,16 +2740,24 @@ window.addEventListener('beforeunload', () => { if (S.call) db().update('calls/'
 
 /* ---------------- search across all chats ---------------- */
 const msgCache = {};
+// Messages for searching: what's already on screen is free; the rest is read once and kept for 10 minutes
+// (each message read counts toward Firebase's free daily limit, so searching never reads the same chat twice in a row).
+async function loadSearchMsgs(convs) {
+  await Promise.all(convs.map(async c => {
+    const cached = msgCache[c.id];
+    if (cached && now() - cached.at < 10 * 60e3) return;
+    const live = S.msgs[c.id];
+    if (live && live.length >= 120) { msgCache[c.id] = { at: now(), list: live }; return; }
+    try { msgCache[c.id] = { at: now(), list: await db().query(`conversations/${c.id}/messages`, [], { order: ['at', 'desc'], limit: 150 }) }; } catch { msgCache[c.id] = { at: now(), list: live || [] }; }
+  }));
+}
 let allT = 0;
 async function searchAll(q) {
   q = q.trim().toLowerCase();
   if (q.length < 2) { S.allSearch = null; return render(); }
   S.allSearch = { q, items: S.allSearch?.q === q ? S.allSearch.items : [], loading: true }; render();
-  const convs = sortedConvs(true).slice(0, 40);
-  await Promise.all(convs.map(async c => {
-    const cached = msgCache[c.id];
-    if (!cached || now() - cached.at > 60000) { try { msgCache[c.id] = { at: now(), list: await db().query(`conversations/${c.id}/messages`, [], { order: ['at', 'desc'], limit: 300 }) }; } catch { msgCache[c.id] = { at: now(), list: [] }; } }
-  }));
+  const convs = sortedConvs(true).slice(0, 30);
+  await loadSearchMsgs(convs);
   if (S.convQ.trim().toLowerCase() !== q) return;
   const items = [];
   convs.forEach(c => (msgCache[c.id]?.list || []).forEach(m => {
@@ -2829,7 +2875,11 @@ async function pushNotify(kind, body) {
   if (!S.be.push) return;
   try {
     const tok = await S.be.auth.idToken(); if (!tok) return;
-    fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ kind, ...body }), keepalive: true }).catch(() => {});
+    // big groups: one request per 8 people, so every member gets their notification
+    const c = kind === 'message' ? convOf(body.conv) : null, parts = c ? Math.max(1, Math.ceil(((c.members || []).length - 1) / 8)) : 1;
+    const post = b => fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(b), keepalive: true }).catch(() => {});
+    if (c) { post({ kind: 'msgside', conv: body.conv, msg: body.msg }); for (let part = 1; part < Math.min(parts, 250); part++) post({ kind, ...body, part, side: false }); }
+    fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(c ? { kind, ...body, part: 0, side: false } : { kind, ...body }), keepalive: true }).catch(() => {});
   } catch {}
 }
 
@@ -3020,7 +3070,7 @@ async function bumpStreak(c) {
   if (days[other] === t && st.lastDay !== t) { patch['streak.count'] = st.lastDay === yesterdayKey() ? (st.count || 0) + 1 : 1; patch['streak.lastDay'] = t; }
   await db().update('conversations/' + c.id, patch).catch(() => {});
 }
-const streakBadge = c => { const n = streakOf(c); return n >= 2 ? `<span class="streak" title="${n}-day streak">${ic('flame', 12, 2)}${n}</span>` : ''; };
+let streakBadge = c => { const n = streakOf(c); return n >= 2 ? `<span class="streak" title="${n}-day streak">${ic('flame', 12, 2)}${n}</span>` : ''; };
 
 /* ---------------- group roles & invite links ---------------- */
 const roleOf = (c, u) => (c.roles || {})[u] || 'member';
@@ -3666,8 +3716,16 @@ let toneFor = uid => (S.prefs.friendSounds || {})[uid] || 'chime';
 /* ---------------- drafts synced across devices ---------------- */
 function watchDrafts() { unsubs.base.push(db().listenDoc(`users/${S.me}/private/drafts`, d => { S.remoteDrafts = d || {}; render(); })); }
 let draftT = 0;
+// after sending: forget the saved draft right away, so the sent text can never pop back into the box
+function clearDraftNow(cid) {
+  clearTimeout(draftT); if (!cid) return;
+  S.draftRestored = { ...(S.draftRestored || {}), [cid]: 1 };
+  if ((S.remoteDrafts || {})[cid]) { S.remoteDrafts = { ...S.remoteDrafts, [cid]: '' }; db().update(`users/${S.me}/private/drafts`, { [cid]: ops.del() }).catch(() => {}); }
+}
 function saveDraftSoon() {
   clearTimeout(draftT); const cid = S.conv; if (!cid) return;
+  // once you've typed in this chat, an old saved draft is never put back over what you're doing
+  if (!(S.draftRestored || {})[cid]) S.draftRestored = { ...(S.draftRestored || {}), [cid]: 1 };
   draftT = setTimeout(() => { const t = (S.draft[cid] || '').trim(); if (((S.remoteDrafts || {})[cid] || '') === t) return; db().update(`users/${S.me}/private/drafts`, { [cid]: t ? t.slice(0, 2000) : ops.del() }).catch(() => {}); }, 1200);
 }
 
@@ -3682,7 +3740,7 @@ async function classifyImages(urls) {
     return /SENSITIVE/i.test(String(out));
   } catch { return false; }
 }
-const shouldBlur = (m) => m.from !== S.me && !(S.revealed || {})[m.id] && S.prefs.safePhotos !== false && (m.sensitive || (!isFriend(m.from) && convOf(S.conv)?.type === 'dm'));
+let shouldBlur = (m) => m.from !== S.me && !(S.revealed || {})[m.id] && S.prefs.safePhotos !== false && (m.sensitive || (!isFriend(m.from) && convOf(S.conv)?.type === 'dm'));
 
 /* ---------------- badges ---------------- */
 const BADGES = [
@@ -3891,17 +3949,22 @@ async function joinRoom(rid, kind, name, meta, opts = {}) {
   let local; try { local = await getMedia(camOn ? 'video' : 'voice'); }
   catch { return toast(camOn ? 'Camera or microphone access was blocked.' : 'Microphone access was blocked.'); }
   await iceP;
-  let room = await db().get('rooms/' + rid).catch(() => null);
   const audience = meta.audience;
-  if (!room) { await db().set('rooms/' + rid, { name, kind, scope: meta.scope, ref: meta.ref || '', audience, participants: {}, createdAt: now() }); room = { participants: {} }; }
-  else if (audience && audience.some(u => !(room.audience || []).includes(u))) await db().update('rooms/' + rid, { audience: ops.union(...audience) }).catch(() => {});
+  let room;
+  try {
+    room = await db().get('rooms/' + rid);
+    if (!room) { await db().set('rooms/' + rid, { name, kind, scope: meta.scope, ref: meta.ref || '', audience, participants: {}, createdAt: now() }); room = { participants: {}, audience }; }
+    else if (!(room.audience || []).includes(S.me)) { await db().update('rooms/' + rid, { audience: ops.union(S.me) }); room.audience = [...(room.audience || []), S.me]; }
+    if (audience && audience.some(u => !(room.audience || []).includes(u))) await db().update('rooms/' + rid, { audience: ops.union(...audience) }).catch(() => {});
+  } catch (e) { local.getTracks().forEach(t => t.stop()); return toast('Couldn\'t join this room — try again in a moment.'); }
   const others0 = Object.entries(room.participants || {}).filter(([u, t]) => u !== S.me && fresh(t)).map(([u]) => u);
   if (others0.length >= MAX_ROOM - 1) { local.getTracks().forEach(t => t.stop()); return toast('This room is full.'); }
   R = { id: rid, kind, name, local, peers: {}, muted: false, camOff: kind === 'video' && !camOn, min: false, joinedAt: now(), screen: null, seen: new Set() };
   S.room = rid;
   await db().update('rooms/' + rid, { ['participants.' + S.me]: now(), ...(kind === 'video' ? { ['cams.' + S.me]: camOn } : {}) });
   R.hb = setInterval(() => db().update('rooms/' + rid, { ['participants.' + S.me]: now() }).catch(() => {}), 20000);
-  R.unSig = db().listen(`rooms/${rid}/sig`, [['to', '==', S.me]], list => list.forEach(onSignal));
+  R.early = {};
+  R.unSig = db().listen(`rooms/${rid}/sig`, [['to', '==', S.me]], list => list.slice().sort((a, b) => (a.type === 'offer' ? 0 : 1) - (b.type === 'offer' ? 0 : 1) || (a.at || 0) - (b.at || 0)).forEach(onSignal));
   R.unRoom = db().listenDoc('rooms/' + rid, d => { if (!R || !d) return; R.doc = d; const live = Object.entries(d.participants || {}).filter(([u, t]) => u !== S.me && fresh(t)).map(([u]) => u); Object.keys(R.peers).forEach(u => { if (!live.includes(u)) dropPeer(u); }); paintRoom(); });
   for (const u of others0) makePeer(u, true);
   paintRoom(); sound('send');
@@ -3929,8 +3992,14 @@ async function onSignal(s) {
   if (now() - (s.at || 0) > 60000) return;
   const u = s.from;
   if (s.type === 'offer') {
-    if (R.peers[u] && R.peers[u].sess !== s.sess) dropPeer(u);
+    if (R.peers[u] && R.peers[u].sess !== s.sess) {
+      // two people joined at the same moment and both offered: the one with the smaller id keeps their offer
+      const P0 = R.peers[u], mineOffer = String(P0.sess || '').startsWith(S.me + '_');
+      if (mineOffer && P0.pc.connectionState !== 'connected' && S.me < u) return;
+      dropPeer(u);
+    }
     const P = makePeer(u, false); P.sess = s.sess;
+    const ek = u + '|' + s.sess; if (R.early && R.early[ek]) { P.pending.push(...R.early[ek]); delete R.early[ek]; }
     await P.pc.setRemoteDescription(new RTCSessionDescription(s.sdp));
     if (R.kind === 'video') P.pc.getTransceivers().forEach(t => { if (t.mid != null && t.receiver.track && t.receiver.track.kind === 'video' && t.direction !== 'sendrecv') { try { t.direction = 'sendrecv'; } catch {} } });
     P.pending.splice(0).forEach(c => P.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
@@ -3940,7 +4009,8 @@ async function onSignal(s) {
     const P = R.peers[u]; if (!P || P.sess !== s.sess || P.pc.currentRemoteDescription) return;
     await P.pc.setRemoteDescription(new RTCSessionDescription(s.sdp)); P.pending.splice(0).forEach(c => P.pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {}));
   } else if (s.type === 'cand') {
-    const P = R.peers[u]; if (!P || P.sess !== s.sess) return;
+    const P = R.peers[u];
+    if (!P || P.sess !== s.sess) { const ek = u + '|' + s.sess; (R.early[ek] = R.early[ek] || []).push(s.cand); return; }
     P.pc.remoteDescription ? P.pc.addIceCandidate(new RTCIceCandidate(s.cand)).catch(() => {}) : P.pending.push(s.cand);
   }
 }
@@ -4462,7 +4532,7 @@ function goBack() {
     const sheet = innerWidth <= 700 && el.closest('.overlay .modal, .overlay .menu');
     if (sheet && t.clientY - sheet.getBoundingClientRect().top < 56 && !el.closest('input,textarea,select')) g = { k: 'sheet', y: t.clientY, el: sheet };
     else if (t.clientX < 22) g = { k: 'edge', x: t.clientX, y: t.clientY };
-    else if (!el.closest('#stream,.overlay,textarea,input,.picker,.ai,.tiles') && atTop(el)) g = { k: 'pull', x: t.clientX, y: t.clientY };
+    else if (!el.closest('#stream,.chat,.composer-wrap,.overlay,.modal,textarea,input,.picker,.ai,.tiles,.dmside') && atTop(el)) g = { k: 'pull', x: t.clientX, y: t.clientY };
   }, { passive: true, capture: true });
   document.addEventListener('touchmove', e => {
     if (!g) return; const t = e.touches[0], dx = t.clientX - (g.x || 0), dy = t.clientY - g.y;
@@ -5113,6 +5183,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.onceView
 /* ================= v16: phone speed, Nexa Support, warnings, new moments (stories) ================= */
 
 /* ---- phones: no live glass blur (that's what made Nexa laggy on phones) ---- */
+const isTypingNow = () => { const a = document.activeElement; return !!a && (a.id === 'composer' || ((a.tagName === 'TEXTAREA' || a.tagName === 'INPUT') && a.type !== 'range' && a.type !== 'file')); };
 const isPhoneish = () => matchMedia('(pointer: coarse)').matches || innerWidth <= 760;
 function applyPhoneMode() {
   const r = document.documentElement, on = isPhoneish() && !S.prefs.fullGlass;
@@ -5655,13 +5726,13 @@ vModal5 = function (m, f, head) {
   }
   if (m.type === 'updAvail') {
     const n = S.updateInfo?.notes || [];
-    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update available</h2><div class="mute" style="text-align:center">A new version of Nexa${S.updateInfo?.version ? ' (v' + esc(S.updateInfo.version) + ')' : ''} is ready.</div>
+    return `<div class="updsheet col"><div class="updhero"><img src="${festIcon()}" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update available</h2><div class="mute" style="text-align:center">A new version of Nexa${S.updateInfo?.version ? ' (v' + esc(S.updateInfo.version) + ')' : ''} is ready.</div>
       ${n.length ? `<ul class="updlist">${n.slice(0, 5).map(x => `<li>${ic('spark', 15, 2)}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}
       <button class="btn pri updbig" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update now'}</button><button class="btn" style="align-self:center" data-a="updSheetLater">Not now</button></div>`;
   }
   if (m.type === 'whatsNew') {
     const n = m.notes || [];
-    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><div class="kicker" style="text-align:center">Nexa ${m.version ? 'v' + esc(m.version) : ''}</div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">What's new</h2>
+    return `<div class="updsheet col"><div class="updhero"><img src="${festIcon()}" alt="" class="updlogo"><div class="updglow"></div></div><div class="kicker" style="text-align:center">Nexa ${m.version ? 'v' + esc(m.version) : ''}</div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">What's new</h2>
       <ul class="updlist big">${n.map(x => `<li>${ic('check', 16, 2.4)}<span>${esc(x)}</span></li>`).join('')}</ul><button class="btn pri updbig" data-a="closeModal">Let's go</button></div>`;
   }
   return _vModal5V162(m, f, head);
@@ -5715,7 +5786,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '17.0.1';
+const APP_VERSION = '17.7';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -5784,14 +5855,14 @@ async function doUpdate() {
 actions.updNow = doUpdate;
 const _vOverlaysV165 = vOverlays;
 vOverlays = function () {
-  if (S.view === 'app' && (S.updateReady || S.mustUpdate) && !S.modal) S.modal = { type: 'updAvail' };
+  if (S.view === 'app' && (S.updateReady || S.mustUpdate) && !S.modal && !isTypingNow()) S.modal = { type: 'updAvail' };
   return _vOverlaysV165();
 };
 const _vModal5V165 = vModal5;
 vModal5 = function (m, f, head) {
   if (m.type === 'updAvail') {
     const info = S.updateInfo?.version ? S.updateInfo : (S.mustUpdate || {}), n = info.notes || [];
-    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update available</h2><div class="mute" style="text-align:center">A new version of Nexa${info.version ? ' (v' + esc(info.version) + ')' : ''} is ready. Update to keep using Nexa — everything switches to the new version, logo and all.</div>
+    return `<div class="updsheet col"><div class="updhero"><img src="${festIcon()}" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update available</h2><div class="mute" style="text-align:center">A new version of Nexa${info.version ? ' (v' + esc(info.version) + ')' : ''} is ready. Update to keep using Nexa — everything switches to the new version, logo and all.</div>
       ${n.length ? `<ul class="updlist">${n.slice(0, 5).map(x => `<li>${ic('spark', 15, 2)}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}
       <button class="btn pri updbig" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update now'}</button></div>`;
   }
@@ -5900,7 +5971,7 @@ setInterval(async () => {
   n.read = true;
   await checkRemote();
   if (!S.updateReady && !S.mustUpdate) S.forceUpd = true;
-  if (!S.modal || S.modal.type !== 'updAvail') { S.modal = { type: 'updAvail' }; render(); }
+  if ((!S.modal || S.modal.type !== 'updAvail') && !isTypingNow()) { S.modal = { type: 'updAvail' }; render(); }
 }, 2500);
 // "Update now" with no new version waiting = get a completely fresh copy of Nexa (logo and all)
 actions.updNow = () => { lsSet('nexa.iconCheck', '1'); if (S.updateReady || S.mustUpdate) return doUpdate(); S.updating = true; lsSet('nexa.justUpdated', '1'); render(); hardRefresh(); };
@@ -5912,7 +5983,7 @@ const iosDev = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh
 const samsungDev = () => /SamsungBrowser/.test(navigator.userAgent);
 setTimeout(function iconCheck() {
   if (S.view !== 'app' || S.modal) { if ((iconCheck.n = (iconCheck.n || 0) + 1) < 40) setTimeout(iconCheck, 3000); return; }
-  if (!isStandalone() || !(iosDev() || samsungDev()) || lsGet('nexa.iconVer', '') === ICON_VER) return;
+  if (!isStandalone() || !(iosDev() || samsungDev()) || lsGet('nexa.iconVer', '') === ICON_VER || isTypingNow()) return;
   S.modal = { type: 'iconGuide' }; render();
 }, 9000);
 Object.assign(actions, {
@@ -5923,7 +5994,7 @@ Object.assign(actions, {
 const _vModal5V169 = vModal5;
 vModal5 = function (m, f, head) {
   if (m.type === 'updAvail' && S.forceUpd && !S.updateReady && !S.mustUpdate) {
-    return `<div class="updsheet col"><div class="updhero"><img src="icon-192-v4.png" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update Nexa</h2><div class="mute" style="text-align:center;line-height:1.5">Nexa asked everyone to update. Tap <b>Update now</b> to get the newest version — the app, the look and the logo.</div>
+    return `<div class="updsheet col"><div class="updhero"><img src="${festIcon()}" alt="" class="updlogo"><div class="updglow"></div></div><h2 class="disp" style="margin:0;font-size:26px;text-align:center">Update Nexa</h2><div class="mute" style="text-align:center;line-height:1.5">Nexa asked everyone to update. Tap <b>Update now</b> to get the newest version — the app, the look and the logo.</div>
       <button class="btn pri updbig" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update now'}</button></div>`;
   }
   if (m.type === 'roomPick') {
@@ -6021,14 +6092,14 @@ const ACT_VERB = { play: 'Playing', listen: 'Listening to', watch: 'Watching', d
 const ACT_ICON = { play: 'game', listen: 'music', watch: 'video', do: 'spark' };
 function actOf(uid) {
   const u = uid === S.me ? S.profile : U(uid); const a = u?.activity;
-  if (!a || !a.n || !a.since) return null;
+  if (!a || !a.n || typeof a.n !== 'string' || typeof a.since !== 'number' || (a.until && typeof a.until !== 'number')) return null;
   if (uid !== S.me && (u.showActivity === false || presence(uid) === 'offline')) return null;
   if (a.until && a.until < now()) return null;
   if (now() - a.since > 24 * 3600e3) return null;
   return a;
 }
 const fmtEl = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`; };
-const actTime = a => `<span class="acttime" data-since="${a.since}" data-morph-skip="1">${fmtEl(now() - a.since)}</span>`;
+const actTime = a => `<span class="acttime" data-since="${+a.since || 0}" data-morph-skip="1">${fmtEl(now() - (+a.since || 0))}</span>`;
 setInterval(() => { document.querySelectorAll('.acttime[data-since]').forEach(el => { const t = fmtEl(Date.now() - +el.dataset.since); if (el.textContent !== t) el.textContent = t; }); }, 1000);
 const actLine = a => a ? `${ACT_VERB[a.t] ? ACT_VERB[a.t] + ' ' : ''}${a.n}` : '';
 // the "Playing" card (like the one on a gamer's profile — but with the game's art and a live timer)
@@ -6051,12 +6122,12 @@ const DECOS = [['none', 'None'], ['aurora', 'Aurora ring'], ['neon', 'Neon pulse
 const PFX_LIST = [['none', 'None'], ['stars', 'Starfield'], ['snow', 'Snowfall'], ['hearts', 'Hearts'], ['clouds', 'Clouds'], ['aurora', 'Northern lights'], ['bubbles', 'Bubbles'], ['confetti', 'Confetti'], ['rain', 'Neon rain']];
 const NSTYLES = [['plain', 'Plain'], ['gradient', 'Gradient'], ['glow', 'Glow'], ['rainbow', 'Rainbow'], ['gold', 'Gold'], ['neon', 'Neon'], ['fire', 'Fire']];
 const PTHEMES = [['#5b7cff', '#9b6bff'], ['#ff4d6d', '#ffb547'], ['#2fd4c4', '#3fbf6f'], ['#0f2027', '#2c5364'], ['#ff8a4c', '#e45fb4'], ['#1a2a6c', '#fdbb2d'], ['#141e30', '#7c4dff'], ['#00c6ff', '#0072ff']];
-const styleOf = (uid, draft) => { const u = uid === S.me ? S.profile : U(uid); const s = { ...(u?.pstyle || {}), ...(draft || {}) }; const ok = /^#[0-9a-f]{6}$/i; return { deco: s.deco || 'none', fx: s.fx || 'none', name: s.name || 'plain', c1: ok.test(s.c1 || '') ? s.c1 : (ok.test(u?.color || '') ? u.color : '#5b7cff'), c2: ok.test(s.c2 || '') ? s.c2 : '#9b6bff', themed: !!(s.c1 && ok.test(s.c1)) }; };
+const styleOf = (uid, draft) => { const u = uid === S.me ? S.profile : U(uid); const s = { ...(u?.pstyle && typeof u.pstyle === 'object' ? u.pstyle : {}), ...(draft || {}) }; const ok = /^#[0-9a-f]{6}$/i; return { deco: DECOS.some(d => d[0] === s.deco) ? s.deco : 'none', fx: PFX_LIST.some(d => d[0] === s.fx) ? s.fx : 'none', name: NSTYLES.some(d => d[0] === s.name) ? s.name : 'plain', c1: ok.test(s.c1 || '') ? s.c1 : (ok.test(u?.color || '') ? u.color : '#5b7cff'), c2: ok.test(s.c2 || '') ? s.c2 : '#9b6bff', themed: !!(s.c1 && ok.test(s.c1)) }; };
 const FX_ICONS = { snow: '❄', hearts: '💗', clouds: '☁️', bubbles: '', confetti: '', stars: '', aurora: '', rain: '' };
 function fxLayer(k) {
   if (!k || k === 'none') return '';
   let h = '';
-  const n = { stars: 26, snow: 22, hearts: 12, clouds: 6, bubbles: 14, confetti: 26, rain: 22, aurora: 0 }[k] || 0;
+  const n = { stars: 26, snow: 22, hearts: 12, clouds: 6, bubbles: 14, confetti: 26, rain: 22, aurora: 0, fireworks: 16, embers: 18 }[k] || 0;
   for (let i = 0; i < n; i++) { const r = (hash(k + i) % 1000) / 1000, r2 = (hash(i + k + 'y') % 1000) / 1000; h += `<i style="--x:${(r * 100).toFixed(1)}%;--y:${(r2 * 100).toFixed(1)}%;--d:${(3 + r2 * 6).toFixed(2)}s;--w:${(-r * 8).toFixed(2)}s;--s:${(.6 + r * .8).toFixed(2)};--h:${Math.round(r2 * 360)}">${FX_ICONS[k] || ''}</i>`; }
   return `<div class="pfx pfx-${k}" aria-hidden="true">${h}</div>`;
 }
@@ -6074,7 +6145,8 @@ function vSide(uid, draft, preview) {
   if (!u) return `<aside class="dmside glass card"><div class="empty">Loading…</div></aside>`;
   const st = styleOf(uid, draft), wg = u.widgets || {};
   const dw = draft || {};
-  const games = (dw.games || wg.games || []).map(gameOf).filter(Boolean), fav = gameOf(dw.fav !== undefined ? dw.fav : wg.fav);
+  const arr = x => Array.isArray(x) ? x : [];
+  const games = arr(dw.games || wg.games).map(gameOf).filter(Boolean), fav = gameOf(dw.fav !== undefined ? dw.fav : wg.fav);
   const banner = safeImg(u.banner) ? `background:url(${u.banner}) center/cover` : `background:linear-gradient(135deg,${st.c1},${st.c2})`;
   const groups = S.convs.filter(c => c.type === 'group' && (c.members || []).includes(uid) && (c.members || []).includes(S.me)).length;
   const nk = mine ? '' : nickOf(uid);
@@ -6118,7 +6190,7 @@ vChat = function (c) {
   if (c.type !== 'dm') return h;
   const other = others(c)[0], a = actOf(other), g = a && a.t === 'play' ? gameOf(a.g) : null;
   if (innerWidth >= 900) h = h.replace('<button class="ibtn hide-m" aria-label="Chat info"', `<button class="ibtn ${sideOn() ? 'on' : ''}" aria-label="Show profile" title="${sideOn() ? 'Hide' : 'Show'} profile" data-a="dmSide">${ic('user', 18)}</button><button class="ibtn hide-m" aria-label="Chat info"`);
-  if (a && !sideOn()) h = h.replace('</header>', `</header><button class="actstrip" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}" data-a="profile" data-v="${other}">${g ? gameArt(g, 'icon') : ic(ACT_ICON[a.t] || 'spark', 16)}<span class="grow ellip"><b>${esc(dname(other).split(' ')[0])}</b> is ${esc(actLine(a).replace(/^Playing/, 'playing').replace(/^Listening/, 'listening').replace(/^Watching/, 'watching'))}</span>${actTime(a)}</button>`);
+  if (a && !sideOn()) h = h.replace('</header>', `</header><button class="actstrip" data-key="actstrip" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}" data-a="profile" data-v="${other}">${g ? gameArt(g, 'icon') : ic(ACT_ICON[a.t] || 'spark', 16)}<span class="grow ellip"><b>${esc(dname(other).split(' ')[0])}</b> is ${esc(actLine(a).replace(/^Playing/, 'playing').replace(/^Listening/, 'listening').replace(/^Watching/, 'watching'))}</span>${actTime(a)}</button>`);
   return h;
 };
 
@@ -6135,7 +6207,7 @@ vProfile = function () {
   h = h.replace('<h1 class="h1" style="font-size:30px">', `<h1 class="h1 pname ns-${st.name}" style="font-size:30px;--c1:${st.c1};--c2:${st.c2}">`);
   h = h.replace('<div style="font-size:15px;line-height:1.6;max-width:580px">', `${vActCard(uid) || (mine ? `<button class="actempty" style="max-width:420px" data-a="actOpen">${ic('game', 16)}<span class="grow">Show friends what you're playing or listening to</span>${ic('plus', 14)}</button>` : '')}<div style="font-size:15px;line-height:1.6;max-width:580px">`);
   if (mine) h = h.replace(`${ic('pen', 16)} Edit profile</button>`, `${ic('pen', 16)} Edit profile</button><button class="btn studio-btn" data-a="studioOpen">${ic('brush', 16)} Profile studio</button>`);
-  const games = (wg.games || []).map(gameOf).filter(Boolean), fav = gameOf(wg.fav);
+  const games = (Array.isArray(wg.games) ? wg.games : []).map(gameOf).filter(Boolean), fav = gameOf(wg.fav);
   if (games.length || fav || mine) {
     const panel = `<div class="panel glass card"><div class="row spread"><h2 class="h2">${ic('game', 18)} Games</h2>${mine ? '<button class="small" style="color:var(--ac2);font-weight:800" data-a="studioOpen" data-v="games">Edit</button>' : `<span class="mute small">${games.length}</span>`}</div>
       ${fav ? `<div class="favgame big">${gameArt(fav, 'head')}<span class="grow" style="min-width:0"><span class="kick">Favourite game</span><b style="display:block;font-size:17px">${esc(fav[1])}</b>${wg.favNote ? `<span class="small" style="opacity:.85">${esc(wg.favNote)}</span>` : ''}</span></div>` : ''}
@@ -6270,4 +6342,904 @@ if (window.nexaDesktop && window.nexaDesktop.watchGames) {
       else if (cur && cur.src === 'desktop') setActivity(null);
     });
   } catch {}
+}
+
+/* ================= v17.1: invite rewards (exclusive styles for bringing friends) + "Squad up" (looking-for-players posts) ================= */
+// ---------- invite rewards: friends who join from your link unlock styles nobody else can get
+const REWARDS = [[1, 'deco', 'spark', 'Spark ring'], [3, 'deco', 'founder', 'Founder wings'], [5, 'fx', 'fireworks', 'Fireworks'], [10, 'name', 'holo', 'Holo name']];
+DECOS.push(['spark', 'Spark ring'], ['founder', 'Founder wings']);
+PFX_LIST.push(['fireworks', 'Fireworks']);
+NSTYLES.push(['holo', 'Holo']);
+const rewardNeed = (kind, k) => (REWARDS.find(r => r[1] === kind && r[2] === k) || [0])[0];
+let lockedFor = (kind, k) => { const n = rewardNeed(kind, k); return n && (S.invited || 0) < n ? n : 0; };
+let invWatchOn = false;
+function watchInvites() {
+  if (invWatchOn || !S.me) return; invWatchOn = true;
+  unsubs.base.push(db().listen('users', [['ref', '==', S.me]], r => {
+    const n = r.filter(u => !u.deleted).length, before = S.invited;
+    S.invited = n;
+    if (before != null && n > before) {
+      const got = REWARDS.filter(x => x[0] > before && x[0] <= n);
+      toast(got.length ? `🎉 A friend joined from your invite — you unlocked ${got.map(x => x[3]).join(' + ')}!` : '🎉 A friend joined Nexa from your invite!');
+      if (got.length) try { confetti(); } catch {}
+    }
+    render();
+  }, { limit: 20 }));
+}
+setInterval(() => { if (S.view === 'app' && S.me && S.profile) { watchInvites(); watchLfg(); } }, 3000);
+function vInviteProgress(compact) {
+  const n = S.invited || 0, next = REWARDS.find(r => r[0] > n), max = next ? next[0] : REWARDS[REWARDS.length - 1][0];
+  return `<div class="invprog ${compact ? 'sm' : ''}">
+    <div class="row spread" style="gap:10px"><span><b>${next ? `Invite ${next[0] - n} more friend${next[0] - n === 1 ? '' : 's'} to unlock ${next[3]}` : 'You unlocked every invite reward 👑'}</b><span class="small" style="display:block;opacity:.8">${n} friend${n === 1 ? '' : 's'} joined from your link</span></span><button class="btn sm pri" data-a="inviteShare">${ic('share', 14)} Invite</button></div>
+    <div class="invbar"><i style="width:${Math.min(100, n / max * 100)}%"></i>${REWARDS.map(r => `<span class="invstep ${n >= r[0] ? 'on' : ''}" style="left:${Math.min(100, r[0] / REWARDS[REWARDS.length - 1][0] * 100)}%" title="${esc(r[3])}">${r[0]}</span>`).join('')}</div>
+    ${compact ? '' : `<div class="invrw">${REWARDS.map(r => `<span class="${n >= r[0] ? 'on' : ''}">${n >= r[0] ? ic('check', 12, 3) : ic('lock', 12)} ${esc(r[3])} <i>${r[0]}</i></span>`).join('')}</div>`}
+  </div>`;
+}
+// lock the reward tiles in Profile studio
+const _vModal5V171 = vModal5;
+vModal5 = function (m, f, head) {
+  let h = _vModal5V171(m, f, head);
+  if (m.type !== 'studio' || h == null) return h;
+  for (const [, kind, k] of REWARDS) {
+    const key = kind === 'deco' ? 'stDeco' : kind === 'fx' ? 'stFx' : 'stName', need = lockedFor(kind, k);
+    if (!need) continue;
+    h = h.replace(`class="sttile${kind === 'fx' ? ' fxt' : ''} " data-a="stSet" data-k="${key}" data-v="${k}"`, `class="sttile${kind === 'fx' ? ' fxt' : ''} locked" data-a="stLocked" data-v="${need}" data-lockn="${need}"`)
+      .replace(`class="sttile${kind === 'fx' ? ' fxt' : ''} on" data-a="stSet" data-k="${key}" data-v="${k}"`, `class="sttile${kind === 'fx' ? ' fxt' : ''} locked" data-a="stLocked" data-v="${need}" data-lockn="${need}"`);
+  }
+  if ((f.stTab || 'style') === 'style') h = h.replace('<div class="sec">Avatar decoration</div>', vInviteProgress(true) + '<div class="sec">Avatar decoration</div>');
+  return h;
+};
+// a reward someone hasn't unlocked yet can't be saved by accident
+const _studioSaveV171 = actions.studioSave;
+actions.studioSave = async (...a) => {
+  const f = S.form;
+  if (lockedFor('deco', f.stDeco)) f.stDeco = 'none';
+  if (lockedFor('fx', f.stFx)) f.stFx = 'none';
+  if (lockedFor('name', f.stName)) f.stName = 'plain';
+  return _studioSaveV171(...a);
+};
+Object.assign(actions, {
+  stLocked: d => toast(`🔒 Invite ${d.v} friend${+d.v === 1 ? '' : 's'} to Nexa to unlock this — tap Invite above`)
+});
+// Home: the invite card shows how close you are to the next reward
+{
+  const _vHomeV171a = vHome;
+  vHome = function () {
+    let h = _vHomeV171a();
+    // the card can appear twice (side column on big screens, inline on phones)
+    let from = 0;
+    for (let i = h.indexOf(' invcard', from); i > 0; i = h.indexOf(' invcard', from)) { const e = h.indexOf('</section>', i); if (e < 0) break; const add = vInviteProgress(true); h = h.slice(0, e) + add + h.slice(e); from = e + add.length + 10; }
+    return h;
+  };
+}
+
+// ---------- Squad up: "Fortnite squads, need 2" — friends tap Join, the host starts the party
+let lfgOn = false;
+function watchLfg() {
+  if (lfgOn || !S.me) return; lfgOn = true;
+  unsubs.base.push(db().listen('lfg', [['audience', 'array-contains', S.me]], r => {
+    const before = new Map((S.lfg || []).map(x => [x.id, (x.joined || []).length]));
+    S.lfg = r; r.forEach(x => { watchUser(x.by); (x.joined || []).forEach(watchUser); });
+    r.filter(x => x.by === S.me && x.exp < now() - 3600e3).forEach(x => db().del('lfg/' + x.id).catch(() => {}));
+    render();
+  }));
+}
+const liveLfg = () => (S.lfg || []).filter(x => typeof x.exp === 'number' && x.exp > now() && x.exp - now() < 5 * 3600e3 && x.by && !blocked(x.by)).sort((a, b) => (b.by === S.me) - (a.by === S.me) || b.at - a.at);
+const minsLeft = x => Math.max(1, Math.round((x.exp - now()) / 60000));
+function vLfgCard(x, compact) {
+  const g = gameOf(x.g), mine = x.by === S.me, joined = Array.isArray(x.joined) ? x.joined.slice(0, 5) : [], inIt = joined.includes(S.me);
+  x = { ...x, need: Math.min(5, Math.max(1, Math.floor(+x.need) || 1)), n: String(x.n || 'a game').slice(0, 60), note: String(x.note || '').slice(0, 80) };
+  const full = joined.length >= x.need;
+  const slots = [x.by, ...joined].map(u => `<span class="lslot" title="${esc(dname(u))}">${av(u, compact ? 26 : 30)}</span>`).join('') + Array.from({ length: Math.max(0, x.need - joined.length) }, () => `<span class="lslot empty" style="--s:${compact ? 26 : 30}px">${ic('plus', 12)}</span>`).join('');
+  const btns = mine
+    ? `${joined.length ? `<button class="btn sm pri" data-a="lfgParty" data-v="${x.id}">${ic('video', 14)} Start party</button>` : ''}<button class="btn sm" data-a="lfgEnd" data-v="${x.id}">End</button>`
+    : inIt ? `<button class="btn sm" data-a="dm" data-v="${x.by}">${ic('msg', 14)} Message</button><button class="btn sm" data-a="lfgLeave" data-v="${x.id}">Leave</button>`
+    : full ? `<span class="pill">Full</span>` : `<button class="btn sm pri" data-a="lfgJoin" data-v="${x.id}">${ic('userplus', 14)} Join</button>`;
+  return `<div class="lfgcard ${compact ? 'sm' : ''} ${inIt ? 'in' : ''}" style="${g ? `--g1:${g[4]};--g2:${g[5]}` : ''}" data-key="lfg_${x.id}">
+    <div class="col" style="gap:8px;min-width:0;flex:1">
+      <div class="row" style="gap:10px;align-items:center">${g ? gameArt(g, 'icon') : `<span class="gart gart-icon"><i>🎮</i></span>`}<div style="min-width:0;flex:1"><span class="kick" style="color:#fff;font-size:10px">Squad up · ${minsLeft(x)} min left</span>
+        <b style="display:block;font-size:${compact ? 13.5 : 14.5}px;line-height:1.3">${mine ? 'You need' : esc(dname(x.by).split(' ')[0]) + ' needs'} ${Math.max(0, x.need - joined.length)} more for ${esc(x.n)}</b></div></div>
+        ${x.note ? `<span class="small ellip" style="display:block;opacity:.85">“${esc(x.note)}”</span>` : ''}
+      <div class="row spread" style="gap:8px;flex-wrap:wrap"><span class="lslots">${slots}</span><span class="row" style="gap:6px">${btns}</span></div>
+    </div>
+  </div>`;
+}
+function vLfgSection() {
+  const list = liveLfg();
+  return `<section class="panel glass card lfgsec"><div class="row spread"><h2 class="h2">${ic('game', 18)} Squad up</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="lfgOpen">+ Post</button></div>
+    ${list.length ? `<div class="col" style="gap:10px">${list.slice(0, 4).map(x => vLfgCard(x)).join('')}</div>`
+      : `<button class="actempty" data-a="lfgOpen">${ic('game', 16)}<span class="grow">Need players? Tell your friends — "Fortnite, need 2"</span>${ic('plus', 14)}</button>`}
+  </section>`;
+}
+{
+  const _vHomeV171b = vHome;
+  vHome = function () {
+    let h = _vHomeV171b();
+    const sec = vLfgSection();
+    // put it at the top of the side column (both copies: big screens and phones)
+    const marks = ['class="panel glass card activenow"', '<h2 class="h2">Online friends</h2>'];
+    for (const mk of marks) {
+      if (!h.includes(mk)) continue;
+      let out = '', rest = h, done = false;
+      for (let i = rest.indexOf(mk); i > 0; i = rest.indexOf(mk)) { const s0 = rest.lastIndexOf('<section', i); if (s0 < 0) break; out += rest.slice(0, s0) + sec + rest.slice(s0, i + mk.length); rest = rest.slice(i + mk.length); done = true; }
+      if (done) return out + rest;
+    }
+    return h;
+  };
+}
+// in the DM profile panel: their squad call, if they have one
+{
+  const _vSideV171 = vSide;
+  vSide = function (uid, draft, preview) {
+    let h = _vSideV171(uid, draft, preview);
+    if (preview) return h;
+    const x = liveLfg().find(l => l.by === uid);
+    if (x) h = h.replace('<div class="ds-body scroll" data-keep-scroll="side">', `<div class="ds-body scroll" data-keep-scroll="side">${vLfgCard(x, true)}`);
+    return h;
+  };
+}
+// my "Playing" card: one tap to ask friends to join
+{
+  const _vActCardV171 = vActCard;
+  vActCard = function (uid, compact) {
+    let h = _vActCardV171(uid, compact);
+    if (h && uid === S.me && !liveLfg().some(l => l.by === S.me)) h = h.replace('<button class="btn sm grow" data-a="actOpen">Change</button>', `<button class="btn sm pri grow" data-a="lfgOpen">${ic('userplus', 13)} Find players</button><button class="btn sm" data-a="actOpen">Change</button>`);
+    return h;
+  };
+}
+Object.assign(actions, {
+  lfgOpen: () => {
+    const a = S.profile.activity, wg = S.profile.widgets || {};
+    Object.assign(S.form, { lfG: (a && a.t === 'play' && a.g) || wg.fav || '', lfName: '', lfNeed: 2, lfNote: '', lfFor: 60, lfQ: '' });
+    S.menu = null; S.modal = { type: 'lfg' }; render();
+  },
+  lfgGame: d => { S.form.lfG = S.form.lfG === d.v ? '' : d.v; render(); },
+  lfgNeed: d => { S.form.lfNeed = +d.v; render(); },
+  lfgFor: d => { S.form.lfFor = +d.v; render(); },
+  lfgPost: async () => {
+    const f = S.form, g = gameOf(f.lfG), n = (g ? g[1] : (f.lfName || '').trim()).slice(0, 60);
+    if (!n) return toast('Pick a game or type its name');
+    if (!friendIds().length) return toast('Add some friends first — they\'re the ones who see it');
+    const old = liveLfg().filter(x => x.by === S.me);
+    for (const o of old) await db().del('lfg/' + o.id).catch(() => {});
+    const doc = { by: S.me, g: g ? g[0] : '', n, need: Math.min(5, Math.max(1, +f.lfNeed || 1)), note: (f.lfNote || '').trim().slice(0, 80), at: now(), exp: now() + (+f.lfFor || 60) * 60000, audience: [S.me, ...friendIds().slice(0, 299)], joined: [] };
+    S.modal = null; render();
+    const id = await db().add('lfg', doc);
+    // tell the friends who like / play this game (or everyone, if nobody has it on their profile)
+    const fans = friendIds().filter(u => { const w = U(u)?.widgets || {}, ac = U(u)?.activity; return g && ((w.games || []).includes(g[0]) || w.fav === g[0] || ac?.g === g[0]); });
+    const who = (fans.length >= 2 ? fans : friendIds()).slice(0, 30);
+    for (const u of who) notify(u, { type: 'lfg', title: `🎮 ${S.profile.name.split(' ')[0]} needs ${doc.need} for ${n}`, body: doc.note || 'Tap to join the squad', link: { page: 'home' } });
+    toast(`Posted — ${who.length} friend${who.length === 1 ? '' : 's'} told`);
+    if (!S.profile.activity && g) setActivity({ t: 'play', g: g[0], n: g[1], d: 'Looking for players', since: now(), until: doc.exp, src: 'manual' });
+    return id;
+  },
+  lfgJoin: async d => {
+    const x = liveLfg().find(l => l.id === d.v); if (!x) return;
+    if ((x.joined || []).length >= x.need) return toast('That squad is full');
+    await db().update('lfg/' + x.id, { joined: ops.union(S.me) });
+    const n = (x.joined || []).length + 1;
+    notify(x.by, { type: 'lfg_join', title: `🎮 ${S.profile.name.split(' ')[0]} joined your ${x.n} squad (${n}/${x.need})`, body: n >= x.need ? 'Your squad is full — start the party!' : 'Message them or start the party.', link: { page: 'home' } });
+    toast(`You're in! ${dname(x.by).split(' ')[0]} will start the party`);
+  },
+  lfgLeave: async d => { await db().update('lfg/' + d.v, { joined: ops.remove(S.me) }); toast('You left the squad'); },
+  lfgEnd: async d => { await db().del('lfg/' + d.v); toast('Squad call ended'); },
+  lfgParty: async d => {
+    const x = liveLfg().find(l => l.id === d.v); if (!x) return;
+    for (const u of x.joined || []) notify(u, { type: 'lfg_party', title: `🎮 ${S.profile.name.split(' ')[0]}'s ${x.n} party is starting`, body: 'Jump in the hangout now!', link: { page: 'home' } });
+    actions.hangoutOpen();
+  }
+});
+{
+  const _vModal5V171b = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'lfg') {
+      return head('Squad up', 'Friends who play it get a notification and can tap Join.') + `
+        <label class="search" style="flex:none;max-width:none">${ic('search', 16)}<input id="lfQ" data-model="form.lfQ" data-rerender="1" value="${esc(f.lfQ || '')}" placeholder="Search games" aria-label="Search games"></label>
+        <div class="scroll" style="max-height:210px" data-keep-scroll="lfg">${gamePicker(f.lfG, 'lfgGame', f.lfQ)}</div>
+        ${f.lfG ? '' : `<label class="field">Not in the list?<input class="inp" id="lfName" data-model="form.lfName" value="${esc(f.lfName || '')}" maxlength="60" placeholder="Game name"></label>`}
+        <div class="field">How many players do you need?<div class="pills">${[1, 2, 3, 4, 5].map(n => `<button class="pill ${+f.lfNeed === n ? 'on' : ''}" data-a="lfgNeed" data-v="${n}">${n}</button>`).join('')}</div></div>
+        <label class="field">Note <span style="font-weight:500">(optional)</span><input class="inp" id="lfNote" data-model="form.lfNote" value="${esc(f.lfNote || '')}" maxlength="80" placeholder="Squads, no noobs 😤 / Ranked / Chill games"></label>
+        <div class="field">Keep it up for<div class="pills">${[[30, '30 min'], [60, '1 hour'], [120, '2 hours'], [240, '4 hours']].map(([v, l]) => `<button class="pill ${+f.lfFor === v ? 'on' : ''}" data-a="lfgFor" data-v="${v}">${l}</button>`).join('')}</div></div>
+        <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="lfgPost">${ic('send', 16)} Post to friends</button></div>`;
+    }
+    return _vModal5V171b(m, f, head);
+  };
+}
+
+/* ================= v17.2: phone keyboard — the open chat always fits the screen above the keyboard ================= */
+{
+  const vv = window.visualViewport;
+  const fit = () => { const h = vv ? vv.height : innerHeight; document.documentElement.style.setProperty('--vvh', Math.round(h) + 'px'); if (vv && vv.offsetTop) window.scrollTo(0, 0); };
+  fit();
+  if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); }
+  addEventListener('orientationchange', () => setTimeout(fit, 300));
+  // after the keyboard opens, keep the newest message in view
+  document.addEventListener('focusin', e => { if (e.target && e.target.id === 'composer') setTimeout(() => { const st = document.getElementById('stream'); if (st && st.scrollHeight - st.scrollTop - st.clientHeight < 400) st.scrollTop = st.scrollHeight; }, 350); });
+}
+
+/* ================= v17.3: move things around (Home cards + chat list width) and festival themes ================= */
+// ---------- Home: drag cards anywhere, make them wide or narrow, hide the ones you don't want
+const HOME_CARDS = { pinned: 'Pinned friends', pmoments: 'Moments', wrap: 'Your month', bdays: 'Birthdays coming up', hero: 'Welcome & quick actions', news: 'News from Nexa', hangout: 'Hang out', recent: 'Recent conversations', events: 'Upcoming events', requests: 'Friend requests', invite: 'Invite friends', squad: 'Squad up', active: 'Active now', online: 'Online friends', notifs: 'Notifications', moments: 'Moments', fest: 'Festival' };
+const HOME_DEFAULT = { main: ['fest', 'hero', 'news', 'hangout', 'recent', 'events', 'requests'], side: ['invite', 'squad', 'active', 'online', 'notifs', 'moments'], hidden: [], wide: { fest: 1, hero: 1, news: 1, hangout: 1 } };
+function homeCardKey(sec) {
+  const c = sec.classList, t = (sec.querySelector('h2') || {}).textContent || '';
+  if (c.contains('hero')) return 'hero'; if (c.contains('livecard')) return 'hangout'; if (c.contains('invcard')) return 'invite'; if (c.contains('lfgsec')) return 'squad';
+  if (c.contains('activenow')) return 'active'; if (c.contains('anncard')) return 'news'; if (c.contains('festcard')) return 'fest';
+  return { 'Recent conversations': 'recent', 'Upcoming events': 'events', 'Friend requests': 'requests', 'Online friends': 'online', 'Notifications': 'notifs', 'Moments': 'moments' }[t.trim()] || '';
+}
+function homeLayout() {
+  const p = S.prefs.homeLayout || {}, L = { main: [...(p.main || HOME_DEFAULT.main)], side: [...(p.side || HOME_DEFAULT.side)], hidden: [...(p.hidden || [])], wide: { ...(p.wide || HOME_DEFAULT.wide) } };
+  // cards added in later versions land where they belong by default
+  for (const col of ['main', 'side']) for (const k of HOME_DEFAULT[col]) if (!L.main.includes(k) && !L.side.includes(k) && !L.hidden.includes(k)) { const i = HOME_DEFAULT[col].indexOf(k); L[col].splice(Math.min(i, L[col].length), 0, k); }
+  return L;
+}
+const homeTpl = document.createElement('template');
+{
+  const _vHomeV173 = vHome;
+  vHome = function () {
+    let h = _vHomeV173();
+    // the festival card sits above the welcome card (and can be moved like any other card)
+    const fcard = vFestCard(); if (fcard) h = h.replace(/<section class="hero glass card/, m => fcard + m);
+    const edit = !!S.homeEdit;
+    if (!S.prefs.homeLayout && !edit) return h; // never customised: the original page, untouched
+    homeTpl.innerHTML = h;
+    const root = homeTpl.content.querySelector('.home'); if (!root) return h;
+    const cards = {};
+    let ui = 0;
+    root.querySelectorAll('.h-main section, .h-main .wrapcard, aside.h-right > section').forEach(sec => {
+      if (sec.closest('.h-right-inline')) return;
+      const outer = sec.parentElement && sec.parentElement.closest('section,.wrapcard'); if (outer && outer !== sec) return; // only whole cards
+      const k = homeCardKey(sec) || (sec.classList.contains('pinned') ? 'pinned' : sec.classList.contains('pmoments') ? 'pmoments' : sec.classList.contains('wrapcard') ? 'wrap' : /Birthdays coming up/.test((sec.querySelector('h2') || {}).textContent || '') ? 'bdays' : 'x' + (ui++));
+      if (!cards[k]) cards[k] = sec;
+    });
+    const L = homeLayout();
+    // cards the layout doesn't know yet (pinned friends, birthdays, your month…) appear under the welcome card
+    for (const k of Object.keys(cards)) if (!L.main.includes(k) && !L.side.includes(k) && !L.hidden.includes(k)) { const i = L.main.indexOf('hero'); L.main.splice(i < 0 ? 0 : i + 1, 0, k); }
+    const tools = k => edit ? `<div class="hc-tools"><span class="hc-grip" title="Drag to move">${ic('more', 16)}</span><b class="grow ellip">${esc(HOME_CARDS[k] || k)}</b><button class="ibtn sm" data-a="hcMove" data-v="${k}" data-d="-1" aria-label="Move up">↑</button><button class="ibtn sm" data-a="hcMove" data-v="${k}" data-d="1" aria-label="Move down">↓</button><button class="ibtn sm" data-a="hcSwap" data-v="${k}" title="Move to the other column" aria-label="Other column">⇄</button>${L.main.includes(k) ? `<button class="ibtn sm" data-a="hcWide" data-v="${k}" title="Wide / narrow" aria-label="Wide or narrow">${L.wide[k] ? '◧' : '▭'}</button>` : ''}<button class="ibtn sm" data-a="hcHide" data-v="${k}" title="Hide" aria-label="Hide">${ic('eye', 14)}</button></div>` : '';
+    const one = (k, col) => { const sec = cards[k]; if (!sec) return ''; const wide = col === 'main' && L.wide[k]; return `<div class="hc ${wide ? 'wide' : ''}" data-key="hc_${k}" data-hc="${k}" ${edit ? 'draggable="true"' : ''}>${tools(k)}${sec.outerHTML}</div>`; };
+    const bar = edit ? `<div class="hc-bar glass card"><span class="grow"><b>Customise Home</b><span class="small" style="display:block;opacity:.8">Drag cards by the handle, or use the arrows. ⇄ moves a card to the other column.</span></span>${L.hidden.filter(k => cards[k]).length ? `<span class="hc-hidden">${L.hidden.filter(k => cards[k]).map(k => `<button class="chip" data-a="hcShow" data-v="${k}">${ic('plus', 12)} ${esc(HOME_CARDS[k] || k)}</button>`).join('')}</span>` : ''}<button class="btn sm" data-a="hcReset">Reset</button><button class="btn sm pri" data-a="hcDone">Done</button></div>` : '';
+    return `<div class="home v8 hcustom ${edit ? 'editing' : ''}">${bar}<div class="hc-main" data-col="main">${L.main.map(k => one(k, 'main')).join('')}${edit ? '<div class="hc-drop" data-col="main">Drop here</div>' : ''}</div><aside class="hc-side" data-col="side">${L.side.map(k => one(k, 'side')).join('')}${edit ? '<div class="hc-drop" data-col="side">Drop here</div>' : ''}</aside></div>`;
+  };
+}
+function saveHome(L) { savePrefs({ homeLayout: { main: L.main, side: L.side, hidden: L.hidden, wide: L.wide } }); }
+// smooth: let the browser animate cards sliding to their new place (no extra work while nothing moves)
+const smoothly = fn => { if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(() => { fn(); try { doRender(); } catch { render(); } }); else { fn(); render(); } };
+Object.assign(actions, {
+  homeEdit: () => { S.homeEdit = true; render(); },
+  hcDone: () => { S.homeEdit = false; const L = homeLayout(); saveHome(L); render(); toast('Home layout saved'); },
+  hcReset: () => { savePrefs({ homeLayout: null }); S.prefs.homeLayout = null; render(); },
+  hcMove: d => smoothly(() => { const L = homeLayout(), col = L.main.includes(d.v) ? 'main' : 'side', a = L[col], i = a.indexOf(d.v), j = i + +d.d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; saveHome(L); }),
+  hcSwap: d => smoothly(() => { const L = homeLayout(), from = L.main.includes(d.v) ? 'main' : 'side', to = from === 'main' ? 'side' : 'main'; L[from] = L[from].filter(x => x !== d.v); L[to].unshift(d.v); saveHome(L); }),
+  hcWide: d => smoothly(() => { const L = homeLayout(); L.wide[d.v] = L.wide[d.v] ? 0 : 1; saveHome(L); }),
+  hcHide: d => smoothly(() => { const L = homeLayout(); L.main = L.main.filter(x => x !== d.v); L.side = L.side.filter(x => x !== d.v); L.hidden.push(d.v); saveHome(L); }),
+  hcShow: d => smoothly(() => { const L = homeLayout(); L.hidden = L.hidden.filter(x => x !== d.v); (L.main.includes(d.v) || L.side.includes(d.v) ? null : L[HOME_DEFAULT.side.includes(d.v) ? 'side' : 'main'].push(d.v)); saveHome(L); })
+});
+// drag & drop (computer): pick up a card, drop it before another card or at the end of a column
+{
+  let dragK = null;
+  document.addEventListener('dragstart', e => { const c = e.target.closest && e.target.closest('.hcustom.editing .hc'); if (!c) return; dragK = c.dataset.hc; c.classList.add('dragging'); try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragK); } catch {} });
+  document.addEventListener('dragend', () => { dragK = null; document.querySelectorAll('.hc.dragging,.hc.dropbefore,.hc-drop.over').forEach(x => x.classList.remove('dragging', 'dropbefore', 'over')); });
+  document.addEventListener('dragover', e => {
+    if (!dragK) return; const t = e.target.closest && (e.target.closest('.hcustom .hc') || e.target.closest('.hcustom .hc-drop')); if (!t) return;
+    e.preventDefault(); document.querySelectorAll('.hc.dropbefore,.hc-drop.over').forEach(x => x.classList.remove('dropbefore', 'over')); t.classList.add(t.classList.contains('hc') ? 'dropbefore' : 'over');
+  });
+  document.addEventListener('drop', e => {
+    if (!dragK) return; const t = e.target.closest && (e.target.closest('.hcustom .hc') || e.target.closest('.hcustom .hc-drop')); if (!t) return;
+    e.preventDefault(); const k = dragK; dragK = null;
+    if (t.dataset.hc === k) return;
+    smoothly(() => {
+      const L = homeLayout(); L.main = L.main.filter(x => x !== k); L.side = L.side.filter(x => x !== k);
+      if (t.classList.contains('hc')) { const tk = t.dataset.hc, col = L.main.includes(tk) ? 'main' : 'side'; L[col].splice(L[col].indexOf(tk), 0, k); }
+      else L[t.dataset.col === 'side' ? 'side' : 'main'].push(k);
+      saveHome(L);
+    });
+  });
+}
+// the "Customise" button at the top of Home
+{
+  const _vHomeV173b = vHome;
+  vHome = function () {
+    let h = _vHomeV173b();
+    if (!S.homeEdit) h = h.replace(/(<section class="hero glass card[^"]*"[^>]*>)/, `$1<button class="hc-open" data-a="homeEdit" title="Move, resize or hide the cards on Home">${ic('brush', 14)} Customise</button>`);
+    return h;
+  };
+}
+
+// ---------- Messages: drag the edge of the chat list to make it wider or narrower (saved)
+{
+  const _vMessagesV173 = vMessages;
+  vMessages = function () {
+    let h = _vMessagesV173();
+    const w = +S.prefs.convW || 0;
+    if (w) h = h.replace('<div class="msgs-page ', `<div style="--convw:${w}px" class="msgs-page `);
+    return h.replace('<aside class="convs glass card">', '<aside class="convs glass card"><div class="convresize" data-morph-skip="1" title="Drag to resize" aria-hidden="true"></div>');
+  };
+  let rs = null;
+  document.addEventListener('pointerdown', e => { const g = e.target.closest && e.target.closest('.convresize'); if (!g || innerWidth < 900) return; const pg = g.closest('.msgs-page'); rs = { x: e.clientX, w: g.parentElement.getBoundingClientRect().width, pg }; g.setPointerCapture && g.setPointerCapture(e.pointerId); document.documentElement.classList.add('resizing'); e.preventDefault(); });
+  document.addEventListener('pointermove', e => { if (!rs) return; const w = Math.round(Math.max(240, Math.min(520, rs.w + e.clientX - rs.x))); rs.cur = w; rs.pg.style.setProperty('--convw', w + 'px'); });
+  const end = () => { if (!rs) return; if (rs.cur) savePrefs({ convW: rs.cur }); rs = null; document.documentElement.classList.remove('resizing'); };
+  document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end);
+  document.addEventListener('dblclick', e => { if (e.target.closest && e.target.closest('.convresize')) { savePrefs({ convW: 0 }); render(); } });
+}
+
+// ---------- Festival themes: switch on by themselves 7 days before, with a notification; can be turned off
+// Dates of moving festivals (from published calendars); fixed ones are calculated.
+const FEST_DATES = {
+  dussehra: ['2026-10-20', '2027-10-09'], diwali: ['2026-11-08', '2027-10-29', '2028-10-17'], gurpurab: ['2026-11-24', '2027-11-14'],
+  hanukkah: ['2026-12-04', '2027-12-24'], lunar: ['2027-02-06', '2028-01-26'], holi: ['2027-03-22', '2028-03-11'],
+  eidfitr: ['2027-03-10', '2028-02-27'], eidadha: ['2027-05-17', '2028-05-05'], rakhi: ['2027-08-17'], ganesh: ['2027-09-04'], onam: ['2027-09-12']
+};
+const easterOf = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return `${y}-${pad(mo)}-${pad(da)}`; };
+const thanksgivingOf = y => { const d = new Date(y, 10, 1); const first = (4 - d.getDay() + 7) % 7 + 1; return `${y}-11-${pad(first + 21)}`; };
+// [key, name, emoji, colour 1, colour 2, colour 3, particles, greeting, wish line]
+const FESTS = [
+  ['newyear', 'New Year', '🎆', '#ffd25e', '#9b6bff', '#2d1b69', ['✨', '🎆', '🥂', '🎇'], 'Happy New Year!', 'Wishing you an amazing year ahead'],
+  ['lunar', 'Lunar New Year', '🏮', '#ff3b3b', '#ffd25e', '#5c0a0a', ['🏮', '🧧', '✨', '🐉'], 'Happy Lunar New Year!', 'Wishing you luck and happiness'],
+  ['valentine', "Valentine's Day", '💝', '#ff4d8d', '#ff9ec4', '#4a0b2a', ['💗', '💕', '💖', '🌹'], "Happy Valentine's Day!", 'Sending you lots of love'],
+  ['holi', 'Holi', '🎨', '#ff4fb1', '#29b6f6', '#3a1060', ['🟣', '🟡', '🟢', '🔵', '🌸'], 'Happy Holi!', 'May your life be full of colours'],
+  ['eidfitr', 'Eid al-Fitr', '🌙', '#2ecc71', '#ffd25e', '#0b3a2a', ['🌙', '⭐', '✨', '🏮'], 'Eid Mubarak!', 'Wishing you peace and happiness'],
+  ['easter', 'Easter', '🐣', '#ffb3d9', '#b3e5ff', '#3b2a5c', ['🥚', '🐣', '🌷', '🐰'], 'Happy Easter!', 'Wishing you a sweet Easter'],
+  ['eidadha', 'Eid al-Adha', '🌙', '#2ecc71', '#ffd25e', '#0b3a2a', ['🌙', '⭐', '✨', '🕌'], 'Eid al-Adha Mubarak!', 'Wishing you and your family blessings'],
+  ['july4', 'Independence Day (US)', '🎆', '#3b6cff', '#ff4d4d', '#0b1a4a', ['🎆', '⭐', '🇺🇸', '✨'], 'Happy 4th of July!', 'Have a great Fourth!'],
+  ['india', 'Independence Day (India)', '🇮🇳', '#ff9933', '#138808', '#0a2a5c', ['🇮🇳', '🪁', '✨', '🧡'], 'Happy Independence Day!', 'Jai Hind 🇮🇳'],
+  ['rakhi', 'Raksha Bandhan', '🪢', '#ff7a45', '#ffd25e', '#4a1a0a', ['🪢', '✨', '🌸', '💛'], 'Happy Raksha Bandhan!', 'To the best sibling ever'],
+  ['ganesh', 'Ganesh Chaturthi', '🐘', '#ff9a3c', '#ffd25e', '#4a1a00', ['🌺', '✨', '🪔', '🐘'], 'Happy Ganesh Chaturthi!', 'Ganpati Bappa Morya!'],
+  ['onam', 'Onam', '🌼', '#ffd25e', '#3fbf6f', '#1a3a0a', ['🌼', '🌸', '✨', '🛶'], 'Happy Onam!', 'Wishing you a joyful Onam'],
+  ['dussehra', 'Dussehra', '🏹', '#ff7a1a', '#ffd25e', '#4a0f00', ['🏹', '🔥', '✨', '🌼'], 'Happy Dussehra!', 'May good always win'],
+  ['halloween', 'Halloween', '🎃', '#ff7a1a', '#9b4dff', '#1a0b2e', ['🦇', '🎃', '👻', '🕸️', '🍬'], 'Happy Halloween!', 'Have a spooky-fun night 👻'],
+  ['diwali', 'Diwali', '🪔', '#ffb300', '#ff5722', '#2a0f00', ['🪔', '✨', '🎇', '🌟'], 'Happy Diwali!', 'May your life shine bright like a thousand diyas'],
+  ['gurpurab', 'Guru Nanak Jayanti', '🪯', '#ffb300', '#1e88e5', '#0a1a3a', ['✨', '🪔', '🌟'], 'Happy Gurpurab!', 'Wishing you peace and light'],
+  ['thanksgiving', 'Thanksgiving', '🦃', '#d2691e', '#ffb347', '#3a1a05', ['🍂', '🍁', '🦃', '🥧'], 'Happy Thanksgiving!', 'Thankful for you'],
+  ['hanukkah', 'Hanukkah', '🕎', '#4aa3ff', '#e0e8ff', '#0a1a3a', ['🕎', '✨', '⭐', '🕯️'], 'Happy Hanukkah!', 'Wishing you eight nights of light'],
+  ['christmas', 'Christmas', '🎄', '#e53935', '#2ecc71', '#0a2a14', ['❄️', '🎄', '🎁', '⭐', '❄️'], 'Merry Christmas!', 'Wishing you a magical Christmas']
+];
+function festDate(k, y) {
+  const fixed = { newyear: `${y}-01-01`, valentine: `${y}-02-14`, july4: `${y}-07-04`, india: `${y}-08-15`, halloween: `${y}-10-31`, christmas: `${y}-12-25` }[k];
+  if (fixed) return fixed;
+  if (k === 'easter') return easterOf(y);
+  if (k === 'thanksgiving') return thanksgivingOf(y);
+  return (FEST_DATES[k] || []).find(d => d.startsWith(y + '-')) || '';
+}
+const dayNum = s => { const [y, m, d] = s.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
+// the festival happening now: from 7 days before until the day after; the nearest one wins
+function currentFest() {
+  if (S.prefs.festOff) return null;
+  // preview switch for testing a look early: localStorage nexa.festTest = {"k":"diwali","left":3}
+  const ft = lsGet('nexa.festTest', null); if (ft && ft.k) { const f = FESTS.find(x => x[0] === ft.k); if (f) return { f, left: +ft.left || 0, score: 0, year: 0, id: f[0] + '_test' }; }
+  const t = new Date(), today = Math.round(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / 864e5);
+  let best = null;
+  for (const f of FESTS) for (const y of [t.getFullYear(), t.getFullYear() + 1]) {
+    const ds = festDate(f[0], y); if (!ds) continue;
+    const left = dayNum(ds) - today; if (left > 7 || left < -1) continue;
+    const score = left >= 0 ? left : 10 + -left;
+    if (!best || score < best.score) best = { f, left, score, year: y, id: f[0] + '_' + y };
+  }
+  return best;
+}
+const festParticles = (f, n) => { let h = ''; for (let i = 0; i < n; i++) { const r = (hash(f[0] + i) % 1000) / 1000, r2 = (hash('y' + i + f[0]) % 1000) / 1000; h += `<i style="--x:${(r * 100).toFixed(1)}%;--d:${(9 + r2 * 9).toFixed(1)}s;--w:${(-r * 18).toFixed(1)}s;--s:${(.7 + r2 * .7).toFixed(2)};--r:${Math.round(r * 60 - 30)}deg">${f[6][i % f[6].length]}</i>`; } return h; };
+function applyFest() {
+  const cur = currentFest(), r = document.documentElement;
+  const k = cur ? cur.f[0] : '';
+  if (r.dataset.fest !== k) {
+    r.dataset.fest = k;
+    if (cur) { r.style.setProperty('--fest1', cur.f[3]); r.style.setProperty('--fest2', cur.f[4]); r.style.setProperty('--fest3', cur.f[5]); }
+    let layer = document.getElementById('festLayer');
+    if (cur && !S.prefs.festNoFx) { if (!layer) { layer = document.createElement('div'); layer.id = 'festLayer'; layer.setAttribute('aria-hidden', 'true'); document.body.appendChild(layer); } layer.innerHTML = festParticles(cur.f, isPhoneish() ? 7 : 14); }
+    else if (layer) layer.remove();
+  }
+  return cur;
+}
+// once per festival: a notification when the theme arrives, and a greeting on the day
+function festNotify() {
+  const cur = currentFest(); if (!cur || !S.me || !S.profile || !S.prefsLoaded || S.prefs.festNoNotify) return;
+  const seen = S.prefs.festSeen || {}, f = cur.f;
+  if (cur.left < 0) return; // the day after: no greeting any more
+  const stage = cur.left === 0 ? 'day' : 'start'; const key = cur.id + ':' + stage;
+  if (seen[key]) return;
+  savePrefs({ festSeen: { ...seen, [key]: now() } });
+  const title = stage === 'day' ? `${f[2]} ${f[7]}` : `${f[2]} ${f[1]} is coming — Nexa got a festive new look!`;
+  const body = stage === 'day' ? 'Tap to send wishes to your friends 💌' : `${cur.left} day${cur.left === 1 ? '' : 's'} to go. You can turn festival looks off in Settings › Appearance.`;
+  db().add('notifications', { to: S.me, from: '', type: 'fest', title, body, at: now(), read: false, link: { page: 'home' } }).catch(() => {});
+  try { deviceNotify(title, body); } catch {}
+}
+setInterval(() => { if (S.view === 'app') { const before = document.documentElement.dataset.fest; applyFest(); if (before !== document.documentElement.dataset.fest) render(); festNotify(); } }, 60000);
+setTimeout(() => { applyFest(); festNotify(); render(); }, 4000);
+function vFestCard() {
+  const cur = applyFest();
+  if (cur && S.prefsLoaded && cur.left >= 0 && !(S.prefs.festSeen || {})[cur.id + ':' + (cur.left === 0 ? 'day' : 'start')]) setTimeout(festNotify, 0);
+  if (!cur || (S.prefs.festHide || {})[cur.id]) return '';
+  const f = cur.f, today = cur.left <= 0;
+  return `<section class="panel glass card festcard" style="--f1:${f[3]};--f2:${f[4]};--f3:${f[5]}">
+    <div class="fc-art" aria-hidden="true"><span class="fc-big">${f[2]}</span>${festParticles(f, 6)}</div>
+    <div class="fc-txt"><span class="kick" style="color:#fff">${today ? (cur.left === 0 ? 'Today' : 'Yesterday') : `${cur.left} day${cur.left === 1 ? '' : 's'} to go`}</span>
+      <h2 class="disp" style="margin:2px 0 4px;font-size:clamp(20px,2.4vw,28px)">${today ? esc(f[7]) : esc(f[1]) + ' is coming'}</h2>
+      <span class="small" style="opacity:.9">${today ? 'Send your friends a festive card — it plays a little show when they open the chat.' : 'Nexa dressed up for the week. Send wishes when the day comes!'}</span>
+      <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm fc-go" data-a="festWish">${ic('send', 14)} Send ${esc(f[1])} wishes</button><button class="btn sm" data-a="festHide" data-v="${cur.id}">Hide</button></div></div>
+  </section>`;
+}
+// wishes: a festive card in the chat
+Object.assign(actions, {
+  festHide: d => { savePrefs({ festHide: { ...(S.prefs.festHide || {}), [d.v]: 1 } }); render(); },
+  festWish: () => { S.form.fwPick = []; S.modal = { type: 'festWish' }; render(); },
+  fwPick: d => { const l = S.form.fwPick || (S.form.fwPick = []); const i = l.indexOf(d.v); i >= 0 ? l.splice(i, 1) : l.push(d.v); render(); },
+  fwAll: () => { S.form.fwPick = friendIds().slice(0, 50); render(); },
+  fwSend: async () => {
+    const cur = currentFest(); if (!cur) return;
+    const who = (S.form.fwPick || []).slice(0, 50); if (!who.length) return toast('Pick at least one friend');
+    S.modal = null; render();
+    let n = 0;
+    for (const u of who) { const cid = await ensureDM(u).catch(() => null); if (!cid) continue; await sendMessage({ fest: { k: cur.f[0], t: (S.form.fwNote || '').trim().slice(0, 120) } }, cid).catch(() => {}); n++; }
+    toast(`${cur.f[2]} Wishes sent to ${n} friend${n === 1 ? '' : 's'}`); try { confetti(); } catch {}
+  },
+  festPrefs: d => { savePrefs({ [d.k]: !S.prefs[d.k] }); document.documentElement.dataset.fest = '-'; applyFest(); render(); }
+});
+{
+  const _vModal5V173 = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'festWish') {
+      const cur = currentFest(); if (!cur) return head('Festival wishes', 'No festival right now.');
+      const sel = f.fwPick || [];
+      return head(`${cur.f[2]} Send ${esc(cur.f[1])} wishes`, 'Each friend gets a festive card in your chat.') + `
+        <label class="field">Add a note <span style="font-weight:500">(optional)</span><input class="inp" id="fwNote" data-model="form.fwNote" value="${esc(f.fwNote || '')}" maxlength="120" placeholder="${esc(cur.f[8])}"></label>
+        <div class="row spread"><span class="small mute">${sel.length} selected</span><button class="small" style="color:var(--ac2);font-weight:800" data-a="fwAll">Select all</button></div>
+        <div class="col scroll" style="gap:4px;max-height:300px" data-keep-scroll="fw">${friendIds().map(u => `<button class="item ${sel.includes(u) ? 'on' : ''}" data-a="fwPick" data-v="${u}">${av(u, 36)}<b class="grow ellip">${esc(dname(u))}</b>${sel.includes(u) ? ic('check', 16, 3) : ''}</button>`).join('') || '<div class="mute small">Add some friends first.</div>'}</div>
+        <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="fwSend">${ic('send', 16)} Send wishes</button></div>`;
+    }
+    return _vModal5V173(m, f, head);
+  };
+}
+{
+  const _vMsgBodyV173 = vMsgBody;
+  vMsgBody = function (m, q, quote) {
+    if (m.fest && !m.deleted) {
+      const f = FESTS.find(x => x[0] === m.fest.k); if (!f) return _vMsgBodyV173(m, q, quote);
+      return `<div class="festmsg" style="--f1:${f[3]};--f2:${f[4]};--f3:${f[5]}">${quote}<div class="fm-art" aria-hidden="true"><span>${f[2]}</span>${festParticles(f, 5)}</div><b>${esc(f[7])}</b><span>${esc(m.fest.t || f[8])}</span></div>`;
+    }
+    return _vMsgBodyV173(m, q, quote);
+  };
+  const _msgLabelV173 = msgLabel;
+  msgLabel = m => m.fest ? ((FESTS.find(x => x[0] === m.fest.k) || [, , '🎉'])[2] + ' ' + ((FESTS.find(x => x[0] === m.fest.k) || [])[7] || 'Festival wishes')) : _msgLabelV173(m);
+}
+// Settings › Appearance: switch festival looks, effects and notifications off
+{
+  const _vSettingsV173 = vSettings;
+  vSettings = function () {
+    let h = _vSettingsV173();
+    if (S.setSec !== 'appearance') return h;
+    const tg = (k, on, label) => `<button class="tog ${on ? 'on' : ''}" role="switch" aria-checked="${on}" aria-label="${label}" data-a="festPrefs" data-k="${k}"></button>`;
+    const cur = currentFest(), nxt = (() => { const t = new Date(); let b = null; for (const f of FESTS) for (const y of [t.getFullYear(), t.getFullYear() + 1]) { const ds = festDate(f[0], y); if (!ds) continue; const left = dayNum(ds) - dayNum(`${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`); if (left >= 0 && (!b || left < b.left)) b = { f, left }; } return b; })();
+    const block = `<div class="sec" style="margin-top:6px">Festivals</div>
+      <div class="setrow"><span><b>Festival looks</b><div class="mute small">Nexa dresses up for Diwali, Halloween, Christmas, Eid, Holi and more — from 7 days before. ${cur ? `Now: ${cur.f[2]} ${esc(cur.f[1])}.` : nxt ? `Next: ${nxt.f[2]} ${esc(nxt.f[1])} in ${nxt.left} days.` : ''}</div></span>${tg('festOff', !S.prefs.festOff, 'Festival looks')}</div>
+      <div class="setrow"><span><b>Falling decorations</b><div class="mute small">The diyas, snowflakes, bats… floating across the screen</div></span>${tg('festNoFx', !S.prefs.festNoFx, 'Falling decorations')}</div>
+      <div class="setrow"><span><b>Festival notifications</b><div class="mute small">A heads-up when a festival look arrives, and a greeting on the day</div></span>${tg('festNoNotify', !S.prefs.festNoNotify, 'Festival notifications')}</div>`;
+    const i = h.indexOf('<div class="field">Brightness');
+    return i > 0 ? h.slice(0, i) + block + h.slice(i) : h;
+  };
+}
+
+/* ================= v17.4: voice channels with "Go Live" (stream your screen to the channel) ================= */
+// community voice channels join with the camera off but a video slot ready, so anyone can go live at any time
+const roomDoc = rid => (S.rooms || []).find(x => x.id === rid) || null;
+const liveIn = r => r ? Object.entries(r.live || {}).filter(([u, t]) => t && fresh((r.participants || {})[u])).map(([u]) => u) : [];
+{
+  const _roomJoinV174 = actions.roomJoin, _roomJoinIdV174 = actions.roomJoinId;
+  actions.roomJoin = d => {
+    if (String(d.v || '').startsWith('cv_')) { const cm = commOf(d.c); return joinRoom(d.v, 'video', d.n || 'Voice', { scope: 'community', ref: d.c, audience: cm ? cm.members : [S.me] }, { cam: false }); }
+    return _roomJoinV174(d);
+  };
+  actions.roomJoinId = d => {
+    const r = roomDoc(d.v);
+    if (r && String(r.id).startsWith('cv_')) return joinRoom(r.id, 'video', r.name || 'Voice', { scope: r.scope, ref: r.ref, audience: r.audience }, { cam: false });
+    return _roomJoinIdV174(d);
+  };
+}
+// going live: tell the room, give the stream more quality, and stop cleanly
+{
+  const _toggleShareV174 = toggleShare;
+  toggleShare = async function (target) {
+    const was = target === 'room' && R ? !!R.screen : false;
+    await _toggleShareV174(target);
+    if (target !== 'room' || !R) return;
+    const live = !!R.screen;
+    if (live === was) return;
+    db().update('rooms/' + R.id, { ['live.' + S.me]: live ? now() : 0 }).catch(() => {});
+    if (live) {
+      const vt = R.screen.getVideoTracks()[0]; try { vt.contentHint = 'motion'; } catch {}
+      // games move a lot: smooth 30 fps, more bits for the stream (shared between viewers)
+      const n = Math.max(1, Object.keys(R.peers).length);
+      for (const P of Object.values(R.peers)) { const s = videoSender(P.pc); if (!s) continue; try { const p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}]; Object.assign(p.encodings[0], { maxBitrate: Math.round(Math.max(600e3, 2500e3 / n)), maxFramerate: 30, scaleResolutionDownBy: 1 }); p.degradationPreference = 'maintain-framerate'; await s.setParameters(p); } catch {} }
+      toast('🔴 You\'re live — everyone in the room can watch your screen');
+    }
+    paintRoom(true);
+  };
+}
+// the room screen: a big Go Live button, LIVE badges, and the stream gets the big spot (double-click = full screen)
+{
+  const _paintRoomV174 = paintRoom;
+  paintRoom = function (force) {
+    _paintRoomV174(force);
+    const layer = document.getElementById('roomLayer'); if (!R || !layer || R.min) return;
+    const doc = R.doc || roomDoc(R.id), lives = new Set([...liveIn(doc), ...(R.screen ? [S.me] : [])]);
+    const head = layer.querySelector('.room-head');
+    if (head && R.kind === 'video' && navigator.mediaDevices?.getDisplayMedia) {
+      let b = head.querySelector('.golive');
+      if (!b) { b = document.createElement('button'); b.className = 'golive'; b.dataset.r = 'share'; head.insertBefore(b, head.querySelector('[data-r="min"]')); }
+      const txt = R.screen ? '■ Stop streaming' : '● Go Live'; if (b.textContent !== txt) b.textContent = txt; b.classList.toggle('on', !!R.screen);
+    }
+    const tiles = layer.querySelector('.tiles'); if (tiles) tiles.classList.toggle('has-live', lives.size > 0);
+    layer.querySelectorAll('.tile').forEach(t => {
+      const on = lives.has(t.dataset.u); t.classList.toggle('islive', on);
+      let bd = t.querySelector('.livebadge'); if (on && !bd) { bd = document.createElement('span'); bd.className = 'livebadge'; bd.textContent = 'LIVE'; t.appendChild(bd); } else if (!on && bd) bd.remove();
+    });
+  };
+  document.addEventListener('dblclick', e => { const t = e.target.closest && e.target.closest('#roomLayer .tile.islive'); if (!t) return; const v = t.querySelector('video'); try { document.fullscreenElement ? document.exitFullscreen() : (v || t).requestFullscreen(); } catch {} });
+}
+// the channel list shows who's streaming
+{
+  const _vCommunitiesV174 = vCommunities;
+  vCommunities = function () {
+    return _vCommunitiesV174().replace(/(<button class="item chan" data-a="roomJoin" data-v="(cv_[^"]+)"[\s\S]*?)(<\/button>)/g, (m, a, rid, end) => {
+      const lv = liveIn(roomDoc(rid)); if (!lv.length) return m;
+      return a.replace('<span class="live">LIVE</span>', '') + `<span class="livestream" title="${esc(lv.map(dname).join(', '))} streaming">● ${esc(dname(lv[0]).split(' ')[0])}${lv.length > 1 ? ' +' + (lv.length - 1) : ''}</span>` + end;
+    });
+  };
+}
+// leaving the room while live: clear the flag
+{
+  const _leaveRoomV174 = leaveRoom;
+  leaveRoom = async function (...a) { if (R && R.screen) db().update('rooms/' + R.id, { ['live.' + S.me]: 0 }).catch(() => {}); return _leaveRoomV174(...a); };
+}
+
+/* ================= v17.4: search every chat — with filters (photos, videos, links, voice, who sent it, when) ================= */
+const URL_RE = /https?:\/\/[^\s<>"']+/i;
+const msgKind = m => (m.images && m.images.length) || m.image || m.stickerImg ? 'photo' : m.video ? 'video' : m.audio ? 'voice' : (m.preview || URL_RE.test(m.text || '')) ? 'link' : m.poll ? 'poll' : 'text';
+function searchResults() {
+  const f = S.form, q = (f.sq || '').trim().toLowerCase(), type = f.sType || 'all', from = f.sFrom || '', when = +f.sWhen || 0, inC = f.sIn || '';
+  const convs = sortedConvs(true).slice(0, 30).filter(c => !inC || c.id === inC);
+  const since = when ? now() - when * 864e5 : 0, out = [];
+  for (const c of convs) for (const m of (msgCache[c.id]?.list || S.msgs[c.id] || [])) {
+    if (m.deleted || m.system || m.once || m.bot && type !== 'all' || (m.expiresAt && m.expiresAt < now()) || m.at <= hiddenAt(c) || blocked(m.from) || m.at < since) continue;
+    if (from && m.from !== from) continue;
+    const k = msgKind(m); if (type !== 'all' && k !== type) continue;
+    const text = [m.text, m.poll?.q, m.preview?.title, m.preview?.url, m.fest ? (FESTS.find(x => x[0] === m.fest.k) || [])[7] : ''].filter(Boolean).join(' ');
+    if (q && !text.toLowerCase().includes(q)) continue;
+    if (!q && type === 'all' && !from && !when && !inC) continue;
+    out.push({ c, m, k, text });
+  }
+  const seen = new Set();
+  return out.filter(x => !seen.has(x.m.id) && seen.add(x.m.id)).sort((a, b) => b.m.at - a.m.at).slice(0, 120);
+}
+Object.assign(actions, {
+  searchOpen: async () => {
+    Object.assign(S.form, { sq: S.convQ || '', sType: 'all', sFrom: '', sWhen: 0, sIn: '' });
+    S.menu = null; S.modal = { type: 'search2', loading: true }; render();
+    await loadSearchMsgs(sortedConvs(true).slice(0, 30));
+    if (S.modal?.type === 'search2') { S.modal.loading = false; render(); }
+  },
+  sType: d => { S.form.sType = d.v; render(); },
+  sWhen: d => { S.form.sWhen = +d.v; render(); },
+  searchHit: d => { S.modal = null; S.page = 'messages'; openConv(d.v); render(); setTimeout(() => jumpTo(d.m), 350); }
+});
+{
+  const _vModal5V174 = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'search2') {
+      const res = m.loading ? [] : searchResults(), type = f.sType || 'all';
+      const people = [...new Set(sortedConvs(true).slice(0, 30).flatMap(c => c.members || []))].filter(u => u !== 'nexa-bot').sort((a, b) => (a === S.me ? -1 : b === S.me ? 1 : dname(a).localeCompare(dname(b))));
+      const types = [['all', 'All', 'search'], ['photo', 'Photos', 'photo'], ['video', 'Videos', 'video'], ['link', 'Links', 'link'], ['voice', 'Voice', 'mic'], ['poll', 'Polls', 'poll']];
+      const q = (f.sq || '').trim().toLowerCase(), any = q || type !== 'all' || f.sFrom || +f.sWhen || f.sIn;
+      const thumb = x => { const im = shouldBlur(x.m) ? '' : safeImg((x.m.images || [])[0] || x.m.image || x.m.stickerImg); return `<button class="sgrid-i" data-a="searchHit" data-v="${x.c.id}" data-m="${x.m.id}" title="${esc(convName(x.c))} · ${fmtWhen(x.m.at)}">${im ? `<img src="${im}" alt="" loading="lazy">` : ic('photo', 22)}</button>`; };
+      const row = x => `<button class="item" data-a="searchHit" data-v="${x.c.id}" data-m="${x.m.id}">${av(x.m.from, 38)}<span class="grow" style="min-width:0"><span class="row spread" style="gap:8px"><b class="ellip small">${esc(x.m.from === S.me ? 'You' : dname(x.m.from))} <span class="mute" style="font-weight:500">in ${esc(convName(x.c))}</span></b><span class="mute small" style="flex-shrink:0">${fmtWhen(x.m.at)}</span></span><span class="small ellip" style="display:block;opacity:.85">${x.k === 'voice' ? '🎤 Voice message' : x.k === 'video' ? '🎬 ' + esc(x.text || 'Video') : x.k === 'poll' ? '📊 ' + esc(x.m.poll?.q || 'Poll') : x.text ? (q ? snippet(x.text, q) : esc(x.text.slice(0, 120))) : esc(msgLabel(x.m))}</span></span></button>`;
+      return head('Search all chats', 'Find any message, photo or link — across every chat.') + `
+        <label class="search" style="flex:none;max-width:none">${ic('search', 16)}<input id="sq" data-model="form.sq" data-rerender="1" value="${esc(f.sq || '')}" placeholder="Search messages…" aria-label="Search messages" data-autofocus></label>
+        <div class="pills" style="flex-wrap:wrap">${types.map(([k, l, i]) => `<button class="pill ${type === k ? 'on' : ''}" data-a="sType" data-v="${k}">${ic(i, 13)} ${l}</button>`).join('')}</div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <select class="inp" style="width:auto;flex:1;min-width:140px" id="sFrom" data-model="form.sFrom" data-rerender="1" aria-label="From"><option value="">From anyone</option>${people.map(u => `<option value="${esc(u)}" ${f.sFrom === u ? 'selected' : ''}>${u === S.me ? 'From me' : 'From ' + esc(dname(u))}</option>`).join('')}</select>
+          <select class="inp" style="width:auto;flex:1;min-width:140px" id="sIn" data-model="form.sIn" data-rerender="1" aria-label="In chat"><option value="">In any chat</option>${sortedConvs(true).slice(0, 30).map(c => `<option value="${esc(c.id)}" ${f.sIn === c.id ? 'selected' : ''}>In ${esc(convName(c))}</option>`).join('')}</select>
+          <select class="inp" style="width:auto;flex:1;min-width:120px" id="sWhen" data-model="form.sWhen" data-rerender="1" aria-label="When"><option value="0">Any time</option>${[[1, 'Today'], [7, 'Last 7 days'], [30, 'Last 30 days'], [365, 'This year']].map(([v, l]) => `<option value="${v}" ${+f.sWhen === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        </div>
+        <div class="col scroll" style="gap:4px;max-height:52vh;min-height:120px" data-keep-scroll="search2">
+          ${m.loading ? '<div class="mute small" style="padding:10px">Getting your chats ready…</div>'
+            : !any ? '<div class="empty" style="padding:18px"><b>Search everything</b><span>Type a word, or tap Photos, Links or Voice to see them all.</span></div>'
+            : !res.length ? '<div class="empty" style="padding:18px"><b>Nothing found</b><span>Try another word or remove a filter.</span></div>'
+            : type === 'photo' ? `<div class="sgrid">${res.map(thumb).join('')}</div>` : res.map(row).join('')}
+        </div>
+        ${!m.loading && res.length ? `<div class="mute small">${res.length === 120 ? 'Showing the newest 120 results' : res.length + ' result' + (res.length === 1 ? '' : 's')} · searches your 30 most recent chats</div>` : ''}`;
+    }
+    return _vModal5V174(m, f, head);
+  };
+}
+// a search button at the top of Messages, and Ctrl/⌘ + Shift + F anywhere
+{
+  const _vMessagesV174 = vMessages;
+  vMessages = function () {
+    return _vMessagesV174().replace('<button class="ibtn" aria-label="New group" title="New group" data-a="newGroup">', `<button class="ibtn" aria-label="Search all chats" title="Search all chats (Ctrl Shift F)" data-a="searchOpen">${ic('search', 18)}</button><button class="ibtn" aria-label="New group" title="New group" data-a="newGroup">`);
+  };
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f') && S.view === 'app') { e.preventDefault(); actions.searchOpen(); } });
+}
+
+/* ================= v17.4: streak rewards — keep a chat streak going and BOTH of you unlock styles ================= */
+const STREAK_REWARDS = [[7, 'deco', 'flame', 'Flame ring'], [30, 'fx', 'embers', 'Embers'], [100, 'name', 'molten', 'Molten name']];
+DECOS.push(['flame', 'Flame ring']); PFX_LIST.push(['embers', 'Embers']); NSTYLES.push(['molten', 'Molten']);
+const bestStreak = () => Math.max(0, ...S.convs.filter(c => c.type === 'dm').map(c => Math.max(c.streak?.best || 0, streakOf(c))));
+const streakNeed = (kind, k) => (STREAK_REWARDS.find(r => r[1] === kind && r[2] === k) || [0])[0];
+{
+  // locked until earned (invite rewards keep their own rule)
+  const _lockedForV174 = lockedFor;
+  lockedFor = (kind, k) => { const n = streakNeed(kind, k); if (n) return bestStreak() < n ? n : 0; return _lockedForV174(kind, k); };
+}
+// remember each chat's best streak (so a reward stays unlocked even if the streak ends later)
+{
+  const _bumpStreakV174 = bumpStreak;
+  bumpStreak = async function (c) {
+    await _bumpStreakV174(c);
+    const st = (convOf(c.id) || c).streak || {};
+    if ((st.count || 0) > (st.best || 0)) db().update('conversations/' + c.id, { 'streak.best': st.count }).catch(() => {});
+  };
+}
+// celebrate when a streak reaches 7, 30 or 100 days (both people see it)
+setInterval(() => {
+  if (S.view !== 'app' || !S.me || S.modal || !S.prefsLoaded) return;
+  const seen = S.prefs.streakSeen || {};
+  for (const c of S.convs) {
+    if (c.type !== 'dm') continue; const n = streakOf(c);
+    const hit = STREAK_REWARDS.filter(r => n >= r[0] && !seen[c.id + ':' + r[0]]).pop(); if (!hit) continue;
+    savePrefs({ streakSeen: { ...seen, ...Object.fromEntries(STREAK_REWARDS.filter(r => n >= r[0]).map(r => [c.id + ':' + r[0], now()])) } });
+    S.modal = { type: 'streakWin', cid: c.id, n: hit[0], reward: hit[3] }; render(); try { confetti(); } catch {}
+    break;
+  }
+}, 4000);
+// a streak about to end: an hourglass on the chat, and a nudge in the chat itself
+{
+  const atRisk = c => { const st = c.streak; if (!st || !st.count || st.count < 2 || S.prefs.hideStreaks) return false; return st.lastDay === yesterdayKey() && (st.days || {})[S.me] !== todayKey(); };
+  const _sb = streakBadge;
+  streakBadge = c => { const h = _sb(c); return h && atRisk(c) ? h.replace('<span class="streak"', '<span class="streak risk" title="Message today to keep your streak!"').replace('</span>', ' ⏳</span>') : h; };
+  const _vChatV174s = vChat;
+  vChat = function (c) {
+    let h = _vChatV174s(c);
+    if (c.type === 'dm' && atRisk(c) && new Date().getHours() >= 12) h = h.replace('<div class="composer-wrap" data-key="cwrap">', `<div class="composer-wrap" data-key="cwrap"><div class="ctx glass streakrisk">🔥 <span class="grow"><b>Your ${c.streak.count}-day streak ends tonight</b> <span class="mute small">— send a message to keep it going</span></span></div>`);
+    return h;
+  };
+}
+// Profile studio: streak rewards are locked with a 🔥, plus a line showing your best streak
+{
+  const _vModal5V174s = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'streakWin') {
+      const c = convOf(m.cid), who = c ? dname(others(c)[0]).split(' ')[0] : 'your friend';
+      return `<div class="col" style="align-items:center;text-align:center;gap:12px;padding:8px 4px"><div class="streakbig">🔥<b>${m.n}</b></div><h2 class="disp" style="margin:0;font-size:26px">${m.n}-day streak with ${esc(who)}!</h2><div class="mute" style="line-height:1.5">You both unlocked <b style="color:var(--text)">${esc(m.reward)}</b>. Try it in Profile studio.</div><div class="row" style="gap:10px"><button class="btn" data-a="closeModal">Nice!</button><button class="btn pri" data-a="studioOpen">Try it on</button></div></div>`;
+    }
+    let h = _vModal5V174s(m, f, head);
+    if (m.type !== 'studio' || h == null) return h;
+    for (const [n, kind, k] of STREAK_REWARDS) {
+      if (!lockedFor(kind, k)) continue;
+      const key = kind === 'deco' ? 'stDeco' : kind === 'fx' ? 'stFx' : 'stName', cls = kind === 'fx' ? ' fxt' : '';
+      for (const on of ['', 'on']) h = h.replace(`class="sttile${cls} ${on}" data-a="stSet" data-k="${key}" data-v="${k}"`, `class="sttile${cls} locked streaklock" data-a="stStreakLocked" data-v="${n}" data-lockn="${n}"`);
+    }
+    if ((f.stTab || 'style') === 'style') h = h.replace('<div class="sec">Avatar decoration</div>', `<div class="streakline">🔥 <span class="grow">Your best chat streak: <b>${bestStreak()} day${bestStreak() === 1 ? '' : 's'}</b> — reach ${STREAK_REWARDS.map(r => `${r[0]} (${r[3]})`).join(', ')}</span></div><div class="sec">Avatar decoration</div>`);
+    return h;
+  };
+}
+Object.assign(actions, { stStreakLocked: d => toast(`🔥 Keep a ${d.v}-day chat streak with a friend to unlock this — you both get it!`) });
+// saving a locked streak style isn't possible
+{
+  const _ss = actions.studioSave;
+  actions.studioSave = async (...a) => { const f = S.form; if (streakNeed('deco', f.stDeco) && lockedFor('deco', f.stDeco)) f.stDeco = 'none'; if (streakNeed('fx', f.stFx) && lockedFor('fx', f.stFx)) f.stFx = 'none'; if (streakNeed('name', f.stName) && lockedFor('name', f.stName)) f.stName = 'plain'; return _ss(...a); };
+}
+
+
+/* ================= v17.4: safety — blur strangers' photos everywhere, hide swear words, care note ================= */
+// photos from people who aren't your friends are blurred in groups and communities too (tap to show)
+shouldBlur = m => m.from !== S.me && !(S.revealed || {})[m.id] && S.prefs.safePhotos !== false && (m.sensitive || (!isFriend(m.from) && !isStaffUid(m.from)));
+// "Hide swear words": other people's messages show •••• instead (only for you)
+const SWEARS = ['fuck', 'fck', 'fuk', 'fking', 'fcking', 'fukin', 'fucker', 'fucking', 'motherfucker', 'shit', 'bullshit', 'bitch', 'bastard', 'asshole', 'arsehole', 'dick', 'dickhead', 'cunt', 'pussy', 'whore', 'slut', 'wanker', 'twat', 'prick', 'retard', 'retarded', 'faggot', 'fag', 'nigger', 'nigga', 'chink', 'spic', 'kike', 'paki', 'tranny', 'dyke', 'cock', 'cocksucker', 'douchebag', 'stfu', 'kys'];
+const swearRe = new RegExp('\\b(' + SWEARS.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b', 'gi');
+{
+  const _vMsgBodyV174 = vMsgBody;
+  vMsgBody = function (m, q, quote) {
+    const h = _vMsgBodyV174(m, q, quote);
+    if (!S.prefs.cleanText || m.from === S.me || !m.text) return h;
+    // only change the words, never the HTML around them
+    return h.split(/(<[^>]+>)/).map(part => part.startsWith('<') ? part : part.replace(swearRe, w => '•'.repeat(Math.min(w.length, 6)))).join('');
+  };
+}
+{
+  const _vSettingsV174 = vSettings;
+  vSettings = function () {
+    let h = _vSettingsV174();
+    if (S.setSec !== 'privacy') return h;
+    const row = `<div class="setrow"><span><b>Hide swear words</b><div class="mute small">Other people's messages show •••• instead of swear words — only on your screen.</div></span><button class="tog ${S.prefs.cleanText ? 'on' : ''}" role="switch" aria-checked="${!!S.prefs.cleanText}" aria-label="Hide swear words" data-a="cleanText"></button></div>`;
+    const tip = `<div class="safetybox">${ic('shield', 18)}<span><b>Staying safe on Nexa</b><span class="mute small" style="display:block;line-height:1.5">Photos from people who aren't your friends stay blurred until you tap. Long-press or tap ⋯ on any message to report it — reports are private. Block anyone from their profile. If something online upsets you, talk to someone you trust.</span></span></div>`;
+    const i = h.indexOf('<div class="setrow"><span><b>Blur unknown or sensitive photos</b>');
+    return i > 0 ? h.slice(0, i) + tip + row + h.slice(i) : h;
+  };
+}
+Object.assign(actions, { cleanText: () => { savePrefs({ cleanText: !S.prefs.cleanText }); render(); } });
+// when someone reports that a person might hurt themselves: a short, kind note
+{
+  const _vModal5V174c = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'careNote') return head('Thank you for telling us') + `<div class="col" style="gap:12px;line-height:1.6"><p style="margin:0">Your report was sent privately to the Nexa Support team.</p><p style="margin:0">If you're worried someone is in danger right now, please tell a parent, teacher or another adult you trust straight away — or contact your local emergency number.</p><p class="mute small" style="margin:0">It's kind of you to look out for them. 💙</p></div><div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="closeModal">OK</button></div>`;
+    return _vModal5V174c(m, f, head);
+  };
+}
+// festival looks follow the setting everywhere (not only on Home): cheap check on every screen update
+{
+  const _vOverlaysV174 = vOverlays;
+  vOverlays = function () { try { if (S.view === 'app') applyFest(); } catch {} return _vOverlaysV174(); };
+}
+// Settings › Help & guide: a link to the privacy policy
+{
+  const _vSettingsV174p = vSettings;
+  vSettings = function () { const h = _vSettingsV174p(); return S.setSec === 'shortcuts' ? h.replace('<div class="setrow"><span><b>How to use Nexa</b>', `<div class="setrow"><span><b>Privacy policy</b><div class="mute small">What Nexa collects and how it's used.</div></span><a class="btn sm" href="/privacy.html" target="_blank" rel="noopener">${ic('lock', 14)} Read</a></div><div class="setrow"><span><b>How to use Nexa</b>`) : h; };
+}
+
+/* ================= v17.5: see your friends' local time ================= */
+// Each person's time zone is saved on their profile (they can turn it off in Settings › Privacy).
+// In a chat you see "3:00 PM in India", and on their profile how far ahead/behind you they are.
+const TZ_PLACE = { 'Asia/Kolkata': 'India', 'Asia/Calcutta': 'India', 'Asia/Dubai': 'UAE', 'Asia/Muscat': 'Oman', 'Asia/Qatar': 'Qatar', 'Asia/Riyadh': 'Saudi Arabia', 'Asia/Bahrain': 'Bahrain', 'Asia/Kuwait': 'Kuwait', 'Asia/Karachi': 'Pakistan', 'Asia/Dhaka': 'Bangladesh', 'Asia/Kathmandu': 'Nepal', 'Asia/Katmandu': 'Nepal', 'Asia/Colombo': 'Sri Lanka', 'Asia/Singapore': 'Singapore', 'Asia/Kuala_Lumpur': 'Malaysia', 'Asia/Manila': 'Philippines', 'Asia/Jakarta': 'Indonesia', 'Asia/Bangkok': 'Thailand', 'Asia/Ho_Chi_Minh': 'Vietnam', 'Asia/Saigon': 'Vietnam', 'Asia/Hong_Kong': 'Hong Kong', 'Asia/Shanghai': 'China', 'Asia/Tokyo': 'Japan', 'Asia/Seoul': 'South Korea', 'Asia/Tehran': 'Iran', 'Asia/Jerusalem': 'Israel', 'Asia/Amman': 'Jordan', 'Asia/Beirut': 'Lebanon', 'Asia/Baghdad': 'Iraq', 'Europe/London': 'UK', 'Europe/Dublin': 'Ireland', 'Europe/Paris': 'France', 'Europe/Berlin': 'Germany', 'Europe/Madrid': 'Spain', 'Europe/Rome': 'Italy', 'Europe/Amsterdam': 'Netherlands', 'Europe/Brussels': 'Belgium', 'Europe/Zurich': 'Switzerland', 'Europe/Stockholm': 'Sweden', 'Europe/Oslo': 'Norway', 'Europe/Warsaw': 'Poland', 'Europe/Lisbon': 'Portugal', 'Europe/Athens': 'Greece', 'Europe/Istanbul': 'Turkey', 'Europe/Moscow': 'Russia', 'Europe/Kiev': 'Ukraine', 'Europe/Kyiv': 'Ukraine', 'Africa/Cairo': 'Egypt', 'Africa/Lagos': 'Nigeria', 'Africa/Nairobi': 'Kenya', 'Africa/Johannesburg': 'South Africa', 'Africa/Casablanca': 'Morocco', 'Australia/Sydney': 'Sydney', 'Australia/Melbourne': 'Melbourne', 'Australia/Perth': 'Perth', 'Australia/Brisbane': 'Brisbane', 'Pacific/Auckland': 'New Zealand', 'America/New_York': 'New York', 'America/Toronto': 'Toronto', 'America/Chicago': 'Chicago', 'America/Denver': 'Denver', 'America/Los_Angeles': 'Los Angeles', 'America/Vancouver': 'Vancouver', 'America/Mexico_City': 'Mexico', 'America/Sao_Paulo': 'Brazil', 'America/Argentina/Buenos_Aires': 'Argentina', 'America/Bogota': 'Colombia', 'America/Lima': 'Peru', 'America/Santiago': 'Chile' };
+function myTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } }
+const tzOk = tz => { if (typeof tz !== 'string' || tz.length > 48 || !/^[A-Za-z]+(?:\/[A-Za-z0-9_+\-]+){0,2}$|^UTC$/.test(tz)) return false; try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch { return false; } };
+function tzOffset(tz, d = new Date()) { // minutes ahead of UTC
+  try {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' }).formatToParts(d).map(x => [x.type, x.value]));
+    return Math.round((Date.UTC(+p.year, p.month - 1, +p.day, +p.hour % 24, +p.minute) - Math.floor(d.getTime() / 60000) * 60000) / 60000);
+  } catch { return 0; }
+}
+const tzPlace = tz => TZ_PLACE[tz] || String(tz).split('/').pop().replace(/_/g, ' ');
+// their local time, or null when unknown, hidden, or the same as yours
+function localTimeOf(uid, always) {
+  if (!uid || uid === S.me) return null;
+  const u = U(uid); if (!u || u.deleted || u.showTime === false || !tzOk(u.tz)) return null;
+  const d = new Date(), diff = tzOffset(u.tz, d) - tzOffset(myTz() || 'UTC', d);
+  if (!diff && !always) return null;
+  const time = d.toLocaleTimeString([], { timeZone: u.tz, hour: 'numeric', minute: '2-digit' });
+  const hr = +new Intl.DateTimeFormat('en-US', { timeZone: u.tz, hour: 'numeric', hourCycle: 'h23' }).format(d) % 24;
+  const a = Math.abs(diff), h = Math.floor(a / 60), m = a % 60;
+  const gap = !diff ? 'same time as you' : `${h ? h + 'h' : ''}${h && m ? ' ' : ''}${m ? m + 'm' : ''} ${diff > 0 ? 'ahead of' : 'behind'} you`;
+  const dayDiff = d.toLocaleDateString('en-CA', { timeZone: u.tz }) !== d.toLocaleDateString('en-CA');
+  const day = dayDiff ? (diff > 0 ? ' tomorrow' : ' yesterday') : '';
+  return { time, place: tzPlace(u.tz), gap, night: hr >= 23 || hr < 6, day, diff };
+}
+const tzLine = uid => { const L = localTimeOf(uid); return L ? `<i class="tzdot"> · </i>${L.night ? '🌙' : '🕒'} ${esc(L.time)}<i class="tzpl">${L.day} in ${esc(L.place)}</i>` : ''; };
+function vLocalTime(uid, big) {
+  const L = localTimeOf(uid, true); if (!L) return '';
+  return `<div class="ltime${big ? ' big' : ''}" data-key="ltime_${uid}"><span class="ltic">${L.night ? '🌙' : '🕒'}</span><span class="grow" style="min-width:0"><b>${esc(L.time)}${esc(L.day)}</b> <span class="mute">in ${esc(L.place)}</span><span class="small mute" style="display:block">${esc(L.gap)}${L.night ? ' · it\'s late there' : ''}</span></span></div>`;
+}
+// keep my own time zone on my profile (and remove it if I turn it off)
+function syncTz() {
+  if (S.view !== 'app' || !S.me || !S.profile) return;
+  const want = S.profile.showTime === false ? '' : myTz();
+  if (want && !tzOk(want)) return;
+  if ((S.profile.tz || '') === want || syncTz.busy === want) return;
+  syncTz.busy = want; S.profile.tz = want;
+  db().update('users/' + S.me, { tz: want }).catch(() => {}).finally(() => { syncTz.busy = null; });
+}
+setInterval(() => { syncTz(); if (S.view === 'app' && S.conv && !isTypingNow()) render(); }, 30000);
+setTimeout(syncTz, 4000);
+// chat header: "Online · 🕒 3:00 PM in India" (added in vChat's subtitle line)
+// profile side panel + full profile
+{
+  const _vSideV175 = vSide;
+  vSide = function (uid, draft, preview) { const h = _vSideV175(uid, draft, preview); const t = vLocalTime(uid); return t ? h.replace('<div class="ds-sec">Member since</div>', `<div class="ds-sec">Local time</div>${t}<div class="ds-sec">Member since</div>`) : h; };
+  const _vProfileV175 = vProfile;
+  vProfile = function () { const h = _vProfileV175(); const uid = S.profileUid || S.me; const t = vLocalTime(uid, true); return t ? h.replace('<div style="font-size:15px;line-height:1.6;max-width:580px">', `${t}<div style="font-size:15px;line-height:1.6;max-width:580px">`) : h; };
+}
+// Settings › Privacy: "Show my local time"
+{
+  const _vSettingsV175 = vSettings;
+  vSettings = function () {
+    const h = _vSettingsV175();
+    if (S.setSec !== 'privacy') return h;
+    const on = S.profile?.showTime !== false;
+    const row = `<div class="setrow"><span><b>Show my local time</b><div class="mute small">Friends see what time it is where you are (${esc(tzPlace(myTz()) || 'your time zone')}), so they know if it's late. Only your time zone is shared, never your location.</div></span><button class="tog ${on ? 'on' : ''}" role="switch" aria-checked="${on}" aria-label="Show my local time" data-a="tzTog"></button></div>`;
+    return h.replace('<div class="setrow"><span><b>Appear in search</b>', row + '<div class="setrow"><span><b>Appear in search</b>');
+  };
+  Object.assign(actions, { tzTog: () => { S.profile.showTime = S.profile.showTime === false; const tz = S.profile.showTime ? myTz() : ''; S.profile.tz = tz; render(); db().update('users/' + S.me, { showTime: S.profile.showTime, tz }).catch(() => toast('Couldn\'t save — try again')); } });
+}
+if (location.hostname === 'localhost') Object.assign(window, { syncTz, localTimeOf });
+
+/* ================= v17.6: festival logos + festival scenery ================= */
+// Festival logo: Halloween, Diwali and Christmas get their own Nexa logo while the festival look is on.
+const FEST_ICONS = ['halloween', 'diwali', 'christmas'];
+function festIconKey() { try { const c = currentFest(); return c && FEST_ICONS.includes(c.f[0]) ? c.f[0] : ''; } catch { return ''; } }
+function festIcon(size = 192) { const k = festIconKey(); return k ? `icon-${size}-${k}.png` : `icon-${size}-v4.png`; }
+// A painted scene behind the app for each festival: sky tint, a string of lights, a moon or fireworks, and a skyline at the bottom.
+// Static shapes are SVG; only a few small things animate (opacity/transform only), and fewer on phones.
+const sceneRand = (k, i) => (hash(k + ':' + i) % 1000) / 1000;
+function sceneLights(k, cols, n) {
+  let bulbs = '';
+  for (let i = 0; i < n; i++) {
+    const x = (i + .5) / n * 100, sw = Math.sin(((i + .5) / n * 100 % (100 / Math.ceil(n / 4))) / (100 / Math.ceil(n / 4)) * Math.PI);
+    bulbs += `<i class="fs-bulb" style="left:${x.toFixed(2)}%;top:${((isPhoneish() ? 3 : 5) + sw * (isPhoneish() ? 9 : 12)).toFixed(1)}px;--c:${cols[i % cols.length]};--dl:${(sceneRand(k, i) * 3).toFixed(2)}s"></i>`;
+  }
+  const swags = Math.ceil(n / 4), seg = 1000 / swags;
+  let d = 'M0 6'; for (let s = 0; s < swags; s++) d += ` Q${(s * seg + seg / 2).toFixed(0)} 40 ${((s + 1) * seg).toFixed(0)} 6`;
+  return `<div class="fs-lights"><svg viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="rgba(20,16,30,.75)" stroke-width="2.5"/></svg>${bulbs}</div>`;
+}
+function sceneGround(k, phone) {
+  const W = 1440;
+  if (k === 'halloween') {
+    let graves = ''; [[180, 150], [260, 160], [1080, 152], [1170, 158], [1250, 150]].forEach(([x, y], i) => graves += `<path d="M${x} 220 V${y + 14} q0 -22 22 -22 q22 0 22 22 V220 Z" fill="#170a26"/><rect x="${x + 16}" y="${y + 4}" width="12" height="3" fill="#2c1846"/>`);
+    return `<svg class="fs-ground" viewBox="0 0 ${W} 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <path d="M0 150 Q240 90 480 140 T960 120 T1440 140 V220 H0Z" fill="#241038"/>
+      <path d="M0 180 Q300 140 620 175 T1180 160 T1440 175 V220 H0Z" fill="#12071f"/>${graves}
+      <path d="M1320 220 V150 q-6 -30 -30 -46 M1320 160 q14 -24 40 -30 M1320 175 q-20 -12 -46 -10 M1308 120 q-10 -10 -24 -10" stroke="#12071f" stroke-width="9" fill="none" stroke-linecap="round"/></svg>
+      <div class="fs-pumpkins"><span style="left:7%">🎃</span><span style="left:38%;font-size:30px">🎃</span>${phone ? '' : '<span style="left:63%">🎃</span>'}<span style="left:86%;font-size:30px">🕯️</span></div>`;
+  }
+  if (k === 'christmas') {
+    let trees = ''; for (let i = 0; i < 9; i++) { const x = 60 + i * 160 + sceneRand(k, i) * 60, h = 70 + sceneRand(k, 'h' + i) * 60; trees += `<path d="M${x} ${200 - h} l${h * .32} ${h * .45} h-${h * .14} l${h * .22} ${h * .3} h-${h * .12} l${h * .2} ${h * .25} h-${h * 1.12} l${h * .2} -${h * .25} h-${h * .12} l${h * .22} -${h * .3} h-${h * .14}Z" fill="#0e3a26"/><path d="M${x} ${200 - h} l${h * .1} ${h * .14} h-${h * .2}Z" fill="#f4f8ff" opacity=".85"/>`; }
+    return `<svg class="fs-ground" viewBox="0 0 ${W} 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${trees}
+      <path d="M0 190 Q360 160 720 185 T1440 178 V220 H0Z" fill="#eef4ff"/><path d="M0 205 Q400 190 820 204 T1440 198 V220 H0Z" fill="#d6e4f7"/></svg>`;
+  }
+  if (k === 'diwali') {
+    // rangoli: rings of petals in festive colours
+    let petals = ''; const C = ['#ff5722', '#ffb300', '#e91e63', '#8e24aa', '#00bfa5'];
+    [[70, 16, 0], [48, 12, 1], [28, 8, 2]].forEach(([r, n, j]) => { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; petals += `<ellipse cx="${(Math.cos(a) * r).toFixed(1)}" cy="${(Math.sin(a) * r * .42).toFixed(1)}" rx="${r * .2}" ry="${r * .09}" transform="rotate(${(a * 180 / Math.PI).toFixed(0)} ${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r * .42).toFixed(1)})" fill="${C[(i + j) % C.length]}"/>`; } });
+    return `<svg class="fs-ground" viewBox="0 0 ${W} 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <path d="M0 175 Q360 150 720 170 T1440 165 V220 H0Z" fill="#2a0d02"/>
+      <g transform="translate(240 196)" opacity=".95">${petals}<circle r="9" fill="#fff2c0"/></g>
+      <g transform="translate(1200 198) scale(.8)" opacity=".9">${petals}<circle r="9" fill="#fff2c0"/></g></svg>
+      <div class="fs-diyas">${Array.from({ length: phone ? 5 : 9 }, (_, i) => `<span style="left:${(6 + i * (88 / ((phone ? 5 : 9) - 1))).toFixed(1)}%;--dl:${(sceneRand(k, i) * 2).toFixed(2)}s">🪔<b></b></span>`).join('')}</div>`;
+  }
+  if (k === 'newyear' || k === 'july4') {
+    let sky = ''; for (let i = 0; i < 26; i++) { const x = i * 56, h = 40 + sceneRand(k, i) * 110; sky += `<rect x="${x}" y="${220 - h}" width="50" height="${h}" fill="#0b0f26"/>`; for (let w = 0; w < h / 22 - 1; w++) if (sceneRand(k, i + 'w' + w) > .45) sky += `<rect x="${x + 10 + (w % 2) * 20}" y="${220 - h + 10 + w * 20}" width="8" height="8" fill="#ffd98a" opacity=".7"/>`; }
+    return `<svg class="fs-ground" viewBox="0 0 ${W} 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${sky}</svg>`;
+  }
+  // every other festival: soft hills in its colours with glowing festival symbols
+  return `<svg class="fs-ground" viewBox="0 0 ${W} 220" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <path d="M0 160 Q360 120 720 150 T1440 140 V220 H0Z" fill="var(--fest3)" opacity=".9"/><path d="M0 190 Q400 165 820 186 T1440 180 V220 H0Z" fill="color-mix(in oklab,var(--fest3) 70%,#000)"/></svg>`;
+}
+function sceneHTML(f, phone) {
+  const k = f[0];
+  const lights = { halloween: ['#ff7a1a', '#a64dff', '#7dff6a'], diwali: ['#ffd25e', '#ffb300', '#ff8a1a'], christmas: ['#ff4d4d', '#ffd25e', '#3ce07a', '#4da3ff'] }[k] || [f[3], f[4], '#ffffff'];
+  let h = `<div class="fs-tint"></div>`;
+  if (k === 'halloween') h += `<div class="fs-moon"></div><div class="fs-fog"></div>`;
+  if (k === 'christmas') h += `<div class="fs-aurora"></div>`;
+  if (k === 'diwali') h += `<div class="fs-glow"></div>`;
+  if (['diwali', 'newyear', 'july4'].includes(k)) h += Array.from({ length: phone ? 2 : 4 }, (_, i) => `<i class="fs-burst" style="left:${(15 + sceneRand(k, 'b' + i) * 70).toFixed(0)}%;top:${(10 + sceneRand(k, 'c' + i) * 25).toFixed(0)}%;--c:${lights[i % lights.length]};--dl:${(i * 1.7).toFixed(1)}s"></i>`).join('');
+  h += sceneLights(k, lights, phone ? 10 : 20) + sceneGround(k, phone);
+  return h;
+}
+let sceneKey = null;
+function applyScene(cur) {
+  const sky = document.querySelector('.sky'); if (!sky) return;
+  const phone = isPhoneish(), key = cur ? cur.f[0] + (phone ? '_p' : '') + (S.prefs.festNoFx ? '_s' : '') : '';
+  if (key === sceneKey) return; sceneKey = key;
+  let el = document.getElementById('festScene');
+  if (!cur) { if (el) el.remove(); document.getElementById('festLights')?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'festScene'; el.setAttribute('aria-hidden', 'true'); sky.appendChild(el); }
+  el.className = 'fs-' + cur.f[0] + (S.prefs.festNoFx ? ' fs-still' : '');
+  const html = sceneHTML(cur.f, phone);
+  // the string of lights hangs over the top of the app (it's tiny and lets taps through); the rest sits behind it
+  const m = html.match(/<div class="fs-lights">[\s\S]*?<\/div>(?=<svg class="fs-ground"|<div)/);
+  el.innerHTML = m ? html.replace(m[0], '') : html;
+  let top = document.getElementById('festLights');
+  if (!top) { top = document.createElement('div'); top.id = 'festLights'; top.setAttribute('aria-hidden', 'true'); document.body.appendChild(top); }
+  top.className = el.className; top.innerHTML = m ? m[0] : '';
+}
+// the logo in the browser tab and on "Add to Home Screen" follows the festival too
+function applyFestIcons() {
+  const k = festIconKey();
+  if (applyFestIcons.k === k) return; applyFestIcons.k = k;
+  const set = (sel, href) => { const l = document.querySelector(sel); if (l) l.href = href; };
+  set('link[rel="icon"]', k ? `favicon-${k}.png` : 'favicon-v4.png');
+  set('link[rel="apple-touch-icon"]', k ? `apple-touch-icon-${k}.png` : 'apple-touch-icon-v4.png');
+  try { navigator.serviceWorker?.controller?.postMessage({ type: 'fest', k }); } catch {}
+}
+{
+  const _applyFestV176 = applyFest;
+  applyFest = function () { const cur = _applyFestV176(); try { applyScene(cur); applyFestIcons(); } catch {} return cur; };
+}
+if (location.hostname === 'localhost') Object.assign(window, { festIcon, applyScene });
+// Narrow chat panels (iPad portrait, split screen, small laptop windows): the chat measures itself
+// and drops the extra header buttons, so the name and the text box always have room.
+{
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(es => { for (const e of es) { const w = e.contentRect.width; const el = e.target; const n = w < 520 ? '2' : w < 760 ? '1' : ''; if (el.dataset.narrow !== n) el.dataset.narrow = n; } requestAnimationFrame(autosize); }) : null;
+  const narrowOf = w => w < 520 ? '2' : w < 760 ? '1' : '';
+  // a re-render can wipe data-narrow without the size changing (so the observer never fires again) — re-measure any chat that lost it
+  const watch = () => { if (!ro) return; document.querySelectorAll('.chat').forEach(el => { if (!el.hasAttribute('data-ro')) { el.dataset.ro = '1'; ro.observe(el); } if (!el.hasAttribute('data-narrow')) { const w = el.getBoundingClientRect().width; if (w) el.dataset.narrow = narrowOf(w); } }); };
+  // the page re-render can also just strip the attributes (no new elements) — watch for that too
+  new MutationObserver(watch).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-narrow', 'data-ro'] });
+  watch();
 }

@@ -1,11 +1,11 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '17.0.1';
-const NOTES = ["Profile studio: free avatar decorations, profile effects, name styles and colours", "Show what you're playing, listening to or watching — with a live timer", "Profile panel next to your DMs, and \"Active now\" on Home", "Game collection and favourite game on your profile", "Nexa for computer spots the game you're playing by itself"];
-const CACHE = 'nexa-shell-v39';
-const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'manifest.webmanifest', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
-const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)/; // always straight from the server
+const VERSION = '17.7';
+const NOTES = ["Festival decorations now float behind your chats instead of over names and buttons", "iPad: the text box and chat header always fit, even after switching pages", "Softer Halloween moon on computers and iPads so text stays easy to read", "Phones: no more double page titles, and the Notifications buttons fit the screen", "Fixed a stray label next to the chat list on computers", "Contact support message is clearer when no one is online"];
+const CACHE = 'nexa-shell-v48';
+const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
+const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)|^\/manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
@@ -32,6 +32,7 @@ self.addEventListener('message', e => {
   if (d.type === 'clear' && d.tag) e.waitUntil(self.registration.getNotifications({ tag: d.tag }).then(ns => ns.forEach(n => n.close())));
   if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: NOTES });
   if (d.type === 'skipWaiting') self.skipWaiting();
+  if (d.type === 'fest') festOff = !d.k;
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
@@ -54,6 +55,17 @@ self.addEventListener('notificationclick', e => {
 });
 
 // Web push: sent by the Nexa push server (netlify/functions/notify) through Firebase Cloud Messaging.
+// festival logo on notifications (Halloween, Diwali, Christmas) — same dates as the app
+const DIWALI = ['2026-11-08', '2027-10-29', '2028-10-17', '2029-11-05', '2030-10-26'];
+function festIconNow(now = new Date()) {
+  const today = Math.round(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 864e5);
+  const day = s => { const [y, m, d] = s.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
+  let best = null;
+  for (const y of [now.getFullYear(), now.getFullYear() + 1]) for (const [k, ds] of [['halloween', `${y}-10-31`], ['christmas', `${y}-12-25`], ...DIWALI.filter(d => d.startsWith(y + '-')).map(d => ['diwali', d])]) { const left = day(ds) - today; if (left > 7 || left < -1) continue; const score = left >= 0 ? left : 10 - left; if (!best || score < best.score) best = { k, score }; }
+  return best ? best.k : '';
+}
+let festOff = null; // the app tells us if this person turned festival looks off
+const appIcon = () => { const k = festOff ? '' : festIconNow(); return k ? `icon-192-${k}.png` : 'icon-192-v4.png'; };
 const seen = new Map(); // message ids already shown (stops doubles if a device is registered twice)
 const isIOS = () => /iPhone|iPad|iPod/.test(self.navigator.userAgent) || (/Macintosh/.test(self.navigator.userAgent) && self.navigator.maxTouchPoints > 1);
 // iPhone/iPad insist every push shows *something*, so when we don't want one we show it and close it at once.
@@ -75,7 +87,8 @@ self.addEventListener('push', e => {
       return;
     }
     // Same message twice (e.g. two registrations for this browser) → show it once.
-    const id = x.msg || x.tag && x.kind !== 'message' && x.tag;
+    // only tags that name one specific thing can be duplicates (a new owner code or support alert reuses its tag)
+    const id = x.msg || (/^(n_|call_|flag_|rep_)/.test(x.tag || '') ? x.tag : '');
     if (id) {
       const t = Date.now(); for (const [k, v] of seen) if (t - v > 120000) seen.delete(k);
       if (seen.has(id)) { if (ios) await showNothing(); return; }
@@ -96,7 +109,7 @@ self.addEventListener('push', e => {
       try { const old = await self.registration.getNotifications({ tag: x.tag }); const o = old[old.length - 1]; if (o) { const od = o.data || {}; const prev = od.lines || String(o.body || '').split('\n'); if (!od.ids && prev[prev.length - 1] === body) { if (ios) await showNothing(); return; } lines = [...prev, body].slice(-6); count = (od.count || prev.length) + 1; ids = [...(od.ids || []), ...ids].slice(-20); } } catch {}
     }
     return self.registration.showNotification(count > 1 ? `${title} (${count} new messages)` : title, {
-      body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : 'icon-192-v4.png', badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
+      body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : appIcon(), badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
       data: { chat: x.chat || '', page: x.page || '', url: x.url || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : x.vibe === 'off' ? [] : x.vibe === 'long' ? [200, 100, 200, 100, 200] : x.vibe === 'double' ? [80, 80, 80] : [80], silent: x.silent === '1',
       requireInteraction: x.kind === 'call',
       actions: x.kind === 'message' && x.chat ? [{ action: 'reply', title: 'Reply', type: 'text', placeholder: 'Reply…' }] : x.kind === 'call' ? [{ action: 'open', title: 'Answer' }] : []

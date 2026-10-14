@@ -1669,3 +1669,259 @@ button.sw.bg-stars,button.sw.bg-waves,button.sw.bg-lava,button.sw.bg-halloween,b
 .chathead>.ibtn{flex:none}
 .msgs-page.sidedrawer .dmside{background:color-mix(in oklab,var(--ground) 94%,transparent);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px)}
 .msgs-page.sidedrawer .dmside.themed{background:linear-gradient(180deg,color-mix(in oklab,var(--c1) 18%,var(--ground)),color-mix(in oklab,var(--c2) 14%,var(--ground)))}
+
+/* ================= v17.1: invite rewards + Squad up ================= */
+/* reward styles */
+.deco-spark::before{inset:-6px;border:2px solid #7fd1ff;box-shadow:0 0 10px #29b6f6,0 0 22px #2979ff,inset 0 0 8px #7fd1ff;animation:dzap 1.2s steps(3) infinite}
+.deco-spark::after{inset:-10px;background:conic-gradient(from 0deg,transparent 0 20deg,#bff1ff 22deg,transparent 26deg 140deg,#bff1ff 142deg,transparent 146deg 250deg,#bff1ff 252deg,transparent 256deg);-webkit-mask:radial-gradient(closest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(closest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));animation:dspin 1.4s linear infinite;filter:drop-shadow(0 0 4px #fff)}
+@keyframes dzap{50%{box-shadow:0 0 16px #7fd1ff,0 0 34px #2979ff,inset 0 0 12px #bff1ff}}
+.deco-founder::before{inset:-6px;background:conic-gradient(#fff6c8,#ffd25e,#b8860b,#ffd25e,#fff6c8,#ffd25e,#b8860b,#fff6c8);-webkit-mask:radial-gradient(closest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(closest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));animation:dspin 6s linear infinite;filter:drop-shadow(0 0 10px rgba(255,200,60,.8))}
+.deco-founder::after{left:-34%;right:-34%;top:18%;bottom:18%;border-radius:0;z-index:0;
+  background:radial-gradient(60% 100% at 0% 50%,rgba(255,230,150,.95),transparent 70%) left/50% 100% no-repeat,radial-gradient(60% 100% at 100% 50%,rgba(255,230,150,.95),transparent 70%) right/50% 100% no-repeat;
+  -webkit-mask:repeating-linear-gradient(170deg,#000 0 5px,transparent 5px 8px);mask:repeating-linear-gradient(170deg,#000 0 5px,transparent 5px 8px);animation:dflap 2.4s ease-in-out infinite;filter:drop-shadow(0 0 6px rgba(255,200,60,.7))}
+@keyframes dflap{50%{transform:scaleY(1.12) translateY(-2px)}}
+.pfx-fireworks i{width:4px;height:4px;border-radius:50%;background:hsl(var(--h) 100% 65%);box-shadow:0 0 0 0 hsl(var(--h) 100% 65%);animation:fwork var(--d) ease-out var(--w) infinite}
+@keyframes fwork{0%{transform:scale(.2);opacity:0;box-shadow:0 0 0 0 hsl(var(--h) 100% 65%)}10%{opacity:1}60%{box-shadow:-14px -10px 0 -1px hsl(var(--h) 100% 70%),14px -10px 0 -1px hsl(var(--h) 100% 70%),0 16px 0 -1px hsl(var(--h) 100% 70%),-16px 6px 0 -1px hsl(var(--h) 100% 70%),16px 6px 0 -1px hsl(var(--h) 100% 70%),0 -18px 0 -1px hsl(var(--h) 100% 70%)}100%{opacity:0;transform:scale(1.4)}}
+.ns-holo{background:linear-gradient(110deg,#a6fffa,#ffd6f6 25%,#c9b8ff 45%,#9cf3ff 65%,#fff3b0 85%,#a6fffa);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 6px rgba(190,170,255,.55));animation:nsrb 3s linear infinite}
+.sttile.locked{opacity:.55;filter:saturate(.6)}
+.sttile.locked::after{content:"🔒 " attr(data-lockn);position:absolute;top:6px;right:6px;font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:999px;background:rgba(0,0,0,.6);color:#ffd25e}
+/* invite progress */
+.invprog{display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:16px;background:linear-gradient(120deg,color-mix(in oklab,#ffd25e 16%,transparent),color-mix(in oklab,#9b6bff 16%,transparent));border:1px solid color-mix(in oklab,#ffd25e 35%,transparent)}
+.invprog.sm{padding:11px 12px;gap:10px;margin-top:10px}
+.invprog.sm b{font-size:13px}
+.invbar{position:relative;height:8px;border-radius:99px;background:rgba(255,255,255,.1);margin:4px 8px 8px}
+.invbar>i{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:linear-gradient(90deg,#ffd25e,#ff8a4c,#9b6bff);box-shadow:0 0 12px rgba(255,190,80,.6);transition:width .6s}
+.invstep{position:absolute;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:800;background:#1b2140;border:2px solid rgba(255,255,255,.25)}
+.invstep.on{background:#ffd25e;color:#3a2a00;border-color:#fff}
+.invrw{display:flex;flex-wrap:wrap;gap:6px}
+.invrw span{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.06);opacity:.75}
+.invrw span.on{opacity:1;background:rgba(255,210,94,.18);color:#ffe08a}
+.invrw i{font-style:normal;opacity:.6}
+/* Squad up */
+.lfgcard{display:flex;gap:12px;padding:12px;border-radius:16px;position:relative;overflow:hidden;background:linear-gradient(120deg,color-mix(in oklab,var(--g1,var(--ac)) 30%,rgba(10,14,34,.75)),color-mix(in oklab,var(--g2,var(--ac2)) 16%,rgba(10,14,34,.8)));border:1px solid color-mix(in oklab,var(--g1,var(--ac)) 40%,transparent)}
+.lfgcard.in{box-shadow:0 0 0 2px #7dffb0 inset}
+.lfgcard.sm{padding:10px;border-radius:13px}
+.lfgart .gart-head{width:96px;height:100%;min-height:76px;border-radius:12px}
+.lslots{display:flex}
+.lslot{margin-right:-6px;border-radius:50%;box-shadow:0 0 0 2px rgba(10,14,34,.9);display:inline-grid}
+.lslot.empty{width:var(--s);height:var(--s);border:1.5px dashed rgba(255,255,255,.4);place-items:center;color:rgba(255,255,255,.6);box-shadow:none;margin-right:2px;margin-left:8px}
+.lslot.empty+.lslot.empty{margin-left:0}
+.lfgcard .btn.sm{padding:6px 11px;font-size:12.5px}
+@media (max-width:560px){.lfgart{display:none}}
+.lslot{display:inline-flex;line-height:0;align-self:center}
+.lslots{align-items:center}
+
+/* ================= v17.2: phone fixes — typing, full screen, smoothness ================= */
+/* iPhone zooms into any text box under 16px (and stays zoomed) — keep them at 16px on touch screens */
+@media (pointer:coarse){.composer textarea,#composer,.inp,input[type="text"],input[type="search"],input[type="email"],input[type="password"],input:not([type]),textarea,select{font-size:16px!important}}
+@media (max-width:700px){
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  /* the open chat fills exactly the visible screen (above the keyboard) and is solid, not see-through */
+  .msgs-page.open .chat{top:0;bottom:auto;height:var(--vvh,100dvh)}
+}
+:root[data-phone="1"] .msgs-page.open .chat{background:var(--ground)!important}
+:root[data-phone="1"] .msgs-page.open .chat .chathead{background:color-mix(in oklab,var(--ground) 92%,#000)!important}
+/* phones: switch off the always-running decoration animations (they drain the battery and make scrolling stutter) */
+:root[data-phone="1"] :is(.sky .photo,.deco::before,.deco::after,.deco .dx,.pfx,.pfx i,.pname,.updglow,.updlogo,.auth::before,.studiocta::after,.ns-neon){animation:none!important}
+:root[data-phone="1"] .sky .grain{display:none}
+:root[data-phone="1"] .pfx i:nth-child(n+9){display:none}
+.splash.out{opacity:0;transition:opacity .3s}
+
+/* ================= v17.3: customisable Home, resizable chat list, festival looks ================= */
+/* Home: your own layout */
+.home.hcustom{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;height:auto;align-items:start}
+.hc-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-content:start;min-width:0}
+.hc-side{display:flex;flex-direction:column;gap:16px;min-width:0;position:sticky;top:0}
+.hc{position:relative;min-width:0;display:flex;flex-direction:column;view-transition-name:none}
+.hc>section{flex:1}
+.hc.wide{grid-column:1/-1}
+.hc-side .hc{grid-column:auto}
+.hc-bar{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1.5px solid color-mix(in oklab,var(--ac) 50%,transparent)!important}
+.hc-hidden{display:flex;gap:6px;flex-wrap:wrap}
+.hcustom.editing .hc{outline:2px dashed color-mix(in oklab,var(--ac) 45%,transparent);outline-offset:4px;border-radius:24px;cursor:grab}
+.hcustom.editing .hc>section{pointer-events:none;opacity:.92}
+.hc-tools{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-bottom:6px;border-radius:14px;background:color-mix(in oklab,var(--ac) 18%,rgba(10,14,34,.85));font-size:13px}
+.hc-tools .ibtn.sm{width:30px;height:30px;min-width:30px;font-size:14px}
+.hc-grip{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.08);cursor:grab;transform:rotate(90deg)}
+.hc.dragging{opacity:.35}
+.hc.dropbefore::before{content:"";position:absolute;left:0;right:0;top:-10px;height:4px;border-radius:4px;background:var(--ac);box-shadow:0 0 12px var(--ac)}
+.hc-drop{grid-column:1/-1;display:grid;place-items:center;min-height:56px;border:2px dashed var(--line2);border-radius:18px;color:var(--mute);font-size:13px;font-weight:700}
+.hc-drop.over{border-color:var(--ac);color:var(--text);background:color-mix(in oklab,var(--ac) 10%,transparent)}
+.hc-open{position:absolute;top:14px;right:14px;z-index:2;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.08);border:1px solid var(--line2);color:var(--text);opacity:.75;transition:.2s}
+.hc-open:hover{opacity:1;background:rgba(255,255,255,.14)}
+.hero{position:relative}
+.hc-side .item>span.mute.small{display:none}
+@media (max-width:1280px){.home.hcustom{grid-template-columns:1fr}.hc-side{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.hc-main,.hc-side{grid-template-columns:1fr}.hc-open{top:10px;right:10px;padding:6px 10px}}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.22s}
+/* Messages: drag the edge of the chat list */
+.msgs-page{grid-template-columns:var(--convw,340px) minmax(0,1fr)}
+.msgs-page.hasside{grid-template-columns:var(--convw,300px) minmax(0,1fr) 264px}
+@media (min-width:1700px){.msgs-page.hasside{grid-template-columns:var(--convw,340px) minmax(0,1fr) 288px}}
+.convs{position:relative}
+.convresize{position:absolute;top:18px;bottom:18px;right:-11px;width:10px;cursor:col-resize;z-index:5;border-radius:6px}
+.convresize::after{content:"";position:absolute;left:3px;top:50%;width:4px;height:48px;margin-top:-24px;border-radius:4px;background:rgba(255,255,255,.18);opacity:0;transition:opacity .2s}
+.convresize:hover::after,html.resizing .convresize::after{opacity:1;background:var(--ac)}
+html.resizing,html.resizing *{cursor:col-resize!important;user-select:none!important}
+@media (max-width:1100px){.msgs-page{grid-template-columns:var(--convw,300px) minmax(0,1fr)}}
+@media (max-width:899px){.convresize{display:none}}
+@media (max-width:700px){.msgs-page{display:block}}
+.msgs-page.wide{grid-template-columns:0 minmax(0,1fr)!important}
+.msgs-page.hasside.wide{grid-template-columns:0 minmax(0,1fr) 264px!important}
+
+/* ---------- festival looks ---------- */
+:root[data-fest]:not([data-fest=""]):not([data-fest="-"]){--ac:var(--fest1)!important;--ac2:color-mix(in oklab,var(--fest1) 70%,#fff)!important;--warm:var(--fest2)!important}
+:root[data-fest]:not([data-fest=""]):not([data-fest="-"]) .side .nav.on,:root[data-fest]:not([data-fest=""]):not([data-fest="-"]) .btn.pri{background:linear-gradient(135deg,var(--fest1),var(--fest2))!important;border-color:transparent!important}
+/* the floating decorations: a handful of emoji, moved only with transform/opacity so phones stay smooth */
+#festLayer{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;contain:strict}
+#festLayer i{position:absolute;top:-8%;left:var(--x);font-style:normal;font-size:calc(22px * var(--s));opacity:.0;will-change:transform,opacity;animation:festFall var(--d) linear var(--w) infinite;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
+@keyframes festFall{0%{transform:translate3d(0,0,0) rotate(0);opacity:0}8%{opacity:.85}85%{opacity:.85}100%{transform:translate3d(40px,112vh,0) rotate(var(--r));opacity:0}}
+:root[data-fest="diwali"] #festLayer i,:root[data-fest="newyear"] #festLayer i,:root[data-fest="july4"] #festLayer i,:root[data-fest="lunar"] #festLayer i,:root[data-fest="eidfitr"] #festLayer i,:root[data-fest="eidadha"] #festLayer i,:root[data-fest="hanukkah"] #festLayer i,:root[data-fest="gurpurab"] #festLayer i,:root[data-fest="holi"] #festLayer i,:root[data-fest="valentine"] #festLayer i{top:auto;bottom:-8%;animation-name:festRise}
+@keyframes festRise{0%{transform:translate3d(0,0,0) scale(.8);opacity:0}10%{opacity:.9}80%{opacity:.8}100%{transform:translate3d(-30px,-112vh,0) scale(1.1) rotate(var(--r));opacity:0}}
+:root[data-fest="halloween"] #festLayer i{animation-name:festFlap}
+@keyframes festFlap{0%{transform:translate3d(-10vw,20vh,0);opacity:0}10%{opacity:.85}50%{transform:translate3d(30vw,8vh,0) rotate(-8deg)}90%{opacity:.85}100%{transform:translate3d(70vw,30vh,0) rotate(8deg);opacity:0}}
+:root[data-phone="1"] #festLayer i{animation-duration:calc(var(--d) * 1.4)}
+@media (prefers-reduced-motion:reduce){#festLayer{display:none}}
+/* festival glow behind the app */
+:root[data-fest]:not([data-fest=""]):not([data-fest="-"]) body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(60% 45% at 85% 0%,color-mix(in oklab,var(--fest1) 26%,transparent),transparent 70%),radial-gradient(50% 40% at 0% 100%,color-mix(in oklab,var(--fest2) 20%,transparent),transparent 70%)}
+/* the festival card on Home */
+.festcard{position:relative;display:flex;gap:18px;align-items:center;overflow:hidden;padding:22px!important;color:#fff;
+  background:radial-gradient(120% 140% at 0% 0%,color-mix(in oklab,var(--f1) 70%,transparent),transparent 60%),radial-gradient(100% 120% at 100% 100%,color-mix(in oklab,var(--f2) 60%,transparent),transparent 60%),linear-gradient(135deg,var(--f3),color-mix(in oklab,var(--f3) 60%,#000))!important;
+  border:1px solid color-mix(in oklab,var(--f1) 55%,transparent)!important;box-shadow:0 20px 50px -20px var(--f1)}
+.festcard::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.16) 48%,transparent 60%);background-size:250% 100%;animation:shine 5s ease-in-out infinite;pointer-events:none}
+.fc-art{position:relative;flex:none;width:118px;height:118px;display:grid;place-items:center;border-radius:28px;background:radial-gradient(closest-side,color-mix(in oklab,var(--f1) 55%,transparent),transparent);overflow:hidden}
+.fc-big{font-size:68px;line-height:1;filter:drop-shadow(0 8px 24px var(--f1));animation:fcBob 3.2s ease-in-out infinite}
+@keyframes fcBob{50%{transform:translateY(-6px) rotate(-4deg) scale(1.04)}}
+.fc-art i,.fm-art i{position:absolute;left:var(--x);bottom:-10px;font-style:normal;font-size:calc(14px * var(--s));animation:festRise calc(var(--d) * .35) linear var(--w) infinite;opacity:0}
+.fc-txt{position:relative;z-index:1;min-width:0}
+.fc-go{background:#fff!important;color:#111!important;border-color:#fff!important;font-weight:800}
+@media (max-width:560px){.festcard{flex-direction:column;align-items:flex-start;padding:18px!important}.fc-art{width:84px;height:84px}.fc-big{font-size:48px}}
+:root[data-phone="1"] .festcard::after,:root[data-phone="1"] .fc-big{animation:none}
+/* the festive card in a chat */
+.festmsg{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;width:min(260px,70vw);padding:18px 16px 16px;border-radius:22px;color:#fff;overflow:hidden;
+  background:radial-gradient(100% 90% at 50% 0%,color-mix(in oklab,var(--f1) 70%,transparent),transparent 70%),linear-gradient(160deg,var(--f3),color-mix(in oklab,var(--f2) 35%,var(--f3)));border:1px solid color-mix(in oklab,var(--f1) 55%,transparent);box-shadow:0 14px 36px -14px var(--f1)}
+.fm-art{position:relative;width:100%;height:84px;display:grid;place-items:center;overflow:hidden}
+.fm-art>span{font-size:56px;line-height:1;filter:drop-shadow(0 6px 18px var(--f1));animation:fmPop .9s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes fmPop{from{transform:scale(.3) rotate(-20deg);opacity:0}}
+.festmsg b{font-size:17px}
+.festmsg>span{font-size:13.5px;opacity:.92;line-height:1.4}
+.m.me .festmsg{align-self:flex-end}
+/* phones: keep the festival card's colours (phone mode flattens glass cards) */
+:root[data-phone="1"] .festcard.glass,:root[data-phone="1"] .festcard.card.glass,:root[data-phone="1"] .panel.glass.festcard{background-color:var(--f3)!important;background-image:radial-gradient(120% 140% at 0% 0%,color-mix(in oklab,var(--f1) 70%,transparent),transparent 60%),radial-gradient(100% 120% at 100% 100%,color-mix(in oklab,var(--f2) 60%,transparent),transparent 60%),linear-gradient(135deg,var(--f3),color-mix(in oklab,var(--f3) 60%,#000))!important}
+:root[data-phone="1"] .festcard .fc-go{background:#fff!important;background-image:none!important;color:#111!important}
+/* moving cards around is a computer thing — no Customise button on phones */
+@media (max-width:700px){.hc-open{display:none}}
+
+/* ================= v17.4: Go Live ================= */
+.golive{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:999px;font-weight:800;font-size:14px;color:#fff;background:linear-gradient(135deg,#ff3b5c,#ff7a45);box-shadow:0 8px 24px -8px #ff3b5c;border:0;letter-spacing:.02em}
+.golive.on{background:rgba(255,255,255,.12);box-shadow:none;border:1px solid rgba(255,255,255,.25)}
+.tiles.has-live{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-rows:minmax(0,1fr)}
+.tiles.has-live .tile{grid-row:auto}
+.tiles.has-live .tile.islive{grid-column:1/-1;grid-row:span 3;cursor:zoom-in}
+.tile.islive{box-shadow:0 0 0 3px #ff3b5c,0 0 40px -8px #ff3b5c}
+.tile.islive video{object-fit:contain;background:#000}
+.livebadge{position:absolute;top:12px;left:12px;z-index:3;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:900;letter-spacing:.1em;color:#fff;background:#ff3b5c;box-shadow:0 4px 14px rgba(255,59,92,.6);animation:livePulse 1.6s ease-in-out infinite}
+@keyframes livePulse{50%{opacity:.7}}
+.livestream{font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;color:#fff;background:#ff3b5c;white-space:nowrap}
+@media (max-width:700px){.tiles.has-live{grid-template-columns:repeat(2,minmax(0,1fr))!important}.tiles.has-live .tile.islive{grid-row:span 2}.golive{padding:7px 12px;font-size:12.5px}}
+/* search all chats */
+.modal:has(.sgrid),.modal:has(#sq){width:min(720px,96vw)}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
+.sgrid-i{aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);display:grid;place-items:center;color:var(--mute)}
+.sgrid-i img{width:100%;height:100%;object-fit:cover;transition:transform .2s}
+.sgrid-i:hover img{transform:scale(1.06)}
+
+/* ================= v17.4: streak rewards ================= */
+.deco-flame::before{inset:-7px;background:conic-gradient(from 180deg,#ff3d00,#ff9100,#ffea00,#ff9100,#ff3d00);-webkit-mask:radial-gradient(closest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));mask:radial-gradient(closest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));animation:dspin 3s linear infinite;filter:drop-shadow(0 0 8px #ff6d00)}
+.deco-flame::after{left:20%;right:20%;top:-24%;height:34%;border-radius:50% 50% 40% 40%;background:radial-gradient(60% 80% at 50% 90%,#ffea00,#ff6d00 55%,transparent 75%);filter:blur(1px);animation:dflick .25s steps(2) infinite alternate;z-index:2}
+.pfx-embers i{top:auto;bottom:-6%;width:5px;height:5px;border-radius:50%;background:radial-gradient(#ffea00,#ff6d00 60%,transparent);box-shadow:0 0 8px #ff6d00;animation:frise var(--d) ease-out var(--w) infinite}
+.pfx-embers{background:linear-gradient(0deg,rgba(255,80,0,.28),transparent 55%)}
+.ns-molten{background:linear-gradient(0deg,#ff1f00,#ff7a00 40%,#ffd200 70%,#fff3b0);background-size:100% 200%;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 10px rgba(255,110,0,.6));animation:nsMolten 2.4s ease-in-out infinite alternate}
+@keyframes nsMolten{to{background-position:0 100%}}
+.sttile.streaklock::after{content:"🔥 " attr(data-lockn)}
+.streak.risk{background:linear-gradient(135deg,#ff6d00,#ff3d00)!important;color:#fff!important;animation:livePulse 1.4s ease-in-out infinite}
+.streakrisk{border:1px solid rgba(255,120,0,.45)!important;background:linear-gradient(90deg,rgba(255,110,0,.22),rgba(255,110,0,.06))!important}
+.streakbig{position:relative;font-size:84px;line-height:1;filter:drop-shadow(0 10px 30px #ff6d00)}
+.streakbig b{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);font-size:30px;color:#fff;text-shadow:0 2px 8px #000}
+.streakline{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:linear-gradient(90deg,rgba(255,110,0,.18),transparent);border:1px solid rgba(255,120,0,.3);font-size:13px;margin-top:10px}
+:root[data-phone="1"] .ns-molten,:root[data-phone="1"] .streak.risk{animation:none!important}
+.safetybox{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:linear-gradient(120deg,rgba(63,191,111,.14),rgba(91,124,255,.1));border:1px solid rgba(63,191,111,.3);margin-bottom:6px}
+/* a saved wide chat list never squashes the chat on smaller screens */
+.msgs-page{grid-template-columns:min(var(--convw,340px),38vw) minmax(0,1fr)}
+.msgs-page.hasside{grid-template-columns:min(var(--convw,300px),30vw) minmax(0,1fr) 264px}
+@media (max-width:1100px){.msgs-page{grid-template-columns:min(var(--convw,300px),40vw) minmax(0,1fr)}}
+@media (max-width:700px){.msgs-page{display:block}}
+.msgs-page.wide{grid-template-columns:0 minmax(0,1fr)!important}
+.msgs-page.hasside.wide{grid-template-columns:0 minmax(0,1fr) 264px!important}
+
+/* ===== v17.5: friends' local time ===== */
+.tzsub{white-space:nowrap}
+.ltime{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:14px;line-height:1.35}
+.ltime .ltic{font-size:20px;line-height:1}
+.ltime.big{max-width:420px;margin:2px 0 10px;font-size:15px}
+.ltime.big .ltic{font-size:24px}
+.tzsub i{font-style:normal}
+@media (max-width:700px){.chathead .small.mute.row:has(.tzsub:not(:empty)){flex-wrap:wrap;row-gap:0}.chathead .tzsub:not(:empty){display:block;flex-basis:100%;overflow:hidden;text-overflow:ellipsis}.chathead .tzdot{display:none}}
+@media (max-width:480px){.chathead .tzpl{display:none}}
+
+/* ===== v17.6: festival scenery ===== */
+#festScene{position:absolute;inset:0;pointer-events:none;overflow:hidden;contain:strict}
+#festScene .fs-tint{position:absolute;inset:0;background:linear-gradient(180deg,color-mix(in oklab,var(--fest3) 78%,transparent),color-mix(in oklab,var(--fest3) 40%,transparent) 55%,color-mix(in oklab,var(--fest3) 85%,#000));}
+#festScene .fs-ground{position:absolute;left:0;right:0;bottom:0;width:100%;height:min(30vh,240px)}
+/* string of lights over the top edge of the screen */
+#festLights{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);height:34px;z-index:3;pointer-events:none;overflow:visible}
+#festLights .fs-lights{position:absolute;inset:0}
+#festLights svg{position:absolute;left:0;top:0;width:100%;height:34px}
+.fs-bulb{position:absolute;width:9px;height:13px;margin-left:-4.5px;border-radius:50% 50% 45% 45%;background:radial-gradient(circle at 50% 35%,#fff,var(--c) 55%);box-shadow:0 0 10px 3px color-mix(in oklab,var(--c) 70%,transparent);animation:fsTwinkle 2.6s ease-in-out var(--dl) infinite}
+.fs-bulb:nth-child(3n){animation-duration:3.4s}
+@keyframes fsTwinkle{0%,100%{opacity:1}50%{opacity:.35}}
+/* Halloween: big moon, fog, pumpkins */
+.fs-halloween .fs-moon{position:absolute;right:7vw;top:9vh;width:min(22vw,190px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 38% 36%,#fff8e2,#ffe0a0 50%,#f2b05a);box-shadow:0 0 90px 30px rgba(255,200,110,.38),0 0 220px 80px rgba(255,140,40,.16)}
+.fs-halloween .fs-moon::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 62% 60%,rgba(190,120,40,.35) 0 9%,transparent 10%),radial-gradient(circle at 36% 66%,rgba(190,120,40,.25) 0 6%,transparent 7%),radial-gradient(circle at 55% 30%,rgba(190,120,40,.2) 0 5%,transparent 6%)}
+.fs-halloween .fs-fog{position:absolute;left:-20%;right:-20%;bottom:6vh;height:22vh;background:radial-gradient(40% 60% at 30% 60%,rgba(190,160,255,.16),transparent 70%),radial-gradient(35% 55% at 75% 55%,rgba(190,160,255,.13),transparent 70%);animation:fsFog 26s ease-in-out infinite alternate}
+@keyframes fsFog{to{transform:translate3d(8%,0,0)}}
+.fs-pumpkins{position:absolute;left:0;right:0;bottom:2vh;height:60px}
+.fs-pumpkins span{position:absolute;bottom:0;font-size:38px;line-height:1;filter:drop-shadow(0 0 14px rgba(255,140,30,.85))}
+/* Diwali: warm glow, diyas that flicker, rangoli, fireworks */
+.fs-diwali .fs-glow{position:absolute;left:0;right:0;bottom:0;height:55vh;background:radial-gradient(60% 70% at 50% 100%,rgba(255,170,50,.32),transparent 70%)}
+.fs-diyas{position:absolute;left:0;right:0;bottom:1.5vh;height:56px}
+.fs-diyas span{position:absolute;bottom:0;font-size:32px;line-height:1;transform:translateX(-50%)}
+.fs-diyas b{position:absolute;left:50%;top:-14px;width:34px;height:34px;margin-left:-17px;border-radius:50%;background:radial-gradient(circle,rgba(255,220,120,.85),rgba(255,150,30,.35) 45%,transparent 70%);animation:fsFlicker 1.8s ease-in-out var(--dl) infinite}
+@keyframes fsFlicker{0%,100%{opacity:.95;transform:scale(1)}40%{opacity:.6;transform:scale(.88)}70%{opacity:1;transform:scale(1.06)}}
+.fs-burst{position:absolute;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;background:radial-gradient(circle,transparent 30%,var(--c) 31% 33%,transparent 34% 44%,color-mix(in oklab,var(--c) 70%,#fff) 45% 46%,transparent 47%),repeating-conic-gradient(var(--c) 0 3deg,transparent 3deg 18deg);-webkit-mask:radial-gradient(circle,transparent 18%,#000 20% 62%,transparent 64%);mask:radial-gradient(circle,transparent 18%,#000 20% 62%,transparent 64%);opacity:0;animation:fsBurst 6.8s ease-out var(--dl) infinite}
+@keyframes fsBurst{0%{transform:scale(.2);opacity:0}6%{opacity:1}30%{transform:scale(1.15);opacity:0}100%{opacity:0;transform:scale(1.15)}}
+/* Christmas: northern lights */
+.fs-christmas .fs-aurora{position:absolute;left:-10%;right:-10%;top:0;height:55vh;background:radial-gradient(45% 50% at 30% 20%,rgba(80,255,170,.18),transparent 70%),radial-gradient(40% 45% at 70% 12%,rgba(120,170,255,.16),transparent 70%);animation:fsFog 30s ease-in-out infinite alternate}
+/* calm mode and reduced motion: keep the scene, stop the movement */
+.fs-still *,#festLights.fs-still *{animation:none!important}
+@media (prefers-reduced-motion:reduce){#festScene *,#festLights *{animation:none!important}}
+/* phones: the panels are solid there, so tint them with the festival colours and let the scenery show at the edges */
+:root[data-phone="1"][data-fest]:not([data-fest=""]):not([data-fest="-"]) .glass{background-color:color-mix(in oklab,var(--fest3) 38%,rgba(14,18,44,.95))!important}
+:root[data-phone="1"][data-fest]:not([data-fest=""]):not([data-fest="-"]) .tabbar{background-color:color-mix(in oklab,var(--fest3) 55%,rgba(10,12,30,.96))!important;border-top:1px solid color-mix(in oklab,var(--fest1) 45%,transparent)!important}
+:root[data-phone="1"] .fs-burst:nth-of-type(n+3){display:none}
+:root[data-phone="1"] .fs-fog,:root[data-phone="1"] .fs-aurora{animation:none}
+:root[data-theme="light"] #festScene .fs-tint{opacity:.45}
+:root:not([data-phone="1"]) .fs-halloween .fs-moon{opacity:.45;box-shadow:0 0 60px 18px rgba(255,200,110,.22)}
+:root[data-phone="1"] #festLights{height:24px}
+:root[data-phone="1"] #festLights svg{height:24px}
+:root[data-phone="1"] .fs-bulb{width:7px;height:10px;margin-left:-3.5px;box-shadow:0 0 7px 2px color-mix(in oklab,var(--c) 70%,transparent)}
+/* narrow chat panel (set by the app from the chat's real width) */
+.chat[data-narrow] .chathead .hide-m{display:none!important}
+.chat[data-narrow] .chathead{gap:8px}
+.chat[data-narrow] #composer{min-width:96px}
+.chat[data-narrow="2"] .composer [data-a="suggest"]{display:none}
+.chat[data-narrow] .tools{flex-wrap:nowrap;max-width:none}
+/* touch screens have no hover: message tools only show for the message you tap (no "stuck" tools after a tap on iPad) */
+@media (hover:none){.m:hover .tools{opacity:0;pointer-events:none}.m.sel .tools,.m:focus-within .tools{opacity:1;pointer-events:auto}}
+@media (hover:none){.m.sel .tools{position:static;transform:none;margin:4px 0;display:flex;flex-wrap:wrap;max-width:100%;background:transparent}}
+/* v17.7 — falling festival decorations float behind the app (they used to drift over names and buttons) */
+#festLayer{z-index:0}
+/* the big Halloween moon showed through the glass panels on computers and iPads — softer and smaller there */
+:root:not([data-phone="1"]) .fs-halloween .fs-moon{opacity:.26;width:min(14vw,140px);box-shadow:0 0 50px 14px rgba(255,200,110,.14)}
+:root:not([data-phone="1"]) .fs-pumpkins span{opacity:.55}
+/* phones: the top bar already shows the page name, so the second big title inside the page goes */
+@media (max-width:700px){ .page .h1.hide-m{display:none} }
+/* iPad portrait / split screen: the text box got squeezed to a sliver — photos are still in the + menu */
+.chat[data-narrow="2"] .composer label[aria-label="Send photos"]{display:none}
+.chat[data-narrow="2"] .composer{gap:4px}
+.chat[data-narrow="2"] #composer{min-width:140px}
