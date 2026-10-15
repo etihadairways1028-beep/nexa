@@ -1925,3 +1925,44 @@ html.resizing,html.resizing *{cursor:col-resize!important;user-select:none!impor
 .chat[data-narrow="2"] .composer label[aria-label="Send photos"]{display:none}
 .chat[data-narrow="2"] .composer{gap:4px}
 .chat[data-narrow="2"] #composer{min-width:140px}
+/* v17.9: Profile studio on computers/iPads couldn't scroll — the columns grew past the window instead of scrolling inside it */
+@media (min-width:861px){
+  .studio > .st-ctl{max-height:min(86vh,820px);overflow:hidden}
+  .studio > .st-prev{max-height:min(86vh,820px);overflow-y:auto}
+  .studio .st-body{overscroll-behavior:contain}
+}
+.st-body > *{flex-shrink:0}
+/* v17.9: the "what time is it for you" question */
+.tzpick select.inp{appearance:auto;-webkit-appearance:menulist;cursor:pointer}
+.tzprev,.tzsafe{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.5}
+.tzprev{background:color-mix(in oklab,var(--ac) 14%,transparent);border:1px solid color-mix(in oklab,var(--ac) 35%,transparent)}
+.tzsafe{background:rgba(60,220,140,.10);border:1px solid rgba(90,240,160,.28);color:var(--text)}
+.tzprev svg,.tzsafe svg{flex:none;margin-top:2px}
+.tzsafe svg{color:#5fe0a0}
+/* v17.9: full-screen incoming call */
+.incall-full{position:fixed;inset:0;z-index:96;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:calc(28px + env(safe-area-inset-top)) 24px calc(40px + env(safe-area-inset-bottom));color:#fff;overflow:hidden;background:#070a1a;animation:crIn .35s var(--spring,ease-out)}
+.incall-full .cr-bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(38px) saturate(1.4) brightness(.55);transform:scale(1.15)}
+.incall-full .cr-glow{position:absolute;inset:0;background:radial-gradient(60% 45% at 50% 40%,color-mix(in oklab,var(--ac) 55%,transparent),transparent 70%),linear-gradient(180deg,rgba(5,8,20,.25),rgba(5,8,20,.75));animation:crGlow 1.3s ease-in-out infinite alternate}
+.incall-full > *:not(.cr-bg):not(.cr-glow){position:relative}
+.cr-top{display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.95}
+.cr-app{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.2em;font-size:13px;text-transform:uppercase}
+.cr-kind{display:flex;align-items:center;gap:6px;font-size:14px;padding:6px 14px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2)}
+.cr-mid{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.cr-av{position:relative;display:grid;place-items:center;width:132px;height:132px;margin-bottom:12px}
+.cr-av .av{position:relative;box-shadow:0 0 0 4px rgba(255,255,255,.85),0 20px 60px -10px rgba(0,0,0,.6)}
+.cr-av i{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.55);animation:crPulse 2.4s ease-out infinite}
+.cr-av i:nth-child(2){animation-delay:.8s}.cr-av i:nth-child(3){animation-delay:1.6s}
+.cr-name{margin:0;font-size:clamp(28px,7vw,40px);font-weight:800;line-height:1.1;text-shadow:0 2px 20px rgba(0,0,0,.4)}
+.cr-sub{font-size:17px;opacity:.85}
+.cr-dots b{animation:crDot 1.2s infinite;font-weight:800}.cr-dots b:nth-child(2){animation-delay:.2s}.cr-dots b:nth-child(3){animation-delay:.4s}
+.cr-btns{display:flex;align-items:flex-end;justify-content:center;gap:clamp(22px,9vw,64px);width:100%;max-width:460px}
+.cr-b{display:flex;flex-direction:column;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.cr-btn{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;color:#fff;border:0;cursor:pointer;box-shadow:0 14px 34px -10px rgba(0,0,0,.6);transition:transform .15s}
+.cr-btn:active{transform:scale(.92)}
+.cr-btn.red{background:#ff3b4e}.cr-btn.green{background:#21c063;animation:crBounce 1.3s ease-in-out infinite}.cr-btn.msg{width:60px;height:60px;margin-top:8px;background:rgba(255,255,255,.18);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3)}
+@keyframes crIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes crPulse{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+@keyframes crGlow{from{opacity:.75}to{opacity:1}}
+@keyframes crDot{0%,100%{opacity:.2}50%{opacity:1}}
+@keyframes crBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){.incall-full *,.incall-full{animation:none!important}}

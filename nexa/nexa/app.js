@@ -354,6 +354,9 @@ const lookOf = p => ['classic', 'aurora'].includes(p.look) ? p.look : 'liquid';
 let lensKey = '';
 function placeLenses() {
   const r = document.documentElement.style, t = $('.tabbar button.on'), n = $('.side .nav.on');
+  // only measure when the highlighted tab changed (measuring forces a slow re-layout on every update)
+  if (t === placeLenses.t0 && n === placeLenses.n0 && innerWidth === placeLenses.w0 && lensKey !== '') return;
+  placeLenses.t0 = t; placeLenses.n0 = n; placeLenses.w0 = innerWidth;
   const key = (t ? t.offsetLeft + ':' + t.offsetWidth : '') + '|' + (n ? n.offsetTop + ':' + n.offsetHeight : '');
   if (key === lensKey) return;
   const moved = lensKey !== ''; lensKey = key;
@@ -525,10 +528,19 @@ function callCovers() { try { return !!(S.call || (R && !R.min)); } catch { retu
 function callUncovered() { document.documentElement.toggleAttribute('data-incall', callCovers()); if (!callCovers() && renderLater) { renderLater = false; render(); } }
 /* Update the screen in place: only the parts that changed are touched, so photos don't
    reload, videos keep playing and nothing flickers when a message or status comes in. */
+// v17.9: a fingerprint of a block's HTML — when it hasn't changed, the screen update skips that whole block (big chats stay fast)
+// v17.9: a message's tool buttons (react, reply, edit…) are only built into the page when needed — on hover/focus,
+// or when the message is selected — instead of 12 buttons on every message (that made big chats slow)
+const msgTools = new Map();
+const addTools = e => { const row = e.target?.closest?.('#stream .m[data-key]'); if (!row || row.querySelector(':scope > .tools')) return; const h = msgTools.get(row.dataset.v); if (h) row.insertAdjacentHTML('beforeend', h); };
+document.addEventListener('mouseover', addTools, { passive: true }); document.addEventListener('focusin', addTools);
+const fp = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + str.length.toString(36); };
+const withFp = html => { const k = html.indexOf('>'); return k < 0 ? html : html.slice(0, k) + ` data-h="${fp(html)}"` + html.slice(k); };
 const mkey = n => n.nodeType === 1 ? (n.id || n.getAttribute('data-key') || null) : null;
 function sameNode(a, b) { return a.nodeType === b.nodeType && (a.nodeType !== 1 || (a.tagName === b.tagName && (a.tagName !== 'INPUT' || a.type === b.type))); }
 function morphNode(a, b) {
   if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+  { const h = b.getAttribute('data-h'); if (h && a.getAttribute('data-h') === h) return; }
   const tag = a.tagName;
   const oldVal = a.getAttribute('value'), oldChecked = a.hasAttribute('checked');
   // only keep an element's insides untouched if it was ALREADY that skip element — otherwise an old element reused
@@ -583,7 +595,8 @@ function doRender() {
   const atBottom = !stream || stream.scrollHeight - stream.scrollTop - stream.clientHeight < 90;
   const prevTop = stream ? stream.scrollTop : 0;
   const prevConv = stream?.dataset.conv;
-  const scrollers = {}; root.querySelectorAll('[data-keep-scroll]').forEach(el => scrollers[el.dataset.keepScroll] = el.scrollTop);
+  const scrollers = {}, scrollEls = new Map(); root.querySelectorAll('[data-keep-scroll]').forEach(el => { scrollers[el.dataset.keepScroll] = el.scrollTop; scrollEls.set(el.dataset.keepScroll, el); });
+  const prevStreamEl = stream, prevStreamKids = stream ? stream.childElementCount : -1, prevStreamLast = stream?.lastElementChild?.getAttribute('data-h') || '';
   seenNext = new Set();
   let html = '';
   if (S.view === 'loading') html = '';
@@ -593,16 +606,20 @@ function doRender() {
   else if (S.view === 'app' && S.profile && S.banned) html = vBanned();
   else if (S.view === 'app' && S.profile) html = vShell();
   html += vOverlays();
+  // nothing on screen changed (e.g. a friend's typing ping or a status update that isn't shown) → skip the costly page update
+  if (html === doRender.last && root.firstChild) { seenPrev = seenNext; return; }
+  doRender.last = html;
   morph(root, html);
   seenPrev = seenNext;
-  root.querySelectorAll('[data-keep-scroll]').forEach(el => { const v = scrollers[el.dataset.keepScroll]; if (v != null) el.scrollTop = v; else if (el.dataset.keepScroll.includes(':')) el.scrollTop = 0; }); // a different page starts at the top
+  // (the same scroller kept by the update keeps its own scroll — only re-set it on a replaced one; setting it forces a slow re-layout)
+  root.querySelectorAll('[data-keep-scroll]').forEach(el => { const k = el.dataset.keepScroll; if (scrollEls.get(k) === el) return; const v = scrollers[k]; if (v != null) el.scrollTop = v; else if (k.includes(':')) el.scrollTop = 0; }); // a different page starts at the top
   const s2 = $('#stream');
   if (s2 && S.keepBottom != null) { s2.scrollTop = s2.scrollHeight - S.keepBottom; if (s2.scrollHeight > S.keepBottom + 50) S.keepBottom = null; }
-  else if (s2) s2.scrollTop = (atBottom || prevConv !== s2.dataset.conv) ? s2.scrollHeight : prevTop;
+  else if (s2 && !(s2 === prevStreamEl && s2.childElementCount === prevStreamKids && (s2.lastElementChild?.getAttribute('data-h') || '') === prevStreamLast)) s2.scrollTop = (atBottom || prevConv !== s2.dataset.conv) ? s2.scrollHeight : prevTop;
   paintVoice(); paintWatch(); if (S.tour != null) paintTour(); placeLenses();
   if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch {} } }
   const auto = $('[data-autofocus]'); if (auto && !focusId && !auto.dataset.done) { auto.focus(); }
-  autosize();
+  { const t = $('#composer'); const k = t ? t.value.length + ':' + t.clientWidth : ''; if (k !== doRender.as) { doRender.as = k; autosize(); } }
 }
 function autosize() { const t = $('#composer'); if (t) { t.style.height = 'auto'; if (!t.value) return; /* empty box = one line (a long placeholder in a narrow box used to make it 160px tall) */ t.style.height = Math.min(160, t.scrollHeight) + 'px'; } }
 
@@ -955,13 +972,15 @@ function vChat(c) {
       <button class="ibtn" aria-label="Remind me later" data-a="remindOpen" data-v="${m.id}">${ic('clock', 16)}</button>
       ${m.from === S.me ? `<button class="ibtn" aria-label="Delete" data-a="delMsg" data-v="${m.id}">${ic('trash', 16)}</button>` : `<button class="ibtn" aria-label="Report message" data-a="report" data-v="${m.from}" data-m="${m.id}">${ic('flag', 16)}</button>`}</div>`;
     const slam = m.effect === 'slam' && !seenPrev.has('m' + m.id) && now() - m.at < 60000;
-    out += `<div class="m ${me ? 'me' : 'them'} ${cont ? 'cont' : ''} ${S.selMsg === m.id ? 'sel' : ''} ${slam ? 'slam' : ''} ${m._pending ? 'pending' : ''}${A('m' + m.id)}" data-a="selMsg" data-v="${m.id}" data-key="m_${m.id}">
+    msgTools.set(m.id, tools);
+    const row = `<div class="m ${me ? 'me' : 'them'} ${cont ? 'cont' : ''} ${S.selMsg === m.id ? 'sel' : ''} ${slam ? 'slam' : ''} ${m._pending ? 'pending' : ''}${A('m' + m.id)}" data-a="selMsg" data-v="${m.id}" data-key="m_${m.id}">
       ${m.bot && !cont ? `<span class="who row" style="gap:6px;color:var(--ac)">${ic('spark', 13)}Nexa AI</span>` : isGroup && !me && !cont ? `<span class="who">${esc(dname(m.from))}</span>` : ''}
       ${m.forwarded ? `<span class="fwd">${ic('forward', 12)} Forwarded</span>` : ''}
-      ${vMsgBody(m, q, quote)}${tr ? `<div class="trans">${ic('globe', 12)} ${tr === '…' ? 'Translating…' : esc(tr)}</div>` : ''}${tools}
+      ${vMsgBody(m, q, quote)}${tr ? `<div class="trans">${ic('globe', 12)} ${tr === '…' ? 'Translating…' : esc(tr)}</div>` : ''}${S.selMsg === m.id ? tools : ''}
       ${reacts.length ? `<div class="reacts">${reacts.map(([r, us]) => `<button class="${us.includes(S.me) ? 'mine' : ''}" data-a="react" data-v="${m.id}" data-r="${esc(r)}" title="${esc(us.map(dname).join(', '))}">${r.startsWith('st_') && safeImg((m.reactImgs || {})[r]) ? `<img class="streact" src="${safeImg(m.reactImgs[r])}" alt="sticker">` : esc(r)} ${us.length > 1 ? us.length : ''}</button>`).join('')}</div>` : ''}
       ${m._pending || m.editedAt || (msgs[idx + 1]?.from !== m.from) ? `<span class="meta">${m.effect && m.effect !== 'slam' ? `<button class="fxreplay" data-a="fxReplay" data-v="${m.effect}" aria-label="Replay effect">${ic('spark', 11)}</button>` : ''}${starred ? ic('star', 11) : ''}${m.expiresAt ? ic('timer', 11) : ''}${fmtTime(m.at)}${m.editedAt && !m.deleted ? ' · edited' : ''}${m._pending && me ? ` · ${ic('clock', 11)} ${S.offline ? 'Waiting for connection' : 'Sending'}` : ''}</span>` : ''}
     </div>`;
+    out += withFp(row);
   });
   if (!S.draft[c.id] && S.remoteDrafts?.[c.id] && !S.draftRestored?.[c.id]) { S.draftRestored = { ...(S.draftRestored || {}), [c.id]: 1 }; S.draft[c.id] = S.remoteDrafts[c.id]; }
   const draft = S.draft[c.id] || '';
@@ -2859,10 +2878,29 @@ async function registerPush(quiet) {
     lsSet('nexa.pushToken', token);
     // This device's old token is removed so it never gets the same alert twice.
     if (old && old !== token) await db().update(`users/${S.me}/private/push`, { tokens: ops.remove(old) }).catch(() => {});
-    await db().update(`users/${S.me}/private/push`, { tokens: ops.union(token), ['devices.' + deviceId]: token, updatedAt: now() });
+    await db().update(`users/${S.me}/private/push`, { tokens: ops.union(token), ['devices.' + deviceId]: token, ['meta.' + deviceId]: { m: machineKey(), at: now() }, updatedAt: now() });
+    await dropTwinDevices(token).catch(() => {});
     S.pushOn = true; render();
     return true;
   } catch (e) { if (!quiet) toast('Couldn\'t turn on notifications for when Nexa is closed on this device.'); console.warn('push registration failed', e); return false; }
+}
+// v17.9: "I get every message twice" — the same phone or computer was signed up for alerts more than once
+// (Safari + the Home Screen app, the computer app + a browser tab, or an old sign-up after clearing data).
+// Each machine keeps ONE sign-up: the newest. Alerts still go to all your OTHER devices.
+function machineKey() {
+  const ua = navigator.userAgent, os = /iPhone|iPad|iPod/.test(ua) || (/Mac/.test(ua) && navigator.maxTouchPoints > 1) ? 'ios' : /Android/.test(ua) ? 'android' : /Windows/.test(ua) ? 'win' : /Mac/.test(ua) ? 'mac' : /Linux|CrOS/.test(ua) ? 'linux' : 'other';
+  let tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+  const w = Math.min(screen.width, screen.height), h = Math.max(screen.width, screen.height);
+  return [os, w + 'x' + h, Math.round(devicePixelRatio * 10), tz].join('|');
+}
+async function dropTwinDevices(token) {
+  const pd = await db().get(`users/${S.me}/private/push`).catch(() => null); if (!pd) return;
+  const mine = machineKey(), devices = { ...(pd.devices || {}) }, meta = pd.meta || {}, patch = {};
+  for (const [id, t] of Object.entries(devices)) if (id !== deviceId && meta[id]?.m === mine) { patch['devices.' + id] = ops.del(); patch['meta.' + id] = ops.del(); delete devices[id]; }
+  // tokens no device owns any more (left over from older versions) are dropped; devices on an older version re-add theirs when they update
+  const keep = new Set([token, ...Object.values(devices)]), stale = (pd.tokens || []).filter(t => !keep.has(t));
+  if (stale.length) patch.tokens = ops.remove(...stale);
+  if (Object.keys(patch).length) await db().update(`users/${S.me}/private/push`, patch);
 }
 async function unregisterPush() {
   const token = lsGet('nexa.pushToken', null);
@@ -5786,7 +5824,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '17.7';
+const APP_VERSION = '17.9';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -6702,18 +6740,20 @@ function festDate(k, y) {
 }
 const dayNum = s => { const [y, m, d] = s.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
 // the festival happening now: from 7 days before until the day after; the nearest one wins
+// v17.7: only festivals most of the world knows change Nexa's look; the rest of the year keeps the normal look
+const BIG_FESTS = ['newyear', 'valentine', 'lunar', 'holi', 'eidfitr', 'easter', 'eidadha', 'halloween', 'diwali', 'christmas'];
 function currentFest() {
   if (S.prefs.festOff) return null;
   // preview switch for testing a look early: localStorage nexa.festTest = {"k":"diwali","left":3}
   const ft = lsGet('nexa.festTest', null); if (ft && ft.k) { const f = FESTS.find(x => x[0] === ft.k); if (f) return { f, left: +ft.left || 0, score: 0, year: 0, id: f[0] + '_test' }; }
   const t = new Date(), today = Math.round(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / 864e5);
   let best = null;
-  for (const f of FESTS) for (const y of [t.getFullYear(), t.getFullYear() + 1]) {
+  for (const f of FESTS) { if (!BIG_FESTS.includes(f[0])) continue; for (const y of [t.getFullYear(), t.getFullYear() + 1]) {
     const ds = festDate(f[0], y); if (!ds) continue;
     const left = dayNum(ds) - today; if (left > 7 || left < -1) continue;
     const score = left >= 0 ? left : 10 + -left;
     if (!best || score < best.score) best = { f, left, score, year: y, id: f[0] + '_' + y };
-  }
+  } }
   return best;
 }
 const festParticles = (f, n) => { let h = ''; for (let i = 0; i < n; i++) { const r = (hash(f[0] + i) % 1000) / 1000, r2 = (hash('y' + i + f[0]) % 1000) / 1000; h += `<i style="--x:${(r * 100).toFixed(1)}%;--d:${(9 + r2 * 9).toFixed(1)}s;--w:${(-r * 18).toFixed(1)}s;--s:${(.7 + r2 * .7).toFixed(2)};--r:${Math.round(r * 60 - 30)}deg">${f[6][i % f[6].length]}</i>`; } return h; };
@@ -7101,7 +7141,7 @@ function localTimeOf(uid, always) {
   const day = dayDiff ? (diff > 0 ? ' tomorrow' : ' yesterday') : '';
   return { time, place: tzPlace(u.tz), gap, night: hr >= 23 || hr < 6, day, diff };
 }
-const tzLine = uid => { const L = localTimeOf(uid); return L ? `<i class="tzdot"> · </i>${L.night ? '🌙' : '🕒'} ${esc(L.time)}<i class="tzpl">${L.day} in ${esc(L.place)}</i>` : ''; };
+let tzLine = uid => { const L = localTimeOf(uid); return L ? `<i class="tzdot"> · </i>${L.night ? '🌙' : '🕒'} ${esc(L.time)}<i class="tzpl">${L.day} in ${esc(L.place)}</i>` : ''; };
 function vLocalTime(uid, big) {
   const L = localTimeOf(uid, true); if (!L) return '';
   return `<div class="ltime${big ? ' big' : ''}" data-key="ltime_${uid}"><span class="ltic">${L.night ? '🌙' : '🕒'}</span><span class="grow" style="min-width:0"><b>${esc(L.time)}${esc(L.day)}</b> <span class="mute">in ${esc(L.place)}</span><span class="small mute" style="display:block">${esc(L.gap)}${L.night ? ' · it\'s late there' : ''}</span></span></div>`;
@@ -7142,7 +7182,19 @@ if (location.hostname === 'localhost') Object.assign(window, { syncTz, localTime
 /* ================= v17.6: festival logos + festival scenery ================= */
 // Festival logo: Halloween, Diwali and Christmas get their own Nexa logo while the festival look is on.
 const FEST_ICONS = ['halloween', 'diwali', 'christmas'];
-function festIconKey() { try { const c = currentFest(); return c && FEST_ICONS.includes(c.f[0]) ? c.f[0] : ''; } catch { return ''; } }
+function festIconKey() { try { const c = currentFest(); const k = c && FEST_ICONS.includes(c.f[0]) ? c.f[0] : ''; if (festIconKey.last !== k) { festIconKey.last = k; lsSet('nexa.festIconK', k); } return k; } catch { const c = lsGet('nexa.festIconK', null); return c !== null ? c : festIconByDate(); } }
+// very first launch (nothing remembered yet, festival list not loaded): same date rule as the server's festicon.mjs
+function festIconByDate(now = new Date()) {
+  try { const t = JSON.parse(localStorage.getItem('nexa.festTest') || 'null'); if (t && t.k) return ['halloween', 'diwali', 'christmas'].includes(t.k) ? t.k : ''; } catch {}
+  const DIW = ['2026-11-08', '2027-10-29', '2028-10-17', '2029-11-05', '2030-10-26'];
+  const day = (y, m, d) => Math.round(Date.UTC(y, m - 1, d) / 864e5), today = day(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  let best = null;
+  for (const y of [now.getFullYear(), now.getFullYear() + 1]) for (const [k, ds] of [['halloween', `${y}-10-31`], ['christmas', `${y}-12-25`], ...DIW.filter(d => d.startsWith(y + '-')).map(d => ['diwali', d])]) {
+    const [yy, mm, dd] = ds.split('-').map(Number), left = day(yy, mm, dd) - today; if (left > 7 || left < -1) continue;
+    const sc = left >= 0 ? left : 10 - left; if (!best || sc < best.sc) best = { k, sc };
+  }
+  return best ? best.k : '';
+}
 function festIcon(size = 192) { const k = festIconKey(); return k ? `icon-${size}-${k}.png` : `icon-${size}-v4.png`; }
 // A painted scene behind the app for each festival: sky tint, a string of lights, a moon or fireworks, and a skyline at the bottom.
 // Static shapes are SVG; only a few small things animate (opacity/transform only), and fewer on phones.
@@ -7231,7 +7283,9 @@ function applyFestIcons() {
   const _applyFestV176 = applyFest;
   applyFest = function () { const cur = _applyFestV176(); try { applyScene(cur); applyFestIcons(); } catch {} return cur; };
 }
-if (location.hostname === 'localhost') Object.assign(window, { festIcon, applyScene });
+if (location.hostname === 'localhost') Object.assign(window, { festIcon, applyScene, currentFest });
+// swap the tab icon / home-screen icon straight away on load, signed in or not (e.g. the moment an update reloads Nexa)
+try { applyFestIcons(); } catch {}
 // Narrow chat panels (iPad portrait, split screen, small laptop windows): the chat measures itself
 // and drops the extra header buttons, so the name and the text box always have room.
 {
@@ -7242,4 +7296,198 @@ if (location.hostname === 'localhost') Object.assign(window, { festIcon, applySc
   // the page re-render can also just strip the attributes (no new elements) — watch for that too
   new MutationObserver(watch).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-narrow', 'data-ro'] });
   watch();
+}
+
+/* ================= v17.9: "What time is it for you?" — pick your country, choose who sees your time ================= */
+// Only the TIME is ever shown to others ("3:00 PM, 1h 30m ahead of you"). Nexa saves the time zone only —
+// never the country you picked, your city or where you are — and you choose who can see it.
+const TZ_COUNTRIES = [
+  ['Afghanistan', '🇦🇫', 'Asia/Kabul'], ['Argentina', '🇦🇷', 'America/Argentina/Buenos_Aires'],
+  ['Australia', '🇦🇺', [['Sydney / Melbourne / Canberra', 'Australia/Sydney'], ['Brisbane', 'Australia/Brisbane'], ['Adelaide', 'Australia/Adelaide'], ['Darwin', 'Australia/Darwin'], ['Perth', 'Australia/Perth'], ['Hobart', 'Australia/Hobart']]],
+  ['Austria', '🇦🇹', 'Europe/Vienna'], ['Bahrain', '🇧🇭', 'Asia/Bahrain'], ['Bangladesh', '🇧🇩', 'Asia/Dhaka'], ['Belgium', '🇧🇪', 'Europe/Brussels'],
+  ['Brazil', '🇧🇷', [['São Paulo / Rio / Brasília', 'America/Sao_Paulo'], ['Manaus', 'America/Manaus'], ['Fortaleza / Recife', 'America/Fortaleza']]],
+  ['Canada', '🇨🇦', [['Toronto / Ottawa / Montreal (Eastern)', 'America/Toronto'], ['Winnipeg (Central)', 'America/Winnipeg'], ['Calgary / Edmonton (Mountain)', 'America/Edmonton'], ['Vancouver (Pacific)', 'America/Vancouver'], ['Halifax (Atlantic)', 'America/Halifax'], ['St. John\'s (Newfoundland)', 'America/St_Johns']]],
+  ['Chile', '🇨🇱', 'America/Santiago'], ['China', '🇨🇳', 'Asia/Shanghai'], ['Colombia', '🇨🇴', 'America/Bogota'], ['Denmark', '🇩🇰', 'Europe/Copenhagen'],
+  ['Egypt', '🇪🇬', 'Africa/Cairo'], ['Ethiopia', '🇪🇹', 'Africa/Addis_Ababa'], ['Finland', '🇫🇮', 'Europe/Helsinki'], ['France', '🇫🇷', 'Europe/Paris'],
+  ['Germany', '🇩🇪', 'Europe/Berlin'], ['Ghana', '🇬🇭', 'Africa/Accra'], ['Greece', '🇬🇷', 'Europe/Athens'], ['Hong Kong', '🇭🇰', 'Asia/Hong_Kong'],
+  ['India', '🇮🇳', 'Asia/Kolkata'],
+  ['Indonesia', '🇮🇩', [['Jakarta (Western)', 'Asia/Jakarta'], ['Bali / Makassar (Central)', 'Asia/Makassar'], ['Jayapura (Eastern)', 'Asia/Jayapura']]],
+  ['Iran', '🇮🇷', 'Asia/Tehran'], ['Iraq', '🇮🇶', 'Asia/Baghdad'], ['Ireland', '🇮🇪', 'Europe/Dublin'], ['Israel', '🇮🇱', 'Asia/Jerusalem'], ['Italy', '🇮🇹', 'Europe/Rome'],
+  ['Japan', '🇯🇵', 'Asia/Tokyo'], ['Jordan', '🇯🇴', 'Asia/Amman'], ['Kenya', '🇰🇪', 'Africa/Nairobi'], ['Kuwait', '🇰🇼', 'Asia/Kuwait'], ['Lebanon', '🇱🇧', 'Asia/Beirut'],
+  ['Malaysia', '🇲🇾', 'Asia/Kuala_Lumpur'], ['Maldives', '🇲🇻', 'Indian/Maldives'],
+  ['Mexico', '🇲🇽', [['Mexico City / Guadalajara', 'America/Mexico_City'], ['Cancún', 'America/Cancun'], ['Chihuahua', 'America/Chihuahua'], ['Tijuana', 'America/Tijuana']]],
+  ['Morocco', '🇲🇦', 'Africa/Casablanca'], ['Nepal', '🇳🇵', 'Asia/Kathmandu'], ['Netherlands', '🇳🇱', 'Europe/Amsterdam'], ['New Zealand', '🇳🇿', 'Pacific/Auckland'],
+  ['Nigeria', '🇳🇬', 'Africa/Lagos'], ['Norway', '🇳🇴', 'Europe/Oslo'], ['Oman', '🇴🇲', 'Asia/Muscat'], ['Pakistan', '🇵🇰', 'Asia/Karachi'], ['Peru', '🇵🇪', 'America/Lima'],
+  ['Philippines', '🇵🇭', 'Asia/Manila'], ['Poland', '🇵🇱', 'Europe/Warsaw'], ['Portugal', '🇵🇹', 'Europe/Lisbon'], ['Qatar', '🇶🇦', 'Asia/Qatar'], ['Romania', '🇷🇴', 'Europe/Bucharest'],
+  ['Russia', '🇷🇺', [['Moscow / St Petersburg', 'Europe/Moscow'], ['Yekaterinburg', 'Asia/Yekaterinburg'], ['Novosibirsk', 'Asia/Novosibirsk'], ['Vladivostok', 'Asia/Vladivostok']]],
+  ['Saudi Arabia', '🇸🇦', 'Asia/Riyadh'], ['Singapore', '🇸🇬', 'Asia/Singapore'], ['South Africa', '🇿🇦', 'Africa/Johannesburg'], ['South Korea', '🇰🇷', 'Asia/Seoul'],
+  ['Spain', '🇪🇸', 'Europe/Madrid'], ['Sri Lanka', '🇱🇰', 'Asia/Colombo'], ['Sweden', '🇸🇪', 'Europe/Stockholm'], ['Switzerland', '🇨🇭', 'Europe/Zurich'],
+  ['Taiwan', '🇹🇼', 'Asia/Taipei'], ['Tanzania', '🇹🇿', 'Africa/Dar_es_Salaam'], ['Thailand', '🇹🇭', 'Asia/Bangkok'], ['Turkey', '🇹🇷', 'Europe/Istanbul'],
+  ['Uganda', '🇺🇬', 'Africa/Kampala'], ['Ukraine', '🇺🇦', 'Europe/Kyiv'], ['United Arab Emirates', '🇦🇪', 'Asia/Dubai'], ['United Kingdom', '🇬🇧', 'Europe/London'],
+  ['United States', '🇺🇸', [['New York / Miami (Eastern)', 'America/New_York'], ['Chicago / Texas (Central)', 'America/Chicago'], ['Denver (Mountain)', 'America/Denver'], ['Phoenix (Arizona)', 'America/Phoenix'], ['Los Angeles / Seattle (Pacific)', 'America/Los_Angeles'], ['Alaska', 'America/Anchorage'], ['Hawaii', 'Pacific/Honolulu']]],
+  ['Vietnam', '🇻🇳', 'Asia/Ho_Chi_Minh'], ['Zimbabwe', '🇿🇼', 'Africa/Harare'],
+];
+const tzZones = c => Array.isArray(c[2]) ? c[2] : [[c[0], c[2]]];
+const TZ_ALIAS = { 'Asia/Calcutta': 'Asia/Kolkata', 'Asia/Katmandu': 'Asia/Kathmandu', 'Asia/Saigon': 'Asia/Ho_Chi_Minh', 'Europe/Kiev': 'Europe/Kyiv' };
+// best guess from this phone's own setting (only used to pre-fill the question)
+function tzGuess() {
+  const t = TZ_ALIAS[myTz()] || myTz();
+  for (let i = 0; i < TZ_COUNTRIES.length; i++) { const z = tzZones(TZ_COUNTRIES[i]).findIndex(x => x[1] === t); if (z >= 0) return { c: i, z }; }
+  // same clock right now as one of ours → that one
+  const off = tzOffset(t || 'UTC');
+  for (let i = 0; i < TZ_COUNTRIES.length; i++) { const z = tzZones(TZ_COUNTRIES[i]).findIndex(x => tzOffset(x[1]) === off); if (z >= 0) return { c: i, z }; }
+  return { c: -1, z: 0 };
+}
+const TIME_WHO = [['everyone', 'Everyone', 'globe'], ['friends', 'Only friends', 'people'], ['nobody', 'Nobody', 'lock']];
+const timeWhoOf = u => u ? (u.timeWho || (u.showTime === false ? 'nobody' : 'everyone')) : 'nobody';
+// the question itself (onboarding, the one-time pop-up, and Settings › Privacy all use it)
+function vTimePick(f, compact) {
+  if (f.tzC == null) { const g = tzGuess(); f.tzC = g.c; f.tzZ = g.z; }
+  if (f.tzWho == null) f.tzWho = timeWhoOf(S.profile) === 'nobody' && !S.profile?.tzChosen ? 'friends' : (S.profile?.tzChosen ? timeWhoOf(S.profile) : 'friends');
+  const c = TZ_COUNTRIES[+f.tzC], zones = c ? tzZones(c) : [];
+  const tz = zones[+f.tzZ || 0]?.[1] || zones[0]?.[1] || '';
+  let prev = ''; try { if (tz) prev = new Date().toLocaleTimeString([], { timeZone: tz, hour: 'numeric', minute: '2-digit' }); } catch {}
+  return `<div class="col tzpick" style="gap:12px">
+    <label class="field">Your country<select class="inp" id="tz-c" data-model="form.tzC" data-rerender="1"><option value="-1"${+f.tzC < 0 ? ' selected' : ''}>Choose…</option>${TZ_COUNTRIES.map((x, i) => `<option value="${i}"${+f.tzC === i ? ' selected' : ''}>${x[1]} ${esc(x[0])}</option>`).join('')}</select></label>
+    ${zones.length > 1 ? `<label class="field">Which part?<select class="inp" id="tz-z" data-model="form.tzZ" data-rerender="1">${zones.map((z, i) => `<option value="${i}"${(+f.tzZ || 0) === i ? ' selected' : ''}>${esc(z[0])}</option>`).join('')}</select></label>` : ''}
+    <div class="field">Who can see your time?<div class="pills">${TIME_WHO.map(([k, l, i]) => `<button type="button" class="pill ${f.tzWho === k ? 'on' : ''}" data-a="tzWho" data-v="${k}">${ic(i, 15)} ${l}</button>`).join('')}</div></div>
+    ${prev && f.tzWho !== 'nobody' ? `<div class="tzprev">${ic('clock', 16)}<span>People will see: <b>${esc(prev)}</b> — that's it.</span></div>` : ''}
+    <div class="tzsafe">${ic('lock', 15)}<span>${compact ? 'Only the time shows. Your country, city and location are never shown or saved.' : 'Only the time shows — never your country, your city or where you live. Nexa doesn\'t even save the country you pick, just the clock. You can change this anytime in Settings › Privacy.'}</span></div>
+  </div>`;
+}
+async function saveTimePick(f) {
+  const c = TZ_COUNTRIES[+f.tzC], who = TIME_WHO.some(x => x[0] === f.tzWho) ? f.tzWho : 'friends';
+  const tz = who === 'nobody' || !c ? '' : (tzZones(c)[+f.tzZ || 0] || tzZones(c)[0])[1];
+  const patch = { tz, timeWho: who, showTime: who !== 'nobody' && !!tz, tzChosen: true };
+  Object.assign(S.profile, patch);
+  await db().update('users/' + S.me, patch);
+}
+Object.assign(actions, {
+  tzWho: d => { S.form.tzWho = d.v; render(); },
+  tzAskSave: async () => { if (+S.form.tzC < 0 && S.form.tzWho !== 'nobody') return toast('Pick your country first, or choose Nobody'); try { await saveTimePick(S.form); S.modal = null; render(); toast(S.form.tzWho === 'nobody' ? 'Your time stays hidden 🔒' : 'Saved — friends now see your time 🕒'); } catch { toast('Couldn\'t save — try again'); } },
+  tzAskLater: () => { lsSet('nexa.tzAskLater', now()); S.modal = null; render(); },
+  tzOpen: () => { S.form.tzC = null; S.form.tzWho = null; S.modal = { type: 'tzAsk', fromSettings: true }; render(); },
+});
+{
+  const _vModal5V179 = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'tzAsk') return head(m.fromSettings ? 'Your local time' : 'What time is it for you? 🕒', m.fromSettings ? '' : 'Friends in other countries can see your time, so they know if it\'s late before they message or call.') +
+      vTimePick(f) + `<div class="row" style="justify-content:flex-end;gap:10px;flex-wrap:wrap">${m.fromSettings ? '<button class="btn" data-a="closeModal">Cancel</button>' : '<button class="btn" data-a="tzAskLater">Not now</button>'}<button class="btn pri" data-a="tzAskSave">Save</button></div>`;
+    return _vModal5V179(m, f, head);
+  };
+}
+// people already on Nexa get the question once (later if they tap Not now — asked again in 3 days)
+function maybeAskTz() {
+  if (S.view !== 'app' || !S.profile || S.profile.tzChosen || S.modal || S.menu || S.call || isTypingNow() || S.tour != null) return;
+  if (now() - (lsGet('nexa.tzAskLater', 0) || 0) < 3 * 864e5) return;
+  if (now() - (S.profile.createdAt || S.profile.joined || 0) < 60e3) return; // brand-new accounts already answered it while signing up
+  S.form.tzC = null; S.form.tzWho = null; S.modal = { type: 'tzAsk' }; render();
+}
+setTimeout(maybeAskTz, 9000); setInterval(maybeAskTz, 60e3);
+// signing up: the question sits on the "Make it yours" step
+{
+  const _vOnboardV179 = vOnboard;
+  vOnboard = function () {
+    const h = _vOnboardV179();
+    if (S.onbStep !== 1) return h;
+    const block = `<div class="field" style="gap:8px"><b style="font-size:15px">🕒 Your local time</b><div class="mute small">Friends in other countries can see what time it is for you.</div>${vTimePick(S.form, true)}</div>`;
+    const k = h.indexOf('<div class="field">Theme');
+    return k < 0 ? h : h.slice(0, k) + block + h.slice(k);
+  };
+  const _onbNextV179 = actions.onbNext;
+  actions.onbNext = async (...a) => {
+    const fromStep1 = S.onbStep === 1, f = { tzC: S.form.tzC, tzZ: S.form.tzZ, tzWho: S.form.tzWho };
+    const r = await _onbNextV179(...a);
+    if (fromStep1 && S.profile && S.me && f.tzC != null) saveTimePick(f).catch(() => {});
+    else if (fromStep1 && S.me && f.tzC != null) S.pendingTz = f;
+    if (S.pendingTz && S.profile && S.view === 'app') { const p = S.pendingTz; S.pendingTz = null; saveTimePick(p).catch(() => {}); }
+    return r;
+  };
+}
+// the old automatic "use this phone's time zone" only runs for people who haven't answered yet
+{
+  const _syncTzV175 = syncTz;
+  syncTz = function () { if (S.profile?.tzChosen) return; return _syncTzV175(); };
+}
+// who can see it + never the place
+{
+  const _localTimeOfV175 = localTimeOf;
+  localTimeOf = function (uid, always) {
+    const u = U(uid); if (!u) return null;
+    const who = timeWhoOf(u); if (who === 'nobody' || (who === 'friends' && !isFriend(uid))) return null;
+    return _localTimeOfV175(uid, always);
+  };
+}
+tzLine = uid => { const L = localTimeOf(uid); return L ? `<i class="tzdot"> · </i>${L.night ? '🌙' : '🕒'} ${esc(L.time)}<i class="tzpl">${L.day} their time</i>` : ''; };
+vLocalTime = function (uid, big) {
+  const L = localTimeOf(uid, true); if (!L) return '';
+  return `<div class="ltime${big ? ' big' : ''}" data-key="ltime_${uid}"><span class="ltic">${L.night ? '🌙' : '🕒'}</span><span class="grow" style="min-width:0"><b>${esc(L.time)}${esc(L.day)}</b> <span class="mute">their time</span><span class="small mute" style="display:block">${esc(L.gap)}${L.night ? ' · it\'s late there' : ''}</span></span></div>`;
+};
+// Settings › Privacy: one row that opens the question
+{
+  const _vSettingsV179 = vSettings;
+  vSettings = function () {
+    const h = _vSettingsV179();
+    if (S.setSec !== 'privacy') return h;
+    const p = S.profile || {}, who = timeWhoOf(p), tz = p.tz;
+    let now_ = ''; try { if (tz && who !== 'nobody') now_ = new Date().toLocaleTimeString([], { timeZone: tz, hour: 'numeric', minute: '2-digit' }); } catch {}
+    const label = who === 'nobody' || !tz ? 'Hidden from everyone' : `${who === 'friends' ? 'Only friends' : 'Everyone'} see${who === 'friends' ? '' : 's'} ${now_ || 'your time'}`;
+    const row = `<div class="setrow"><span><b>My local time</b><div class="mute small">${esc(label)}. Only the time is shown — never your country, city or location.</div></span><button class="btn sm" data-a="tzOpen">${ic('clock', 14)} Change</button></div>`;
+    return h.replace(/<div class="setrow"><span><b>Show my local time<\/b>[\s\S]*?data-a="tzTog"><\/button><\/div>/, row);
+  };
+}
+
+/* ================= v17.9: incoming calls fill the whole screen (like WhatsApp / Discord) ================= */
+// Ringing takes over the screen wherever you are in Nexa: big photo, glowing rings, a real ringtone,
+// the phone vibrates, the screen stays awake, and Answer / Decline / "Can't talk" are big and easy to hit.
+let ringCtx = null, ringT = null, ringLock = null;
+function ringTone() {
+  try {
+    ringCtx = ringCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (ringCtx.state === 'suspended') ringCtx.resume().catch(() => {});
+    const t = ringCtx.currentTime, master = ringCtx.createGain(); master.gain.value = .16; master.connect(ringCtx.destination);
+    // a bright little melody, twice — then a pause (like a phone ringing)
+    [[0, 659], [.14, 784], [.28, 988], [.42, 1319], [.7, 659], [.84, 784], [.98, 988], [1.12, 1319]].forEach(([d, f]) => {
+      const o = ringCtx.createOscillator(), g = ringCtx.createGain(); o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(1, t + d + .02); g.gain.exponentialRampToValueAtTime(.0001, t + d + .26);
+      o.connect(g); g.connect(master); o.start(t + d); o.stop(t + d + .3);
+    });
+  } catch { sound('ping'); }
+}
+ring = function (on) {
+  clearInterval(ringIv); clearInterval(ringT); ringT = null;
+  try { navigator.vibrate?.(0); } catch {}
+  if (!on) { try { ringLock?.release(); } catch {} ringLock = null; document.documentElement.classList.remove('ringing'); return; }
+  document.documentElement.classList.add('ringing');
+  const once = () => { if (S.prefs.sounds !== false) ringTone(); try { navigator.vibrate?.([700, 300, 700]); } catch {} };
+  once(); ringT = setInterval(once, 2600);
+  // keep the screen on while it rings
+  try { navigator.wakeLock?.request('screen').then(l => { if (S.incoming) ringLock = l; else l.release(); }).catch(() => {}); } catch {}
+};
+{
+  const _paintCallV179 = paintCall;
+  paintCall = function () {
+    _paintCallV179();
+    const layer = document.getElementById('callLayer');
+    if (!layer || !S.incoming || S.call) return;
+    const inc = S.incoming, u = U(inc.from) || {}, video = inc.kind === 'video';
+    const pic = safeImg((S.pics || {})[inc.from] || u.avatar);
+    layer.className = 'incall-full';
+    layer.innerHTML = `<div class="cr-bg" style="${pic ? `background-image:url(${pic})` : `background:${gradFor(inc.from)}`}"></div><div class="cr-glow"></div>
+      <div class="cr-top"><span class="cr-app">${logo(22)} Nexa</span><span class="cr-kind">${ic(video ? 'video' : 'phone', 16, 2)} ${video ? 'Video call' : 'Voice call'}</span></div>
+      <div class="cr-mid"><div class="cr-av"><i></i><i></i><i></i>${av(inc.from, 132)}</div><h2 class="cr-name">${esc(dname(inc.from))}</h2><div class="cr-sub">is calling you<span class="cr-dots"><b>.</b><b>.</b><b>.</b></span></div></div>
+      <div class="cr-btns">
+        <div class="cr-b"><button class="cr-btn red" data-call="decline" aria-label="Decline">${ic('hangup', 30, 2)}</button><span>Decline</span></div>
+        <div class="cr-b"><button class="cr-btn msg" data-call="busymsg" aria-label="Can't talk right now">${ic('msg', 26, 2)}</button><span>Can't talk</span></div>
+        <div class="cr-b"><button class="cr-btn green" data-call="accept" aria-label="Answer">${ic(video ? 'video' : 'phone', 30, 2)}</button><span>Answer</span></div>
+      </div>`;
+    if (!layer.dataset.cr) {
+      layer.dataset.cr = '1';
+      layer.addEventListener('click', async e => {
+        if (!e.target.closest('[data-call="busymsg"]') || !S.incoming) return;
+        const inc2 = S.incoming; declineCall();
+        try { const id = await ensureDM(inc2.from); if (id) await sendMessage({ text: 'Can\'t talk right now — I\'ll call you back soon 🙏' }, id); toast('Sent: "Can\'t talk right now"'); } catch {}
+      });
+    }
+  };
 }

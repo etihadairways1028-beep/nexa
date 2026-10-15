@@ -1,9 +1,9 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '17.7';
-const NOTES = ["Festival decorations now float behind your chats instead of over names and buttons", "iPad: the text box and chat header always fit, even after switching pages", "Softer Halloween moon on computers and iPads so text stays easy to read", "Phones: no more double page titles, and the Notifications buttons fit the screen", "Fixed a stray label next to the chat list on computers", "Contact support message is clearer when no one is online"];
-const CACHE = 'nexa-shell-v48';
+const VERSION = '17.9';
+const NOTES = ["Faster: big chats, typing and switching pages are much smoother", "No more getting the same message notification twice on one phone or computer", "Profile studio scrolls properly on computers and iPads", "Pick your country once to show friends your local time — and choose who sees it. Only the time is shown, never where you live", "Incoming calls now fill the whole screen with a ringtone and vibration, like WhatsApp — Answer, Decline or 'Can't talk'"];
+const CACHE = 'nexa-shell-v50';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)|^\/manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
@@ -37,6 +37,7 @@ self.addEventListener('message', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const d = e.notification.data || {};
+  if (e.action === 'decline' && d.call) return; // just stop ringing here; the call stops on its own
   // Quick reply: browsers that support inline replies hand us the text in e.reply.
   const reply = e.action === 'reply' && typeof e.reply === 'string' ? e.reply.trim() : '';
   if (d.url) { // e.g. a help message for the owner page
@@ -73,6 +74,18 @@ async function showNothing() {
   try { await self.registration.showNotification('Nexa', { tag: 'nexa-sync', silent: true, body: '' }); } catch {}
   try { (await self.registration.getNotifications({ tag: 'nexa-sync' })).forEach(n => n.close()); } catch {}
 }
+async function ringCall(title, body, x) {
+  const opts = (re) => ({ body, icon: /^https:\/\//.test(x.icon || '') ? x.icon : appIcon(), badge: 'badge-96.png', tag: x.tag || 'nexa-call', renotify: true, requireInteraction: true,
+    vibrate: [900, 400, 900, 400, 900, 400, 900], data: { chat: x.chat || '', page: '', url: '', call: true }, actions: [{ action: 'open', title: '📞 Answer' }, { action: 'decline', title: 'Decline' }], silent: false, timestamp: Date.now() });
+  await self.registration.showNotification('📞 ' + title, opts());
+  for (let i = 0; i < 4; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const still = (await self.registration.getNotifications({ tag: x.tag || 'nexa-call' })).length;
+    const open = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true })).some(c => c.visibilityState === 'visible');
+    if (!still || open) return; // answered, dismissed, or Nexa is on screen (it shows the full-screen call)
+    await self.registration.showNotification('📞 ' + title, opts(true));
+  }
+}
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { data: { title: 'Nexa', body: e.data ? e.data.text() : '' } }; }
@@ -108,6 +121,8 @@ self.addEventListener('push', e => {
     if (x.kind === 'message' && x.tag) {
       try { const old = await self.registration.getNotifications({ tag: x.tag }); const o = old[old.length - 1]; if (o) { const od = o.data || {}; const prev = od.lines || String(o.body || '').split('\n'); if (!od.ids && prev[prev.length - 1] === body) { if (ios) await showNothing(); return; } lines = [...prev, body].slice(-6); count = (od.count || prev.length) + 1; ids = [...(od.ids || []), ...ids].slice(-20); } } catch {}
     }
+    // calls: ring like a phone — long buzzes, stays on screen, and rings again a few times until answered or dismissed
+    if (x.kind === 'call') return ringCall(title, body, x);
     return self.registration.showNotification(count > 1 ? `${title} (${count} new messages)` : title, {
       body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : appIcon(), badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
       data: { chat: x.chat || '', page: x.page || '', url: x.url || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : x.vibe === 'off' ? [] : x.vibe === 'long' ? [200, 100, 200, 100, 200] : x.vibe === 'double' ? [80, 80, 80] : [80], silent: x.silent === '1',
