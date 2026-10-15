@@ -1966,3 +1966,59 @@ html.resizing,html.resizing *{cursor:col-resize!important;user-select:none!impor
 @keyframes crDot{0%,100%{opacity:.2}50%{opacity:1}}
 @keyframes crBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 @media (prefers-reduced-motion:reduce){.incall-full *,.incall-full{animation:none!important}}
+/* v18.0: What's new walk-through */
+#wnLayer{position:fixed;inset:0;z-index:94;pointer-events:none}
+.wn-dim{position:fixed;inset:0;background:rgba(3,5,12,.66);animation:wnFade .25s ease}
+.wn-spot{position:fixed;border-radius:18px;box-shadow:0 0 0 9999px rgba(3,5,12,.68),0 0 0 3px var(--ac),0 0 40px var(--ac);transition:all .35s var(--ease);animation:wnPulse 1.6s ease-in-out infinite}
+.wn-tip{position:fixed;border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;animation:wnIn .3s var(--spring);box-shadow:0 24px 60px -16px rgba(0,0,0,.7)}
+.wn-tip.above{transform:translateY(-100%)}
+.wn-tip.side{}
+.wn-tip.center{left:50%;top:50%;transform:translate(-50%,-50%);text-align:left}
+.wn-top{display:flex;align-items:center;justify-content:space-between}
+.wn-emoji{font-size:30px;line-height:1}
+.wn-count{font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.7}
+.wn-title{font-size:19px}
+.wn-text{margin:0;font-size:14.5px;line-height:1.55;opacity:.88}
+.wn-dots{display:flex;gap:6px}.wn-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.22);transition:.25s}.wn-dots i.done{background:color-mix(in oklab,var(--ac) 60%,transparent)}.wn-dots i.on{width:22px;border-radius:6px;background:var(--ac)}
+[data-theme="light"] .wn-dots i{background:rgba(0,0,0,.18)}
+.wn-skip{opacity:.75}
+@keyframes wnPulse{0%,100%{box-shadow:0 0 0 9999px rgba(3,5,12,.68),0 0 0 3px var(--ac),0 0 26px var(--ac)}50%{box-shadow:0 0 0 9999px rgba(3,5,12,.68),0 0 0 5px var(--ac),0 0 50px var(--ac)}}
+@media (prefers-reduced-motion:reduce){.wn-spot,.wn-tip{animation:none}}
+@keyframes wnFade{from{opacity:0}}
+@keyframes wnIn{from{opacity:0;scale:.95}}
+/* v18.0: premium "Unlocking your new Nexa" update screen */
+#upLayer{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#1b1748,#070818 60%,#04050d);color:#fff;overflow:hidden;animation:upIn .5s ease}
+.up-aurora{position:absolute;inset:-30%;background:conic-gradient(from 0deg at 50% 55%,rgba(91,124,255,.35),rgba(192,107,255,.3),rgba(255,138,76,.28),rgba(47,198,160,.25),rgba(91,124,255,.35));filter:blur(70px);animation:upSpin 14s linear infinite;opacity:.8}
+.up-stars i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:0;animation:upTw 2.8s ease-in-out infinite}
+.up-core{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px;text-align:center;max-width:440px}
+.up-kick{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2)}
+.up-ring{position:relative;width:min(62vw,250px);aspect-ratio:1;display:grid;place-items:center;margin:6px 0}
+.up-ring svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.up-track{fill:none;stroke:rgba(255,255,255,.1);stroke-width:10}
+.up-bar{fill:none;stroke:url(#upg);stroke-width:10;stroke-linecap:round;filter:drop-shadow(0 0 10px rgba(160,120,255,.8))}
+.up-ring img{width:58%;aspect-ratio:1;border-radius:24%;box-shadow:0 20px 60px -10px rgba(120,100,255,.8),0 0 0 1px rgba(255,255,255,.2);animation:upFloat 3s ease-in-out infinite}
+.up-shine{position:absolute;width:58%;aspect-ratio:1;border-radius:24%;overflow:hidden;pointer-events:none}
+.up-shine::after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.55) 50%,transparent 60%);animation:upShine 2.6s ease-in-out infinite}
+.up-pct{display:flex;align-items:baseline;gap:2px;font-variant-numeric:tabular-nums}
+.up-pct b{font-size:56px;font-weight:800;line-height:1;background:linear-gradient(120deg,#9fb2ff,#e0a8ff 55%,#ffb37a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.up-pct span{font-size:22px;font-weight:800;opacity:.7}
+.up-title{font-size:22px;font-weight:800}
+.up-stage{font-size:14.5px;opacity:.75;min-height:20px}
+.up-note{margin-top:8px;font-size:14px;padding:10px 16px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);min-height:42px;display:flex;align-items:center}
+.up-note span{display:block}.up-note span.in{animation:upNote .5s ease}
+#upLayer.up-done .up-ring img{animation:upPop .7s var(--spring,ease-out) both}
+#upLayer.up-done .up-ring::after{content:"";position:absolute;inset:-20%;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.7),transparent 60%);animation:upBurst .9s ease-out both}
+@keyframes upIn{from{opacity:0}}
+@keyframes upSpin{to{transform:rotate(360deg)}}
+@keyframes upTw{0%,100%{opacity:0}50%{opacity:.9}}
+@keyframes upFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes upShine{0%{transform:translateX(-60%)}60%,100%{transform:translateX(60%)}}
+@keyframes upNote{from{opacity:0;transform:translateY(6px)}}
+@keyframes upPop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes upBurst{from{opacity:1;transform:scale(.4)}to{opacity:0;transform:scale(1.4)}}
+@media (prefers-reduced-motion:reduce){#upLayer *{animation:none!important}}
+/* v18.0: Face ID unlock */
+.bio-btn{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 26px;border-radius:24px;border:1px solid color-mix(in oklab,var(--ac) 45%,transparent);background:color-mix(in oklab,var(--ac) 16%,transparent);color:var(--text);cursor:pointer;width:100%}
+.bio-btn .bio-ic{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;box-shadow:0 10px 30px -8px var(--ac)}
+.bio-btn b{font-size:16px}
+.bio-btn:disabled{opacity:.7}

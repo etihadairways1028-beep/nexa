@@ -1,9 +1,9 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '17.9';
-const NOTES = ["Faster: big chats, typing and switching pages are much smoother", "No more getting the same message notification twice on one phone or computer", "Profile studio scrolls properly on computers and iPads", "Pick your country once to show friends your local time — and choose who sees it. Only the time is shown, never where you live", "Incoming calls now fill the whole screen with a ringtone and vibration, like WhatsApp — Answer, Decline or 'Can't talk'"];
-const CACHE = 'nexa-shell-v50';
+const VERSION = '18.0';
+const NOTES = ["Updating is one tap: however many updates you missed, you jump straight to the newest Nexa — with a new 'Unlocking your new Nexa' screen", "Nexa never asks you to delete or re-add the app again", "After an update, Nexa walks you through each new thing, one at a time", "Lock Nexa with a PIN or with Face ID / fingerprint", "Calls ring with sound even when Nexa is closed (turn on notifications), stop ringing on your other devices when you answer, and show 'Missed call' if nobody answers"];
+const CACHE = 'nexa-shell-v51';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)|^\/manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
@@ -78,7 +78,7 @@ async function ringCall(title, body, x) {
   const opts = (re) => ({ body, icon: /^https:\/\//.test(x.icon || '') ? x.icon : appIcon(), badge: 'badge-96.png', tag: x.tag || 'nexa-call', renotify: true, requireInteraction: true,
     vibrate: [900, 400, 900, 400, 900, 400, 900], data: { chat: x.chat || '', page: '', url: '', call: true }, actions: [{ action: 'open', title: '📞 Answer' }, { action: 'decline', title: 'Decline' }], silent: false, timestamp: Date.now() });
   await self.registration.showNotification('📞 ' + title, opts());
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     await new Promise(r => setTimeout(r, 5000));
     const still = (await self.registration.getNotifications({ tag: x.tag || 'nexa-call' })).length;
     const open = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true })).some(c => c.visibilityState === 'visible');
@@ -98,6 +98,11 @@ self.addEventListener('push', e => {
       try { (await self.registration.getNotifications({ tag: x.tag })).forEach(o => o.close()); } catch {}
       if (ios) await showNothing();
       return;
+    }
+    // a call that rang out: swap the ringing alert for "Missed call from …"
+    if (x.kind === 'missed') {
+      try { (await self.registration.getNotifications({ tag: x.tag })).forEach(o => o.close()); } catch {}
+      return self.registration.showNotification('📞 ' + title, { body, icon: /^https:\/\//.test(x.icon || '') ? x.icon : appIcon(), badge: 'badge-96.png', tag: 'missed_' + (x.tag || ''), data: { chat: x.chat || '', page: '', url: '' }, vibrate: [120, 80, 120] });
     }
     // Same message twice (e.g. two registrations for this browser) → show it once.
     // only tags that name one specific thing can be duplicates (a new owner code or support alert reuses its tag)

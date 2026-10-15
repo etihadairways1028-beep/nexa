@@ -5824,7 +5824,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '17.9';
+const APP_VERSION = '18.0';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -7489,5 +7489,245 @@ ring = function (on) {
         try { const id = await ensureDM(inc2.from); if (id) await sendMessage({ text: 'Can\'t talk right now — I\'ll call you back soon 🙏' }, id); toast('Sent: "Can\'t talk right now"'); } catch {}
       });
     }
+  };
+}
+
+/* ================= v18.0: "What's new" walks you through it, one thing at a time ================= */
+// After an update Nexa doesn't just list the changes — it takes you to each new button, lights it up
+// and explains it in a sentence. Back / Next / Skip, and it can be replayed from Settings › Help.
+const WN_STEPS = {
+  '18.0': [
+    { emoji: '🎉', title: 'Nexa just got better', text: 'Here are the new things — it takes 30 seconds. Tap Next, or Skip anytime.' },
+    { emoji: '🔓', title: 'Updates are one tap now', text: 'However many updates you missed, one tap unlocks the newest Nexa — and you never have to delete or re-add the app.' },
+    { page: 'home', sel: '.hc-open', desk: true, emoji: '🖌️', title: 'Customise your Home', text: 'Move, resize or hide the cards on Home so the things you use most are on top.' },
+    { page: 'settings', sec: 'profile', sel: '[data-a="studioOpen"]', emoji: '✨', title: 'Profile studio', text: 'Rings, effects and name styles — every single one is free. It now scrolls properly on computers and iPads too.' },
+    { page: 'settings', sec: 'privacy', sel: '[data-a="tzOpen"]', emoji: '🕒', title: 'Your local time', text: 'Pick your country so friends abroad see what time it is for you. Only the time is shown — never where you live. You choose who sees it.' },
+    { page: 'settings', sec: 'privacy', sel: '[data-a="bioOn"], [data-a="bioOff"]', emoji: '🔒', title: 'Lock Nexa your way', text: 'Choose a PIN or Face ID / fingerprint to open Nexa. Your face or fingerprint never leaves your phone.' },
+    { emoji: '📞', title: 'Calls fill the screen', text: 'When someone calls, Nexa rings full screen like WhatsApp — Answer, Decline, or "Can\'t talk" to send a quick message. If nobody answers you\'ll see "Missed call".' },
+    { page: 'settings', sec: 'notifications', sel: '[data-a="deviceNotifs"]', emoji: '🔔', title: 'Never miss a call', text: 'Turn this on and calls ring (with sound) even when Nexa is closed, you\'re in another app or on your Home Screen. On iPhone, open Nexa from its Home Screen icon first.' },
+    { emoji: '⚡', title: 'Faster, and no double pings', text: 'Big chats scroll and type smoothly now, and each message only notifies you once per device.' },
+    { emoji: '💙', title: 'That\'s everything!', text: 'Have fun — and if you get stuck, tap Help at the top anytime.', last: true },
+  ],
+};
+WN_STEPS['17.9'] = WN_STEPS['18.0'];
+function wnStart(v) { let steps = WN_STEPS[v]; if (!steps) return false; if (innerWidth <= 700) steps = steps.filter(x => !x.desk); S.wn = { v, i: 0, from: S.page, steps }; S.modal = null; S.menu = null; render(); setTimeout(paintWn, 60); return true; }
+function wnEnd() { const from = S.wn?.from; S.wn = null; document.getElementById('wnLayer')?.remove(); if (from && from !== S.page) actions.go({ v: from }); else render(); }
+function wnGo(d) { if (!S.wn) return; const n = S.wn.steps.length; S.wn.i = Math.max(0, S.wn.i + d); if (S.wn.i >= n) return wnEnd(); paintWn(); }
+async function paintWn() {
+  if (!S.wn || S.view !== 'app') { document.getElementById('wnLayer')?.remove(); return; }
+  const steps = S.wn.steps, st = steps[S.wn.i]; if (!st) return wnEnd();
+  // go to the page the new thing lives on
+  if (st.page && (S.page !== st.page || (st.sec && S.setSec !== st.sec))) {
+    if (st.sec) S.setSec = st.sec;
+    if (S.page !== st.page) actions.go({ v: st.page }); else render();
+    await new Promise(r => setTimeout(r, 380));
+    if (!S.wn || S.wn.steps[S.wn.i] !== st) return;
+  }
+  let layer = document.getElementById('wnLayer');
+  if (!layer) {
+    layer = document.createElement('div'); layer.id = 'wnLayer'; document.body.appendChild(layer);
+    layer.addEventListener('click', e => { const b = e.target.closest('[data-wn]'); if (!b) return; const k = b.dataset.wn; if (k === 'next') wnGo(1); else if (k === 'back') wnGo(-1); else if (k === 'skip') wnEnd(); });
+  }
+  const target = st.sel ? [...document.querySelectorAll(st.sel)].find(el => el.offsetParent !== null && el.getBoundingClientRect().width) : null;
+  if (target) { target.scrollIntoView({ block: 'center', behavior: 'instant' }); await new Promise(r => requestAnimationFrame(r)); }
+  const r = target?.getBoundingClientRect();
+  const n = steps.length, i = S.wn.i, phone = innerWidth <= 700;
+  const tipW = Math.min(phone ? innerWidth - 24 : 340, innerWidth - 24);
+  let tip = '';
+  const body = `<div class="wn-top"><span class="wn-emoji">${st.emoji || '✨'}</span><span class="wn-count">${i + 1} / ${n}</span></div>
+    <b class="disp wn-title">${esc(st.title)}</b><p class="wn-text">${esc(st.text)}</p>
+    <div class="wn-dots">${steps.map((_, k) => `<i class="${k === i ? 'on' : k < i ? 'done' : ''}"></i>`).join('')}</div>
+    <div class="row spread" style="gap:8px">${st.last ? '<span></span>' : '<button class="btn sm wn-skip" data-wn="skip">Skip</button>'}<span class="row" style="gap:8px">${i ? '<button class="btn sm" data-wn="back">Back</button>' : ''}<button class="btn sm pri" data-wn="next">${st.last ? 'Done' : 'Next'}</button></span></div>`;
+  if (r) {
+    let tx = r.left + r.width + 18, ty = r.top + r.height / 2 - 90, below = false;
+    if (phone || tx + tipW > innerWidth - 12) { tx = Math.max(12, Math.min(innerWidth - tipW - 12, r.left + r.width / 2 - tipW / 2)); below = r.top < innerHeight * .5; ty = below ? r.bottom + 18 : r.top - 18; }
+    tip = `<div class="wn-spot" style="left:${r.left - 8}px;top:${r.top - 8}px;width:${r.width + 16}px;height:${r.height + 16}px"></div>
+      <div class="wn-tip glass ${below ? 'below' : phone || r.left + r.width + 18 + tipW > innerWidth - 12 ? 'above' : 'side'}" style="left:${tx}px;top:${Math.max(12, Math.min(innerHeight - 12, ty))}px;width:${tipW}px">${body}</div>`;
+  } else tip = `<div class="wn-dim"></div><div class="wn-tip glass center" style="width:${Math.min(380, innerWidth - 32)}px">${body}</div>`;
+  layer.innerHTML = tip;
+  layer.querySelector('[data-wn="next"]')?.focus({ preventScroll: true });
+}
+addEventListener('resize', () => { if (S.wn) paintWn(); });
+document.addEventListener('keydown', e => { if (!S.wn) return; if (e.key === 'Escape') { e.preventDefault(); wnEnd(); } else if (e.key === 'ArrowRight') wnGo(1); else if (e.key === 'ArrowLeft') wnGo(-1); }, true);
+// the post-update "What's new" box becomes the walk-through when there is one for this version
+setInterval(() => { if (S.modal?.type === 'whatsNew' && WN_STEPS[S.modal.version] && !S.wn) wnStart(S.modal.version); }, 400);
+Object.assign(actions, { wnStart: () => wnStart(APP_VERSION) || toast('Nothing new to show right now') });
+// Settings › Help & guide: replay it
+{
+  const _vSettingsV180 = vSettings;
+  vSettings = function () {
+    const h = _vSettingsV180();
+    if (S.setSec !== 'shortcuts') return h;
+    const row = `<div class="setrow"><span><b>What's new in ${esc(APP_VERSION)}</b><div class="mute small">A quick walk-through of the newest features.</div></span><button class="btn sm pri" data-a="wnStart">${ic('spark', 14)} Show me</button></div>`;
+    return h.replace('<div class="setrow"><span><b>How to use Nexa</b>', row + '<div class="setrow"><span><b>How to use Nexa</b>');
+  };
+}
+if (location.hostname === 'localhost') Object.assign(window, { wnStart });
+
+/* ================= v18.0: never ask anyone to delete Nexa; one premium update that jumps straight to the newest version ================= */
+// 1) The old "get the new logo: remove Nexa from your Home Screen and add it again" pop-up is gone for good.
+//    It covered the chats on iPhone, and nobody should ever have to delete the app.
+try { lsSet('nexa.iconVer', ICON_VER); } catch {}
+Object.assign(actions, { iconGuide: () => { S.menu = null; render(); }, iconDone: () => { if (S.modal?.type === 'iconGuide') S.modal = null; render(); } });
+setInterval(() => { if (S.modal?.type === 'iconGuide') { S.modal = null; render(); } }, 500);
+{
+  const _vSettingsV180b = vSettings;
+  vSettings = function () { return _vSettingsV180b().replace(/<div class="setrow"><span><b>App icon<\/b>[\s\S]*?<\/button><\/div>/, ''); };
+}
+// 2) Updating: however many versions behind you are, you update ONCE, straight to the newest.
+//    A full-screen "Unlocking your new Nexa" with a real percentage, then the What's new walk-through.
+function upScreen(ver) {
+  document.getElementById('upLayer')?.remove();
+  const L = document.createElement('div'); L.id = 'upLayer'; L.setAttribute('role', 'status');
+  const notes = (S.mustUpdate?.notes || S.updateInfo?.notes || []).slice(0, 5);
+  const R = 118, C = 2 * Math.PI * R;
+  L.innerHTML = `<div class="up-aurora"></div><div class="up-stars">${Array.from({ length: 28 }, (_, i) => `<i style="left:${(i * 37) % 100}%;top:${(i * 61) % 100}%;animation-delay:${(i % 7) * .4}s"></i>`).join('')}</div>
+    <div class="up-core">
+      <div class="up-kick">${ic('spark', 14, 2)} Nexa ${esc(ver || '')}</div>
+      <div class="up-ring"><svg viewBox="0 0 280 280"><defs><linearGradient id="upg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7f9bff"/><stop offset=".55" stop-color="#c06bff"/><stop offset="1" stop-color="#ff8a4c"/></linearGradient></defs><circle cx="140" cy="140" r="${R}" class="up-track"/><circle cx="140" cy="140" r="${R}" class="up-bar" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg><img src="${festIcon(512)}" alt=""><div class="up-shine"></div></div>
+      <div class="up-pct"><b>0</b><span>%</span></div>
+      <div class="up-title">Unlocking your new Nexa</div>
+      <div class="up-stage">Getting everything ready…</div>
+      ${notes.length ? `<div class="up-note"><span>${esc(notes[0])}</span></div>` : ''}
+    </div>`;
+  document.body.appendChild(L);
+  let shown = 0, target = 0, raf = 0, ni = 0;
+  const bar = L.querySelector('.up-bar'), num = L.querySelector('.up-pct b');
+  const tick = () => { shown += (target - shown) * .12; if (Math.abs(target - shown) < .2) shown = target; num.textContent = Math.floor(shown); bar.style.strokeDashoffset = C * (1 - shown / 100); if (shown < 100 || target < 100) raf = requestAnimationFrame(tick); };
+  raf = requestAnimationFrame(tick);
+  const noteT = notes.length > 1 ? setInterval(() => { const el = L.querySelector('.up-note span'); if (!el) return; ni = (ni + 1) % notes.length; el.classList.remove('in'); void el.offsetWidth; el.textContent = notes[ni]; el.classList.add('in'); }, 2200) : 0;
+  return {
+    set(p, stage) { target = Math.max(target, Math.min(100, p)); if (stage) L.querySelector('.up-stage').textContent = stage; },
+    async done(ver2) {
+      target = 100; await new Promise(r => setTimeout(r, 700)); clearInterval(noteT);
+      L.classList.add('up-done'); L.querySelector('.up-title').textContent = 'Your new Nexa is ready ✨'; L.querySelector('.up-stage').textContent = 'Welcome to Nexa ' + (ver2 || ver || '');
+      try { navigator.vibrate?.([30, 60, 30]); } catch {}
+      await new Promise(r => setTimeout(r, 1300));
+    },
+  };
+}
+// download the new files ourselves so the percentage is real
+async function upDownload(ui, from, to) {
+  const files = [['./', 2], ['app.js', 10], ['styles.css', 3], ['store.js', 1], ['config.js', .3], ['sw.js', .5], ['qr.js', .5], [festIcon(512), 1], [festIcon(192), .5]];
+  const total = files.reduce((a, f) => a + f[1], 0); let doneW = 0;
+  for (const [u, w] of files) {
+    try {
+      const r = await fetch(u + (u.includes('?') ? '&' : '?') + 'up=' + Date.now(), { cache: 'no-store' });
+      const len = +r.headers.get('content-length') || 0, rd = r.body?.getReader?.();
+      if (rd) { let got = 0; for (;;) { const { done, value } = await rd.read(); if (done) break; got += value.length; const part = len ? Math.min(1, got / len) : Math.min(.9, got / 400000); ui.set(from + (to - from) * (doneW + w * part) / total); } }
+      else await r.arrayBuffer();
+    } catch {}
+    doneW += w; ui.set(from + (to - from) * doneW / total, doneW / total > .5 ? 'Adding the new features…' : 'Downloading your update…');
+  }
+}
+async function newestWorker(reg, want) {
+  // ask for the newest sw.js — an older version that was already waiting is skipped, so it's one update, not many
+  for (let k = 0; k < 3; k++) {
+    try { await reg.update(); } catch {}
+    const w = reg.installing || reg.waiting;
+    const ready = w && (w.state === 'installed' ? w : await new Promise(res => { const t = setTimeout(() => res(reg.waiting || null), 20000); w.addEventListener('statechange', () => { if (w.state === 'installed' || w.state === 'activated') { clearTimeout(t); res(w); } if (w.state === 'redundant') { clearTimeout(t); res(null); } }); }));
+    if (!ready) continue;
+    const v = (await swAsk(ready)).version;
+    if (!want || !v || verNum(v) >= verNum(want)) return ready;
+  }
+  return null;
+}
+doUpdate = async function () {
+  if (S.updating) return; S.updating = true; S.modal = null; lsSet('nexa.justUpdated', '1'); render();
+  let want = S.mustUpdate?.version || S.updateInfo?.version || '';
+  try { const r = await fetch('/support/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json(); if (j?.version && (!want || verNum(j.version) > verNum(want))) want = j.version; } catch {}
+  const ui = upScreen(want);
+  watchUpdates.reloaded = true; // we reload ourselves after the "ready" moment
+  const finishHard = async () => { ui.set(96, 'Unlocking…'); await ui.done(want); if (want) lsSet('nexa.forcedTo', want); try { const ks = await caches.keys(); await Promise.all(ks.filter(k => /^nexa-shell/.test(k)).map(k => caches.delete(k))); } catch {} try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) await reg.unregister(); } catch {} location.reload(); };
+  try {
+    ui.set(4, 'Checking what\'s new…');
+    await upDownload(ui, 5, 72);
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (!reg) return finishHard();
+    ui.set(76, 'Installing…');
+    const w = await newestWorker(reg, want);
+    if (!w) return finishHard();
+    ui.set(90, 'Unlocking…');
+    const changed = new Promise(res => { navigator.serviceWorker.addEventListener('controllerchange', res, { once: true }); setTimeout(res, 6000); });
+    try { w.postMessage({ type: 'skipWaiting' }); } catch {}
+    await changed;
+    await ui.done(want);
+    location.reload();
+  } catch { finishHard(); }
+};
+hardRefresh = async function () { S.updating = false; return doUpdate(); };
+
+// v18.0: calls stop ringing on your other phones/computers the moment you answer or decline, and a call nobody answered
+// turns into "Missed call from …" on the other person's phone (even with Nexa closed)
+{
+  const _accept = acceptCall, _decline = declineCall, _hang = hangUp;
+  acceptCall = async function () { const id = S.incoming?.id; if (id) pushNotify('callEnd', { id }); return _accept(); };
+  declineCall = function () { const id = S.incoming?.id; if (id) pushNotify('callEnd', { id }); return _decline(); };
+  hangUp = async function () { const c = S.call; const r = await _hang(); if (c?.id) pushNotify('callEnd', { id: c.id }); return r; };
+}
+if (location.hostname === 'localhost') Object.assign(window, { upScreen, doUpdate: () => doUpdate() });
+
+/* ================= v18.0: lock Nexa with a PIN or with Face ID / fingerprint — your choice ================= */
+// Face ID uses the phone's own face/fingerprint check (WebAuthn, "platform authenticator"). Nothing about your face
+// ever leaves your phone — Nexa only gets a yes/no from the device.
+const bioKey = () => 'nexa.bio.' + S.me;
+const hasBio = () => !!lsGet(bioKey(), null);
+const bioName = () => { const ua = navigator.userAgent; return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'Face ID' : /Macintosh/.test(ua) ? 'Touch ID' : /Windows/.test(ua) ? 'Windows Hello' : /Android/.test(ua) ? 'fingerprint / face unlock' : 'Face ID / fingerprint'; };
+let bioOk = null;
+(async () => { try { bioOk = !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch { bioOk = false; } if (S.view === 'app') render(); })();
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const rnd = n => crypto.getRandomValues(new Uint8Array(n));
+async function bioEnable() {
+  try {
+    const cred = await navigator.credentials.create({ publicKey: {
+      rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
+      user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none',
+    } });
+    if (!cred) throw new Error('cancelled');
+    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); render(); toast(`${bioName()} lock is on 🔒`);
+  } catch (e) { if (e?.name !== 'NotAllowedError') toast(`Couldn't turn on ${bioName()} on this device`); }
+}
+async function bioCheck() {
+  const k = lsGet(bioKey(), null); if (!k) return false;
+  try { const a = await navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: 'public-key', id: unb64(k.id), transports: ['internal'] }], userVerification: 'required', timeout: 60000, rpId: location.hostname } }); return !!a; } catch { return false; }
+}
+Object.assign(actions, {
+  bioOn: () => bioEnable(),
+  bioOff: () => { lsSet(bioKey(), null); render(); toast(`${bioName()} lock turned off`); },
+  bioUnlock: async () => { if (S.bioBusy) return; S.bioBusy = true; S.authErr = ''; render(); const ok = await bioCheck(); S.bioBusy = false; if (ok) { S.locked = false; S.form.pinIn = ''; } else S.authErr = `${bioName()} didn't work — try again${hasPin() ? ' or use your PIN' : ''}.`; render(); },
+  pinForgot: () => { lsSet(pinKey(), null); lsSet(bioKey(), null); S.locked = false; S.be.auth.signOut(); },
+});
+// lock when opening Nexa, and after 5 minutes away — with either lock
+{
+  let away = 0;
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') away = now(); else if (S.me && hasBio() && !hasPin() && away && now() - away > 5 * 60e3) { S.locked = true; render(); setTimeout(() => S.locked && actions.bioUnlock(), 350); } });
+  // lock before the first chat is ever drawn
+  const _vShellV180 = vShell;
+  vShell = function () { if (!S.lockedOnce && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; setTimeout(() => S.locked && actions.bioUnlock(), 450); return vLock(); } return _vShellV180(); };
+}
+{
+  const _vLockV180 = vLock;
+  vLock = function () {
+    if (!hasBio()) return _vLockV180();
+    const pin = hasPin();
+    return `<div class="onb"><div class="card glass col${A('lock')}" style="text-align:center;align-items:center;max-width:380px;gap:14px">${logo(52)}<h2 class="h1" style="font-size:22px">Nexa is locked</h2>
+      <button class="bio-btn" data-a="bioUnlock" ${S.bioBusy ? 'disabled' : ''}><span class="bio-ic">${ic('lock', 30, 2)}</span><b>${S.bioBusy ? 'Checking…' : 'Unlock with ' + esc(bioName())}</b></button>
+      ${pin ? `<div class="mute small">or enter your PIN</div><form class="col" style="width:100%;align-items:center" data-submit="unlock"><input class="inp pin" id="pinIn" data-model="form.pinIn" inputmode="numeric" maxlength="4" autocomplete="off" type="password" value="${esc(S.form.pinIn || '')}" aria-label="PIN"><button class="btn" style="width:100%">Unlock with PIN</button></form>` : ''}
+      ${S.authErr ? `<div class="err">${esc(S.authErr)}</div>` : ''}
+      <button class="small mute" style="text-decoration:underline" data-a="pinForgot">Can't unlock? Log out and sign in with your password</button></div></div>`;
+  };
+}
+// Settings › Privacy: choose PIN or Face ID
+{
+  const _vSettingsV180c = vSettings;
+  vSettings = function () {
+    const h = _vSettingsV180c();
+    if (S.setSec !== 'privacy') return h;
+    const name = bioName(), on = hasBio();
+    const bioRow = bioOk === false && !on ? '' : `<div class="setrow"><span><b>Unlock with ${esc(name)}</b><div class="mute small">${on ? `On — Nexa asks for ${esc(name)} when you open it. Your face or fingerprint never leaves your device.` : `Open Nexa with ${esc(name)} instead of${hasPin() ? ' (or as well as)' : ''} a PIN. Your face or fingerprint never leaves your device.`}</div></span>${on ? '<button class="btn sm" data-a="bioOff">Turn off</button>' : `<button class="btn sm pri" data-a="bioOn">${ic('lock', 14)} Turn on</button>`}</div>`;
+    return h.replace(/(<div class="setrow"><span><b>App lock on this device<\/b>[\s\S]*?<\/span><\/div>)/, `$1${bioRow}`);
   };
 }
