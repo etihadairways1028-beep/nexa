@@ -11,6 +11,7 @@ import { sendAs, pushAgents, dayKey } from './owner.mjs';
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 const ID = /^[\w-]{1,200}$/;
 const FRESH_MS = 2 * 60 * 1000;
+const PART = 8; // people per push request
 
 function init() {
   if (admin.apps.length) return admin.app();
@@ -35,10 +36,11 @@ async function once(db, key) {
   try { await db.doc('pushLog/' + key).create({ at: Date.now() }); return true; } catch { return false; }
 }
 
-async function deliver(db, uid, data, ttl, exclude) {
+async function deliver(db, uid, data, ttl, exclude, pre, maxTokens = 20) {
   const pdoc = db.doc(`users/${uid}/private/push`);
-  const push = (await pdoc.get()).data() || {};
-  const tokens = [...new Set([...Object.values(push.devices || {}), ...(push.tokens || [])])].filter(t => typeof t === 'string' && t && !(exclude || []).includes(t)).slice(0, 20);
+  const push = pre || (await pdoc.get()).data() || {};
+  // newest devices first; each phone/browser is one request to Google
+  const tokens = [...new Set([...(push.tokens || []).slice().reverse(), ...Object.values(push.devices || {})])].filter(t => typeof t === 'string' && t && !(exclude || []).includes(t)).slice(0, maxTokens);
   if (!tokens.length) return 0;
   const res = await admin.messaging().sendEachForMulticast({
     tokens,
@@ -46,8 +48,13 @@ async function deliver(db, uid, data, ttl, exclude) {
     webpush: { headers: { Urgency: 'high', TTL: String(ttl) } }
   });
   const dead = [];
-  res.responses.forEach((r, i) => { const code = r.error && r.error.code || ''; if (!r.success && /registration-token-not-registered|invalid-registration-token|invalid-argument/.test(code)) dead.push(tokens[i]); });
-  if (dead.length) await pdoc.update({ tokens: admin.firestore.FieldValue.arrayRemove(...dead) }).catch(() => {});
+  // only "this phone/browser is gone" errors mean a dead token (a bad message is not the token's fault)
+  res.responses.forEach((r, i) => { const code = r.error && r.error.code || ''; if (!r.success && /registration-token-not-registered|invalid-registration-token/.test(code)) dead.push(tokens[i]); });
+  if (dead.length) {
+    const upd = { tokens: admin.firestore.FieldValue.arrayRemove(...dead) };
+    for (const [k, v] of Object.entries(push.devices || {})) if (dead.includes(v) && /^[\w-]{1,200}$/.test(k)) upd['devices.' + k] = admin.firestore.FieldValue.delete();
+    await pdoc.update(upd).catch(() => {});
+  }
   return res.successCount;
 }
 
@@ -77,7 +84,8 @@ async function supportForward(db, uid, name, cid, conv, msg) {
   const askedName = asked ? asked[0].toUpperCase() + asked.slice(1) : '';
   await pushAgents(db, { title: asked ? `💬 ${name} asked for ${askedName}` : `💬 ${name} needs help`, body: label(msg).slice(0, 140), url: '/support/#inbox', tag: 'sup_' + cid }, asked);
   const autoReply = sec.autoReply ?? DEFAULT_AUTO_REPLY;
-  if (autoReply && !conv.autoReplied) { await db.doc('conversations/' + cid).update({ autoReplied: true }); await sendAs(db, sup, cid, conv, autoReply, null, { agent: 'Nexa Support', staff: 'support', auto: true }); }
+  // the auto-reply is sent once per chat; it's only marked done after it was really sent
+  if (autoReply && !conv.autoReplied && await once(db, 'ar_' + cid)) { await sendAs(db, sup, cid, conv, autoReply, null, { agent: 'Nexa Support', staff: 'support', auto: true }); await db.doc('conversations/' + cid).update({ autoReplied: true }); }
 }
 
 async function ownerForward(db, uid, name, cid, conv, msg, icon, req) {
@@ -91,12 +99,12 @@ async function ownerForward(db, uid, name, cid, conv, msg, icon, req) {
       const text = label(msg).slice(0, 140);
       // one notification in the list per chat every 10 minutes, but a push for every message
       if (await once(db, `ohn_${cid}_${Math.floor(Date.now() / 600000)}`)) await db.collection('notifications').add({ to: shiv, from: 'nexa-owner', type: 'owner_help', title: `🛟 ${name} messaged @owner`, body: text, at: Date.now(), read: false, link: { url: '/owner/#inbox' } });
-      await deliver(db, shiv, { kind: 'notification', title: `🛟 ${name} messaged @owner`, body: text, url: '/owner/#inbox', page: 'notifications', tag: 'oh_' + cid, icon }, 86400);
+      await deliver(db, shiv, { kind: 'notification', title: `🛟 ${name} messaged @owner`, body: text, url: '/owner/#inbox', page: 'notifications', tag: 'oh_' + cid, icon }, 86400, null, null, 3);
     }
   }
-  if (ui.autoReply && !conv.autoReplied) {
-    await db.doc('conversations/' + cid).update({ autoReplied: true });
+  if (ui.autoReply && !conv.autoReplied && await once(db, 'ar_' + cid)) {
     await sendAs(db, ownerUid, cid, conv, ui.autoReply, req);
+    await db.doc('conversations/' + cid).update({ autoReplied: true });
   }
 }
 
@@ -138,23 +146,48 @@ export default async (req) => {
     if (!conv || !msg || msg.from !== uid || msg.system || !(conv.members || []).includes(uid)) return json({ ok: false, skip: 'invalid' });
     // Messages written offline are pushed when the sender reconnects, so allow a longer window (dedupe prevents repeats).
     if (Date.now() - (msg.at || 0) > 30 * 60 * 1000) return json({ ok: false, skip: 'old' });
-    if (!(await once(db, `m_${cid}_${mid}`))) return json({ ok: true, skip: 'duplicate' });
+    // Big groups are split into parts of 8 people (the app sends one request per part), so each request
+    // stays well inside Cloudflare's free limit of 50 outgoing requests.
+    const everyone = (conv.members || []).filter(u => u !== uid), part = Math.max(0, Math.floor(+body.part || 0));
+    const slice = everyone.slice(part * PART, part * PART + PART);
+    if (!slice.length) return json({ ok: true, skip: 'empty-part' });
+    if (!(await once(db, part ? `m_${cid}_${mid}_p${part}` : `m_${cid}_${mid}`))) return json({ ok: true, skip: 'duplicate' });
     const isDm = conv.type === 'dm';
     const isReq = isDm && conv.request && conv.request.from === uid;
     const title = isReq ? `Message request from ${name}` : isDm ? name : conv.type === 'channel' ? '#' + (conv.name || 'channel') : (conv.name || 'Group chat');
     let sent = 0;
-    await Promise.all((conv.members || []).filter(u => u !== uid).map(async u => {
-      const prefs = (await db.doc(`users/${u}/private/prefs`).get()).data() || {};
+    // everyone's settings and devices in ONE read
+    const snaps = await db.getAll(...slice.map(u => db.doc(`users/${u}/private/prefs`)), ...slice.map(u => db.doc(`users/${u}/private/push`)));
+    await Promise.all(slice.map(async (u, i) => {
+      const prefs = snaps[i].data() || {}, pushDoc = snaps[slice.length + i].data() || {};
       const mentioned = !isDm && (msg.mentions || []).includes(u);
       if (prefs.deviceNotifs === false || ((prefs.muted || {})[cid] && !mentioned) || (prefs.blocked || []).includes(uid) || (prefs.notif && prefs.notif.msg === false)) return;
       const text = prefs.pushPreview === false ? 'New message' : label(msg).slice(0, 140);
-      sent += await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon, vibe: (prefs.alerts || {}).vibe || '', silent: (prefs.alerts || {}).push === 'silent' ? '1' : '' }, 86400);
+      const n = await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon, vibe: (prefs.alerts || {}).vibe || '', silent: (prefs.alerts || {}).push === 'silent' ? '1' : '' }, 86400, null, pushDoc, 4);
+      sent += n;
     }));
     // Someone messaged @owner → tell your everyday @shiv account, and send the auto-reply if you set one.
-    if (isDm) { try { await ownerForward(db, uid, name, cid, conv, msg, icon, req); } catch {} try { await supportForward(db, uid, name, cid, conv, msg); } catch {} }
+    // older app versions don't send the separate 'msgside' request, so do the extra jobs here for them
+    if (part === 0 && body.side !== false) {
+      if (isDm) { try { await ownerForward(db, uid, name, cid, conv, msg, icon, req); } catch {} try { await supportForward(db, uid, name, cid, conv, msg); } catch {} }
+      try { await checkMessage(db, uid, name, cid, conv, mid, msg); } catch {}
+      try { await db.doc('stats/' + dayKey()).set({ day: dayKey(), messages: admin.firestore.FieldValue.increment(1) }, { merge: true }); } catch {}
+    }
+    return json({ ok: true, sent, parts: Math.ceil(everyone.length / PART) });
+  }
+
+  // ---------- the extra jobs for a message (help desk forwarding, auto-replies, safety check, stats) — own request budget
+  if (body.kind === 'msgside') {
+    const cid = String(body.conv || ''), mid = String(body.msg || '');
+    if (!ID.test(cid) || !ID.test(mid)) return json({ error: 'Bad request' }, 400);
+    const [cs, ms] = await Promise.all([db.doc(`conversations/${cid}`).get(), db.doc(`conversations/${cid}/messages/${mid}`).get()]);
+    const conv = cs.data(), msg = ms.data();
+    if (!conv || !msg || msg.from !== uid || msg.system || !(conv.members || []).includes(uid) || Date.now() - (msg.at || 0) > 30 * 60 * 1000) return json({ ok: false, skip: 'invalid' });
+    if (!(await once(db, `ms_${cid}_${mid}`))) return json({ ok: true, skip: 'duplicate' });
+    if (conv.type === 'dm') { try { await ownerForward(db, uid, name, cid, conv, msg, icon, req); } catch {} try { await supportForward(db, uid, name, cid, conv, msg); } catch {} }
     try { await checkMessage(db, uid, name, cid, conv, mid, msg); } catch {}
     try { await db.doc('stats/' + dayKey()).set({ day: dayKey(), messages: admin.firestore.FieldValue.increment(1) }, { merge: true }); } catch {}
-    return json({ ok: true, sent });
+    return json({ ok: true });
   }
 
   // ---------- you read a chat on one device → clear its notifications on your other devices
@@ -202,6 +235,20 @@ export default async (req) => {
     if (prefs.deviceNotifs === false || (prefs.blocked || []).includes(uid)) return json({ ok: true, skip: 'off' });
     const sent = await deliver(db, c.to, { kind: 'call', title: `${name} is calling`, body: c.kind === 'video' ? 'Video call on Nexa — tap to answer' : 'Voice call on Nexa — tap to answer', chat: c.conv || '', tag: 'call_' + id, icon }, 60);
     return json({ ok: true, sent });
+  }
+
+  // ---------- a call stopped ringing (answered, declined or cancelled) → stop it ringing on the other person's phones;
+  // if the caller gave up before anyone answered, it becomes "Missed call from …"
+  if (body.kind === 'callEnd') {
+    const id = String(body.id || ''); if (!ID.test(id)) return json({ error: 'Bad request' }, 400);
+    const c = (await db.doc('calls/' + id).get()).data();
+    if (!c || (c.from !== uid && c.to !== uid) || Date.now() - (c.at || 0) > 3600000) return json({ ok: false, skip: 'invalid' });
+    if (!(await once(db, 'ce_' + id + '_' + uid))) return json({ ok: true, skip: 'duplicate' });
+    const missed = uid === c.from && !c.acceptedAt && c.status !== 'accepted';
+    const sent = missed
+      ? await deliver(db, c.to, { kind: 'missed', title: `Missed ${c.kind === 'video' ? 'video' : 'voice'} call from ${name}`, body: 'Tap to call back', chat: c.conv || '', tag: 'call_' + id, icon }, 86400)
+      : await deliver(db, c.to, { kind: 'clear', tag: 'call_' + id }, 60);
+    return json({ ok: true, sent, missed });
   }
 
   return json({ error: 'Unknown kind' }, 400);
