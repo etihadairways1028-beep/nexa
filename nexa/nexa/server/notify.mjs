@@ -225,6 +225,18 @@ export default async (req, ctx = {}) => {
     return json({ ok: true, sent });
   }
 
+  // ---------- "Test: ring this phone" — rings your OWN phones like a real call (3 rings), 8 seconds from now, so you can close Nexa first
+  if (body.kind === 'ringtest') {
+    if (!(await once(db, 'rt_' + uid + '_' + Math.floor(Date.now() / 60000)))) return json({ ok: false, skip: 'once-a-minute' });
+    const pushDoc = (await db.doc(`users/${uid}/private/push`).get()).data() || {};
+    const n = [...new Set([...(pushDoc.tokens || []), ...Object.values(pushDoc.devices || {})])].length;
+    if (!n) return json({ ok: false, skip: 'no-devices' });
+    const id = 'test' + Date.now().toString(36);
+    const rings = (async () => { for (let r = 0; r < 3; r++) { await new Promise(ok => setTimeout(ok, r ? 4500 : 8000)); try { await deliver(db, uid, { kind: 'call', title: 'Nexa Test is calling', body: 'This is a test call — it works! 🎉', chat: '', tag: 'call_' + id, rep: '1', ring: r }, 30, null, pushDoc, 4); } catch {} } })();
+    if (ctx.waitUntil) ctx.waitUntil(rings); else await rings;
+    return json({ ok: true, devices: n });
+  }
+
   // ---------- incoming call
   if (body.kind === 'call') {
     const id = String(body.id || ''); if (!ID.test(id)) return json({ error: 'Bad request' }, 400);
