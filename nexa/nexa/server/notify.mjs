@@ -108,6 +108,31 @@ async function ownerForward(db, uid, name, cid, conv, msg, icon, req) {
   }
 }
 
+
+// ---------- scheduled messages go out even when your phone is off / Nexa is closed
+// Each person's list lives in users/{uid}/private/scheduled; schedIndex/{uid}.next = when the next one is due.
+let lastSweep = 0;
+export async function sweepScheduled(db, req) {
+  lastSweep = Date.now();
+  const due = await db.collection('schedIndex').where('next', '<=', Date.now()).limit(3).get();
+  let sent = 0;
+  for (const d of due.docs) {
+    const uid = d.id, ref = db.doc(`users/${uid}/private/scheduled`);
+    const items = (((await ref.get()).data() || {}).items || []), t = Date.now();
+    const go = items.filter(x => x.at <= t), rest = items.filter(x => x.at > t);
+    if (go.length) await ref.set({ items: rest });
+    const banned = (await db.doc('bans/' + uid).get()).exists;
+    for (const x of go) {
+      if (banned || !(await once(db, 'sm_' + uid + '_' + String(x.id || x.at).slice(0, 60)))) continue;
+      const conv = (await db.doc('conversations/' + x.conv).get()).data();
+      if (!conv || !(conv.members || []).includes(uid)) continue;
+      try { await sendAs(db, uid, x.conv, conv, String(x.text || '').slice(0, 2000), req, { scheduled: true }); sent++; } catch {}
+    }
+    if (rest.length) await d.ref.set({ next: Math.min(...rest.map(x => x.at)) }); else await d.ref.delete().catch(() => {});
+  }
+  return sent;
+}
+
 export default async (req, ctx = {}) => {
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405);
   try { init(); } catch (e) { return json({ error: 'Push server not configured: ' + e.message }, 500); }
@@ -124,6 +149,15 @@ export default async (req, ctx = {}) => {
   if (!KEY) { try { const raw = process.env.FIREBASE_SERVICE_ACCOUNT; KEY = JSON.parse(raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8')).private_key || ''; } catch {} }
   const icon = iconFor(req, uid, sender);
   if ((await db.doc('bans/' + uid).get()).exists) return json({ ok: false, skip: 'banned' });
+
+  // ---------- scheduled messages: your list changed → remember when the next one is due
+  if (body.kind === 'schedSync') {
+    const items = (((await db.doc(`users/${uid}/private/scheduled`).get()).data() || {}).items || []).filter(x => x && x.at);
+    if (items.length) await db.doc('schedIndex/' + uid).set({ next: Math.min(...items.map(x => x.at)) }); else await db.doc('schedIndex/' + uid).delete().catch(() => {});
+    return json({ ok: true, n: items.length });
+  }
+  // any open Nexa asks about once a minute: due messages (from anyone) go out, even if their sender's phone is off
+  if (body.kind === 'schedTick') { if (Date.now() - lastSweep < 15000) return json({ ok: true, skip: 'recent' }); return json({ ok: true, sent: await sweepScheduled(db, req) }); }
 
   // ---------- welcome email, once per account (only if an email server is set up)
   if (body.kind === 'welcome') {
