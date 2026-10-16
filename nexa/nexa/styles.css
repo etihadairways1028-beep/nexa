@@ -2124,3 +2124,16 @@ html.resizing,html.resizing *{cursor:col-resize!important;user-select:none!impor
 .ai2 .ai-gap{display:block;height:6px}
 @media (max-width:700px){.ai.ai2{background:var(--bg,#0b1024);backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media (max-width:700px){:root .ai.ai2{background:linear-gradient(180deg,#151a40,#0b0e26)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}:root[data-theme="light"] .ai.ai2{background:#f4f6ff!important}}
+/* v18.2: the walk-through can never get stuck off-screen */
+.wn-catch{position:fixed;inset:0;pointer-events:auto;background:transparent}
+.wn-tip{z-index:1;max-height:calc(100vh - 24px);overflow:auto}
+.wn-x{position:absolute;right:10px;top:10px;width:32px;height:32px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;color:inherit;background:rgba(127,127,127,.18)}
+.wn-tip .wn-top{padding-right:40px}
+.wn-tip.sheet{left:10px!important;right:10px!important;top:auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;width:auto!important;transform:none!important;max-height:52vh}
+.wn-tip.sheet .wn-text{font-size:14px}
+#upLayer.v2 .up-core{transform-origin:50% 50%}
+/* v18.2: on phones the bottom bar (Home · Chats · People · Events · Me) must NEVER sit over a chat or the keyboard */
+@media (max-width:700px){
+  :root:has(.msgs-page.open) .tabbar,:root.in-chat .tabbar,:root.kb-open .tabbar,
+  :root:has(.msgs-page.open) .fab,:root.in-chat .fab,:root.kb-open .fab{display:none!important}
+}

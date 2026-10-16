@@ -5828,7 +5828,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '18.1';
+const APP_VERSION = '18.2';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -8142,3 +8142,110 @@ WN_STEPS['18.1'] = [
   { page: 'settings', sec: 'privacy', sel: '[data-a="tzOpen"]', since: '18.0', emoji: '🕒', title: 'Your local time', text: 'Friends abroad can see what time it is for you — only the time, never where you live. You choose who sees it.' },
   { emoji: '💙', title: 'That\'s everything!', text: 'Have fun — and if you get stuck, ask Nexa AI or tap Help at the top.', last: true },
 ];
+
+/* ================= v18.2: nothing can ever cover the screen ================= */
+// Bug: on phones (and short laptop screens) the walk-through's box could end up BELOW the screen, so there was no
+// Next/Skip to press and a dark layer stayed over Nexa. Now: on phones it's a sheet stuck to the bottom of the screen,
+// on computers it's kept inside the screen, it has a ✕, tapping the dark area closes it, and Back/Escape close it.
+{
+  const _paintWnV182 = paintWn;
+  paintWn = async function () {
+    await _paintWnV182();
+    const layer = document.getElementById('wnLayer'); if (!layer || !S.wn) return;
+    const tip = layer.querySelector('.wn-tip'); if (!tip) return;
+    if (!tip.querySelector('.wn-x')) tip.insertAdjacentHTML('afterbegin', `<button class="wn-x" data-wn="skip" aria-label="Close the tour">${ic('x', 16, 2.2)}</button>`);
+    // a dark area you can tap to close
+    if (!layer.querySelector('.wn-catch')) { const c = document.createElement('div'); c.className = 'wn-catch'; c.dataset.wn = 'skip'; layer.prepend(c); }
+    const phone = innerWidth <= 700, H = window.visualViewport?.height || innerHeight;
+    if (phone) {
+      tip.classList.remove('above', 'below', 'side', 'center'); tip.classList.add('sheet');
+      tip.style.cssText = '';
+      // keep the lit-up button visible above the sheet
+      const spot = layer.querySelector('.wn-spot'), st = S.wn.steps[S.wn.i];
+      const target = st?.sel ? [...document.querySelectorAll(st.sel)].find(el => el.offsetParent !== null && el.getBoundingClientRect().width) : null;
+      if (target && spot) {
+        const sheetTop = tip.getBoundingClientRect().top, r0 = target.getBoundingClientRect(), over = r0.bottom - (sheetTop - 16), under = 70 - r0.top;
+        const d = over > 0 ? over : under > 0 ? -under : 0;
+        if (d) { for (let el = target.parentElement; el && el !== document.body; el = el.parentElement) { const cs = getComputedStyle(el); if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight) { el.scrollTop += d; break; } } window.scrollBy(0, d); await new Promise(r => requestAnimationFrame(r)); }
+        const r = target.getBoundingClientRect(); Object.assign(spot.style, { left: r.left - 8 + 'px', top: r.top - 8 + 'px', width: r.width + 16 + 'px', height: r.height + 16 + 'px' });
+      }
+    } else {
+      tip.classList.remove('above');
+      let r = tip.getBoundingClientRect(), top = r.top;
+      if (r.bottom > H - 12) top -= r.bottom - (H - 12);
+      if (top < 12) top = 12;
+      if (!tip.classList.contains('center')) tip.style.top = top + 'px';
+    }
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && (S.bioSetup || document.getElementById('upLayer'))) { S.bioSetup = null; paintBioSetup?.(); } });
+  addEventListener('popstate', () => { if (S.wn) wnEnd(); });
+}
+// Safety net: a full-screen layer that has nothing to show any more is removed — so nothing can stay stuck over Nexa.
+setInterval(() => {
+  try {
+    const wn = document.getElementById('wnLayer'); if (wn && !S.wn) wn.remove();
+    const bf = document.getElementById('bioLayer'); if (bf && !S.bioSetup && !bf.classList.contains('out')) bf.remove();
+    const up = document.getElementById('upLayer');
+    if (up) { up.dataset.seen = up.dataset.seen || String(now()); if (!S.updating && now() - +up.dataset.seen > 45000) up.remove(); }
+    const tl = document.getElementById('tourLayer'); if (tl && S.tour == null && tl.childElementCount) tl.innerHTML = '';
+  } catch {}
+}, 1500);
+// the unlocking screen always fits the screen (small iPhones too), and a tap anywhere continues once it's ready
+{
+  const _upScreenV182 = upScreen;
+  upScreen = function (ver, opts) {
+    const ui = _upScreenV182(ver, opts), L = ui.el, core = L.querySelector('.up-core');
+    const fit = () => { if (!document.contains(L)) return removeEventListener('resize', fit); core.style.transform = ''; const H = window.visualViewport?.height || innerHeight, h = core.offsetHeight; if (h <= H - 16) return; const k = Math.max(.6, (H - 16) / h), top = core.getBoundingClientRect().top; core.style.transformOrigin = '50% 0'; core.style.transform = `translateY(${Math.round((H - h * k) / 2 - top)}px) scale(${k})`; };
+    fit(); addEventListener('resize', fit); setTimeout(fit, 50); try { new ResizeObserver(() => { if (!fit.busy) { fit.busy = 1; requestAnimationFrame(() => { fit(); fit.busy = 0; }); } }).observe(core); } catch {}
+    const _done = ui.done;
+    ui.done = async function (v, wait) {
+      const p = _done.call(ui, v, wait); setTimeout(fit, 30);
+      if (wait) setTimeout(() => L.addEventListener('click', e => { if (!e.target.closest('.up-go')) L.querySelector('.up-go')?.click(); }), 400);
+      return p;
+    };
+    return ui;
+  };
+  if (location.hostname === 'localhost') Object.assign(window, { upScreen, wnGo: d => wnGo(d) });
+}
+// Settings › Notifications: "Test: ring this phone" — close Nexa and your phone rings like a real call 8 seconds later
+Object.assign(actions, {
+  ringTest: async () => {
+    if (!S.be.push) return toast('Calls when Nexa is closed need the live Nexa app.');
+    if (!('Notification' in window) || Notification.permission !== 'granted' || !(S.prefs.deviceNotifs)) return toast('Turn on "Notifications on this device" first (just above).');
+    await registerPush(true);
+    try {
+      const tok = await S.be.auth.idToken();
+      const r = await fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ kind: 'ringtest' }), keepalive: true });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) confirmModal('📞 Close Nexa now', 'Go to your Home Screen or another app. In 8 seconds this phone will ring like a real call — 3 times. If nothing rings, notifications for Nexa are blocked in your phone\'s Settings.', 'OK', () => {}, false);
+      else toast(j.skip === 'no-devices' ? 'This phone isn\'t signed up for alerts yet — turn notifications off and on again.' : j.skip === 'once-a-minute' ? 'Wait a minute before testing again.' : 'Couldn\'t start the test. Try again.');
+    } catch { toast('Couldn\'t start the test. Check your connection.'); }
+  },
+});
+{
+  const _vSettingsV182 = vSettings;
+  vSettings = function () {
+    let h = _vSettingsV182(); if (S.setSec !== 'notifications') return h;
+    const row = `<div class="setrow"><span><b>Test: ring this phone</b><div class="mute small">Close Nexa after tapping — 8 seconds later this phone rings like a real call, so you know calls will reach you.</div></span><button class="btn sm pri" data-a="ringTest">${ic('phone', 14)} Test</button></div>`;
+    const i = h.indexOf('<div class="panel alertpanel ringpanel"'); return i > 0 ? h.slice(0, i) + row + h.slice(i) : h;
+  };
+}
+// 18.2 only fixes things — no walk-through; people coming from older versions still get the 18.1 tour
+WN_STEPS['18.2'] = WN_STEPS['18.1'].map(s => s.since ? s : { ...s, since: '18.1' });
+UP_HL['18.2'] = ['Nothing covers the screen', 'Calls that really ring', 'Face ID scan', 'Smarter Nexa AI', 'Test your ringing'];
+// v18.2: hide the phone's bottom bar while a chat is open or the keyboard is up (older iPhones without :has() too)
+{
+  const sync = () => {
+    const root = document.documentElement, phone = innerWidth <= 700;
+    root.classList.toggle('in-chat', phone && !!document.querySelector('.msgs-page.open'));
+    const a = document.activeElement, typing = !!a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(checkbox|radio|range|button|submit|file|color)$/.test(a.type)) || a.isContentEditable);
+    // keyboard up = the visible screen got much shorter (iPhone: visual viewport; Android: the window itself)
+    sync.maxH = Math.max(sync.maxH || 0, innerHeight); if (!typing) sync.maxH = innerHeight;
+    const vv = window.visualViewport, kb = typing && ((!!vv && innerHeight - vv.height > 120) || sync.maxH - innerHeight > 120);
+    root.classList.toggle('kb-open', phone && kb);
+  };
+  ['focusin', 'focusout', 'resize'].forEach(ev => addEventListener(ev, () => setTimeout(sync, 0), true));
+  window.visualViewport?.addEventListener('resize', sync);
+  new MutationObserver(() => { if (!sync.q) { sync.q = 1; requestAnimationFrame(() => { sync.q = 0; sync(); }); } }).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  sync();
+}
