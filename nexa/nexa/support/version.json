@@ -1,8 +1,11 @@
 {
- "version": "18.2",
+ "version": "19.1",
  "notes": [
-  "Fixed: on phones the bottom bar (Home · Chats · Events…) no longer covers the message box — it hides while you're in a chat or typing",
-  "Fixed: the What's new walk-through can't get stuck covering the screen any more",
-  "New: Settings › Notifications › Test: ring this phone"
+  "A whole new Nexa: a clean, professional dark look and a new website",
+  "Lock and log in with Face ID, Touch ID, fingerprint or a PIN — your choice (Settings › Privacy)",
+  "Two-step verification with an authenticator app",
+  "Scheduled messages send even if your phone is off; export any chat",
+  "Slow mode & auto-mod for groups, community emojis and a soundboard",
+  "Prefer the old style? Settings › Appearance › Look lets you switch back"
  ]
 }
