@@ -108,7 +108,7 @@ async function ownerForward(db, uid, name, cid, conv, msg, icon, req) {
   }
 }
 
-export default async (req) => {
+export default async (req, ctx = {}) => {
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405);
   try { init(); } catch (e) { return json({ error: 'Push server not configured: ' + e.message }, 500); }
   const db = admin.firestore();
@@ -233,7 +233,21 @@ export default async (req) => {
     if (!(await once(db, 'c_' + id))) return json({ ok: true, skip: 'duplicate' });
     const prefs = (await db.doc(`users/${c.to}/private/prefs`).get()).data() || {};
     if (prefs.deviceNotifs === false || (prefs.blocked || []).includes(uid)) return json({ ok: true, skip: 'off' });
-    const sent = await deliver(db, c.to, { kind: 'call', title: `${name} is calling`, body: c.kind === 'video' ? 'Video call on Nexa — tap to answer' : 'Voice call on Nexa — tap to answer', chat: c.conv || '', tag: 'call_' + id, icon }, 60);
+    const pushDoc = (await db.doc(`users/${c.to}/private/push`).get()).data() || {};
+    const data = r => ({ kind: 'call', title: `${name} is calling`, body: c.kind === 'video' ? 'Video call on Nexa — tap to answer' : 'Voice call on Nexa — tap to answer', chat: c.conv || '', tag: 'call_' + id, icon, rep: '1', ring: r, video: c.kind === 'video' ? '1' : '' });
+    const sent = await deliver(db, c.to, data(0), 45, null, pushDoc, 4);
+    // Ring again every few seconds while the call is still ringing, so a phone with Nexa closed keeps buzzing
+    // like a real call (each ring is a fresh alert with sound) — stops as soon as it's answered, declined,
+    // cancelled, or the person is already looking at the call inside Nexa.
+    const again = (async () => {
+      for (let r = 1; r <= 6; r++) {
+        await new Promise(ok => setTimeout(ok, 4500));
+        let cur; try { cur = (await db.doc('calls/' + id).get()).data(); } catch { return; }
+        if (!cur || cur.status !== 'ringing' || cur.seenAt || Date.now() - (cur.at || 0) > 38000) return;
+        try { await deliver(db, c.to, data(r), 30, null, pushDoc, 3); } catch {}
+      }
+    })();
+    if (ctx.waitUntil) ctx.waitUntil(again); else await again;
     return json({ ok: true, sent });
   }
 
