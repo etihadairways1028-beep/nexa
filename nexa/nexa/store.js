@@ -214,6 +214,17 @@ async function FirebaseBackend(cfg) {
       }
       const r = await model.generateContent(prompt);
       return r.response.text();
+    },
+    // v18.1: a real conversation — history, photos, live typing, and Google Search for up-to-date answers
+    async stream({ system, contents, search, onText }) {
+      const X = await import(base + 'firebase-ai.js');
+      const inst = X.getAI(app, { backend: new X.GoogleAIBackend() });
+      const m = X.getGenerativeModel(inst, { model: cfg.aiModel || 'gemini-2.5-flash', systemInstruction: system, ...(search ? { tools: [{ googleSearch: {} }] } : {}) });
+      const r = await m.generateContentStream({ contents });
+      let out = '';
+      for await (const ch of r.stream) { let t = ''; try { t = ch.text(); } catch {} if (t) { out += t; onText && onText(out); } }
+      if (!out) { try { out = (await r.response).text(); } catch {} }
+      return out;
     }
   };
   // Optional: Firebase Storage for photos (needs the Blaze plan on new projects). Off unless cfg.useStorage.

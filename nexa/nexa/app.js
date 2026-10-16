@@ -186,6 +186,8 @@ function mentionsIn(text, c) {
 function linkify(text, q) {
   let s = esc(text);
   s = s.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+  // links typed without https:// (meet.google.com/abc-defg-hij, www.youtube.com/…, nexa.app) work too
+  s = s.replace(/(^|\s)((?:www\.)?[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|uk|in|me|app|dev|gg|tv|ly|ae|ai|us|ca|au|de|fr|so|link|xyz|site|online|edu|gov)(?:\/[^\s<]*[^\s<.,;:!?)\]'"])?)(?=$|[\s.,;:!?)])/gi, (all, sp, u) => `${sp}<a href="https://${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
   s = s.replace(/(^|\s)@([A-Za-z0-9_.]{2,24})/g, (all, sp, h) => { const lh = h.toLowerCase(); const uid = lh === 'nexa' ? 'nexa' : mentionUid(lh); return uid ? `${sp}<span class="mention ${uid === S.me ? 'me' : ''}">@${h}</span>` : all; });
   if (q) { const r = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![^<]*>)', 'gi'); s = s.replace(r, '<mark>$1</mark>'); }
   return s;
@@ -687,7 +689,7 @@ function vShell() {
     <nav class="side glass" aria-label="Main">
       <div class="brand">${logo(36)}<span class="word">NEXA</span></div>
       <span class="navlens" data-key="navlens" aria-hidden="true" style="--i:${Math.max(0, navs.findIndex(n => n[0] === pg))};--show:${navs.some(n => n[0] === pg) ? 1 : 0}"></span>${navs.map(([k, i, l, n]) => `<button class="nav ${pg === k ? 'on' : ''}" data-a="go" data-v="${k}" data-tour="${k}" title="${l}" ${pg === k ? 'aria-current="page"' : ''}>${ic(i)}<span class="lbl">${l}</span>${n ? `<span class="badge">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('')}
-      <button class="aicard" data-a="aiOpen" data-tour="ai" title="Nexa AI"><span class="row" style="gap:8px;font-weight:700">${ic('spark', 18)}<span class="t">Nexa AI</span></span><span class="t mute small" style="font-weight:500">Ask how anything works</span></button>
+      <button class="aicard" data-a="aiOpen" data-tour="ai" title="Nexa AI"><span class="row" style="gap:8px;font-weight:700">${ic('spark', 18)}<span class="t">Nexa AI</span></span><span class="t mute small" style="font-weight:500">Ask anything — it can write, explain and help</span></button>
       <button class="me-chip" data-a="profile" data-v="${S.me}">${av(S.me, 38, true)}<span class="t grow"><span class="ellip" style="display:block;font-weight:700;font-size:14px">${esc(S.profile.name)}</span><span class="mute small ellip" style="display:block">${moodOf(S.me) ? esc(moodOf(S.me)) : presLabel(presence(S.me))}</span></span></button>
     </nav>
     <div class="main">
@@ -2262,6 +2264,8 @@ document.addEventListener('click', e => {
   if (el.dataset.self && e.target !== el) return;
   const fn = actions[el.dataset.a]; if (!fn) return;
   if (el.tagName === 'A') return;
+  // a real link inside a message (a website, Google Meet, a map…) opens — tapping it must not just select the message
+  const link = e.target.closest('a[href]'); if (link && el.contains(link) && !link.dataset.a) return;
   e.preventDefault();
   if (el.dataset.pal) S.palette = false;
   Promise.resolve(fn(el.dataset, el, e)).catch(err => toast(esc(err.message || 'Something went wrong')));
@@ -5824,7 +5828,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '18.0';
+const APP_VERSION = '18.1';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -7550,7 +7554,7 @@ async function paintWn() {
 addEventListener('resize', () => { if (S.wn) paintWn(); });
 document.addEventListener('keydown', e => { if (!S.wn) return; if (e.key === 'Escape') { e.preventDefault(); wnEnd(); } else if (e.key === 'ArrowRight') wnGo(1); else if (e.key === 'ArrowLeft') wnGo(-1); }, true);
 // the post-update "What's new" box becomes the walk-through when there is one for this version
-setInterval(() => { if (S.modal?.type === 'whatsNew' && WN_STEPS[S.modal.version] && !S.wn) wnStart(S.modal.version); }, 400);
+// (v18.1: the unlocking screen + walk-through now start from the v18.1 block below)
 Object.assign(actions, { wnStart: () => wnStart(APP_VERSION) || toast('Nothing new to show right now') });
 // Settings › Help & guide: replay it
 {
@@ -7731,3 +7735,410 @@ Object.assign(actions, {
     return h.replace(/(<div class="setrow"><span><b>App lock on this device<\/b>[\s\S]*?<\/span><\/div>)/, `$1${bioRow}`);
   };
 }
+
+/* ================= v18.1: calls reach you even when Nexa is closed ================= */
+// The Nexa server rings your phone again every few seconds while a call is ringing (each ring is a fresh alert with sound).
+// As soon as you're looking at the call inside Nexa, we tell the server so it stops — and clear the alert on this device.
+{
+  const seenCall = () => {
+    const inc = S.incoming; if (!inc || inc.seenMark || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+    inc.seenMark = true;
+    db().update('calls/' + inc.id, { seenAt: now() }).catch(() => {});
+    try { navigator.serviceWorker?.controller?.postMessage({ type: 'clear', tag: 'call_' + inc.id }); } catch {}
+  };
+  const _ringV181 = ring;
+  ring = function (on) { const r = _ringV181(on); if (on) setTimeout(seenCall, 300); return r; };
+  document.addEventListener('visibilitychange', () => setTimeout(seenCall, 300));
+  window.addEventListener('focus', () => setTimeout(seenCall, 300));
+}
+// Your friends can tell whether a call will reach you with Nexa closed (only "yes/no" is shared, nothing about your devices).
+{
+  const _regV181 = registerPush;
+  registerPush = async function (quiet) {
+    const ok = await _regV181(quiet);
+    if (ok && S.me && now() - (lsGet('nexa.ringMark', 0) || 0) > 864e5) { lsSet('nexa.ringMark', now()); db().update('users/' + S.me, { ringable: now() }).catch(() => {}); }
+    return ok;
+  };
+  const _startV181 = startCall;
+  startCall = async function (kind) {
+    const c = convOf(S.conv), to = c && others(c)[0], u = to && U(to);
+    const r = await _startV181(kind);
+    if (S.call && u && !u.ringable && !u.bot) setTimeout(() => S.call && toast(`${esc((u.name || 'They').split(' ')[0])} hasn't turned on Nexa notifications yet, so they'll only hear this call if Nexa is open.`), 1200);
+    return r;
+  };
+}
+
+/* ================= v18.1: a truly premium "Unlocking your new Nexa" ================= */
+// Shown while updating AND on the first open after any update (even if an older Nexa did the update),
+// so everyone gets the moment: particles pour into the logo, each new feature unlocks with a tick,
+// the ring fills to 100%, bursts, and "Your new Nexa is ready" — then the walk-through.
+const UP_HL = { '18.1': ['Calls that really ring', 'Face ID scan', 'Smarter Nexa AI', 'Links that open', 'New sounds'], '18.0': ['One-tap updates', 'Guided tour', 'PIN or Face ID', 'Calls when closed'] };
+function upChime() {
+  try {
+    const ctx = ringCtx = ringCtx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime, m = ctx.createGain(); m.gain.value = .12; m.connect(ctx.destination);
+    [[0, 523.25], [.09, 659.25], [.18, 783.99], [.27, 1046.5], [.42, 1567.98]].forEach(([d, f], i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = i === 4 ? 'sine' : 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(1, t + d + .015); g.gain.exponentialRampToValueAtTime(.0001, t + d + (i === 4 ? 1.4 : .5));
+      o.connect(g); g.connect(m); o.start(t + d); o.stop(t + d + 1.5);
+    });
+  } catch {}
+}
+upScreen = function (ver, opts = {}) {
+  document.getElementById('upLayer')?.remove();
+  const L = document.createElement('div'); L.id = 'upLayer'; L.className = 'v2'; L.setAttribute('role', 'status');
+  const hl = (UP_HL[ver] || (S.mustUpdate?.notes || S.updateInfo?.notes || []).map(n => n.split(/[—,:(]/)[0].trim().slice(0, 26))).slice(0, 5);
+  const R = 118, C = 2 * Math.PI * R;
+  L.innerHTML = `<canvas class="up-fx"></canvas><div class="up-blob b1"></div><div class="up-blob b2"></div><div class="up-blob b3"></div><div class="up-grain"></div>
+    <div class="up-core">
+      <div class="up-kick">${ic('spark', 14, 2)} Nexa ${esc(ver || '')}</div>
+      <div class="up-ring"><svg viewBox="0 0 280 280"><defs><linearGradient id="upg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fb0ff"/><stop offset=".5" stop-color="#c46bff"/><stop offset="1" stop-color="#ff8a4c"/></linearGradient></defs>
+        <circle cx="140" cy="140" r="134" class="up-orbit"/><circle cx="140" cy="140" r="${R}" class="up-track"/><circle cx="140" cy="140" r="${R}" class="up-bar" stroke="url(#upg2)" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>
+        <i class="up-head"></i><div class="up-logo"><img src="${festIcon(512)}" alt=""><div class="up-shine"></div></div></div>
+      <div class="up-pct"><b>0</b><span>%</span></div>
+      <div class="up-title"><span>Unlocking your new Nexa</span></div>
+      <div class="up-stage">Getting everything ready…</div>
+      <div class="up-chips">${hl.map((h, i) => `<span class="up-chip" data-i="${i}"><i>${ic('lock', 12, 2.2)}</i>${esc(h)}</span>`).join('')}</div>
+      <button class="up-go" hidden>${opts.button || 'See what\'s new'} ${ic('forward', 16, 2.2)}</button>
+    </div>`;
+  document.body.appendChild(L);
+  // particles: they stream into the logo while it unlocks, then burst out at 100%
+  const cv = L.querySelector('.up-fx'), cx = cv.getContext('2d'), dpr = Math.min(2, devicePixelRatio || 1);
+  const size = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }; size(); addEventListener('resize', size);
+  const COL = ['#8fb0ff', '#c46bff', '#ff8a4c', '#5ee0c8', '#ffffff'], parts = [];
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let shown = 0, target = 0, raf = 0, burst = false, alive = true, unlocked = 0;
+  const bar = L.querySelector('.up-bar'), num = L.querySelector('.up-pct b'), head = L.querySelector('.up-head'), ring = L.querySelector('.up-ring');
+  const centre = () => { const r = ring.getBoundingClientRect(); return [(r.left + r.width / 2) * dpr, (r.top + r.height / 2) * dpr, r.width / 2 * dpr]; };
+  const frame = () => {
+    if (!alive) return;
+    shown += (target - shown) * .085; if (Math.abs(target - shown) < .15) shown = target;
+    num.textContent = Math.floor(shown); bar.style.strokeDashoffset = C * (1 - shown / 100);
+    const a = (shown / 100) * Math.PI * 2 - Math.PI / 2; const hr = ring.offsetWidth / 2 * 118 / 140; head.style.transform = `translate(${Math.cos(a) * hr}px,${Math.sin(a) * hr}px)`; head.style.opacity = shown > 1 && shown < 100 ? 1 : 0;
+    // each highlight unlocks as the ring passes it
+    const chips = L.querySelectorAll('.up-chip'); const due = Math.floor(shown / (100 / (chips.length + .6)));
+    while (unlocked < Math.min(due, chips.length)) { const ch = chips[unlocked++]; ch.classList.add('on'); ch.querySelector('i').innerHTML = ic('check', 12, 2.6); try { navigator.vibrate?.(6); } catch {} }
+    const [x0, y0, rr] = centre();
+    if (!still && !burst && Math.random() < .55 + shown / 160) { const ang = Math.random() * Math.PI * 2, d = Math.max(cv.width, cv.height) * (.45 + Math.random() * .25); parts.push({ x: x0 + Math.cos(ang) * d, y: y0 + Math.sin(ang) * d, in: true, c: COL[parts.length % 5], s: (1 + Math.random() * 1.8) * dpr, v: .018 + Math.random() * .02 + shown / 5000 }); }
+    cx.clearRect(0, 0, cv.width, cv.height); cx.globalCompositeOperation = 'lighter';
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      if (p.in) { p.x += (x0 - p.x) * p.v; p.y += (y0 - p.y) * p.v; if (Math.hypot(p.x - x0, p.y - y0) < rr * .55) { parts.splice(i, 1); continue; } }
+      else { p.x += p.vx; p.y += p.vy; p.vy += .06 * dpr; p.vx *= .985; p.life -= .012; if (p.life <= 0) { parts.splice(i, 1); continue; } }
+      cx.globalAlpha = p.in ? .85 : Math.max(0, p.life); cx.fillStyle = p.c; cx.beginPath(); cx.arc(p.x, p.y, p.s, 0, 7); cx.fill();
+    }
+    raf = requestAnimationFrame(frame);
+  };
+  raf = requestAnimationFrame(frame);
+  const stages = L.querySelector('.up-stage');
+  const setStage = t => { if (!t || stages.textContent === t) return; stages.classList.remove('in'); void stages.offsetWidth; stages.textContent = t; stages.classList.add('in'); };
+  const api = {
+    el: L,
+    set(p, stage) { target = Math.max(target, Math.min(100, p)); setStage(stage); },
+    async done(ver2, wait) {
+      target = 100; await new Promise(r => setTimeout(r, 900));
+      const [x0, y0] = centre(); burst = true;
+      if (!still) for (let i = 0; i < 140; i++) { const a = Math.random() * Math.PI * 2, sp = (2 + Math.random() * 7) * dpr; parts.push({ x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2 * dpr, c: COL[i % 5], s: (1.2 + Math.random() * 2.4) * dpr, life: 1 }); }
+      L.classList.add('up-done'); L.querySelector('.up-title span').textContent = 'Your new Nexa is ready'; setStage('Welcome to Nexa ' + (ver2 || ver || ''));
+      L.querySelectorAll('.up-chip').forEach(ch => { ch.classList.add('on'); ch.querySelector('i').innerHTML = ic('check', 12, 2.6); });
+      try { navigator.vibrate?.([20, 40, 60]); } catch {}
+      if (S.prefs?.sounds !== false) upChime();
+      if (wait) { const b = L.querySelector('.up-go'); b.hidden = false; b.focus({ preventScroll: true }); await new Promise(r => { b.onclick = r; setTimeout(r, 15000); }); }
+      else await new Promise(r => setTimeout(r, 1700));
+    },
+    close() { alive = false; cancelAnimationFrame(raf); removeEventListener('resize', size); L.classList.add('up-out'); setTimeout(() => L.remove(), 450); },
+  };
+  return api;
+};
+// first open after an update: play the unlocking moment (unless it was just shown while updating), then the tour
+async function upReveal(ver) {
+  if (lsGet('nexa.upShown', null) === ver) return;
+  lsSet('nexa.upShown', ver);
+  if (now() - (lsGet('nexa.upJust', 0) || 0) < 180000) { lsSet('nexa.upJust', 0); return; } // just watched it while updating
+  const ui = upScreen(ver);
+  const steps = [[18, 'Opening your new Nexa…'], [41, 'Adding the new features…'], [67, 'Polishing every screen…'], [88, 'Almost there…'], [96, 'Unlocking…']];
+  for (const [p, t] of steps) { ui.set(p, t); await new Promise(r => setTimeout(r, 520)); }
+  await ui.done(ver, true); ui.close();
+}
+{
+  // remember that the screen was shown while updating, so it isn't shown twice
+  const _doUpV181 = doUpdate;
+  doUpdate = async function () { lsSet('nexa.upJust', now()); return _doUpV181(); };
+  let busy = false;
+  setInterval(async () => {
+    if (busy || S.modal?.type !== 'whatsNew' || S.modal.plain || S.wn) return;
+    busy = true; const v = S.modal.version; S.wnPrev = lsGet('nexa.prevVersion', null); S.modal = null; render();
+    try { await upReveal(v); } catch {}
+    if (!wnStart(v)) { const n = (await swAsk(navigator.serviceWorker.controller).catch(() => ({}))).notes || []; if (n.length) { S.modal = { type: 'whatsNew', version: v, notes: n, plain: true }; render(); } }
+    busy = false;
+  }, 300);
+}
+// remember which version you came from, so the walk-through only shows what's new to YOU
+{
+  const cur = lsGet('nexa.seenVersion', null); if (cur && cur !== APP_VERSION) lsSet('nexa.prevVersion', cur);
+  const _wnStartV181 = wnStart;
+  wnStart = function (v) {
+    const r = _wnStartV181(v); if (!r || !S.wn) return r;
+    const prev = S.wnPrev || lsGet('nexa.prevVersion', null);
+    if (prev) S.wn.steps = S.wn.steps.filter(x => !x.since || verNum(prev) < verNum(x.since));
+    return r;
+  };
+}
+if (location.hostname === 'localhost') Object.assign(window, { upScreen, upReveal, wnStart });
+
+/* ================= v18.1: Face ID set-up that scans your face and saves it ================= */
+// Turning on Face ID opens a proper set-up screen: a face frame, "Start scan", the ring fills while the phone's
+// own Face ID / fingerprint check runs, then "Face ID saved ✓". (The real scan is done by the phone itself —
+// your face never leaves it; Nexa only keeps a key that says "this phone said yes".)
+const FACE_SVG = `<svg viewBox="0 0 120 120" class="bf-face" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+  <path class="bf-c" d="M14 34V22a8 8 0 0 1 8-8h12M86 14h12a8 8 0 0 1 8 8v12M106 86v12a8 8 0 0 1-8 8H86M34 106H22a8 8 0 0 1-8-8V86"/>
+  <path class="bf-f" d="M42 46v6M78 46v6M60 46v18h-5M47 80c8 7 18 7 26 0"/></g>
+  <path class="bf-ok" d="M36 62l16 16 32-34" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function bioTicks(n = 48) { return Array.from({ length: n }, (_, i) => `<i style="transform:rotate(${i * 360 / n}deg) translateY(-50%)"></i>`).join(''); }
+function paintBioSetup() {
+  let L = document.getElementById('bioLayer');
+  const st = S.bioSetup; if (!st) { if (L) { L.classList.add('out'); setTimeout(() => L.remove(), 300); } return; }
+  if (!L) {
+    L = document.createElement('div'); L.id = 'bioLayer'; document.body.appendChild(L);
+    L.addEventListener('click', e => { const b = e.target.closest('[data-bf]'); if (!b) return; const k = b.dataset.bf; if (k === 'scan') bioScan(); if (k === 'close') { S.bioSetup = null; paintBioSetup(); render(); } });
+  }
+  const name = bioName(), face = /face/i.test(name);
+  const t = { intro: [`Set up ${name}`, face ? 'Hold your phone in front of your face, like when you unlock it. Then Nexa opens with just a look.' : `Use ${name} to open Nexa — quicker than a PIN.`],
+    scan: [face ? 'Scanning…' : 'Checking…', face ? 'Look at your phone' : `Use ${name} now`],
+    ok: [`${name} saved`, `Next time you open Nexa, ${face ? 'just look at your phone' : 'just use ' + name} to unlock it.`],
+    fail: ['Didn\'t finish', `${name} was cancelled or didn't work. Try again — keep your face in view.`] }[st.st];
+  L.className = 'bf-' + st.st;
+  L.innerHTML = `<div class="bf-card">
+    <button class="bf-x" data-bf="close" aria-label="Close">${ic('x', 18, 2)}</button>
+    <div class="bf-ring">${bioTicks()}${FACE_SVG}<span class="bf-line"></span></div>
+    <h2 class="disp">${esc(t[0])}</h2><p>${esc(t[1])}</p>
+    ${st.st === 'intro' ? `<button class="btn pri bf-go" data-bf="scan">${ic('spark', 16, 2)} Start scan</button>` : st.st === 'fail' ? `<button class="btn pri bf-go" data-bf="scan">Try again</button>` : st.st === 'ok' ? `<button class="btn pri bf-go" data-bf="close">Done</button>` : '<span class="bf-wait"></span>'}
+    <small class="mute">${ic('lock', 12, 2)} Your face never leaves your phone</small></div>`;
+  if (st.st === 'scan') { const ticks = L.querySelectorAll('.bf-ring i'); let k = 0; clearInterval(paintBioSetup.iv); paintBioSetup.iv = setInterval(() => { if (!document.contains(L) || S.bioSetup?.st !== 'scan') return clearInterval(paintBioSetup.iv); ticks[k % ticks.length].classList.add('on'); k++; if (k >= ticks.length * .85) clearInterval(paintBioSetup.iv); }, 45); }
+  if (st.st === 'ok') L.querySelectorAll('.bf-ring i').forEach((x, i) => setTimeout(() => x.classList.add('on'), i * 6));
+}
+// must start the phone's check straight from the tap (iPhone only allows it from a tap)
+function bioScan() {
+  const p = navigator.credentials.create({ publicKey: {
+    rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
+    user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none' } });
+  S.bioSetup = { st: 'scan', t0: now() }; paintBioSetup();
+  p.then(async cred => {
+    if (!cred) throw new Error('cancelled');
+    await new Promise(r => setTimeout(r, Math.max(0, 1600 - (now() - S.bioSetup.t0)))); // let the scan finish nicely
+    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); S.lockedOnce = true; // don't ask again straight away
+    S.bioSetup = { st: 'ok' }; paintBioSetup(); render();
+    try { navigator.vibrate?.([20, 50, 30]); } catch {} if (S.prefs.sounds !== false) upChime();
+  }).catch(() => { if (S.bioSetup) { S.bioSetup = { st: 'fail' }; paintBioSetup(); } });
+}
+Object.assign(actions, { bioOn: () => { S.bioSetup = { st: 'intro' }; paintBioSetup(); } });
+// the lock screen: a face frame that scans while Face ID checks
+{
+  const _vLockV181 = vLock;
+  vLock = function () {
+    const h = _vLockV181(); if (!hasBio()) return h;
+    return h.replace(/<span class="bio-ic">[\s\S]*?<\/span>/, `<span class="bio-ic bf-mini ${S.bioBusy ? 'busy' : ''}">${FACE_SVG}<span class="bf-line"></span></span>`);
+  };
+}
+if (location.hostname === 'localhost') Object.assign(window, { paintBioSetup, bioScan });
+
+/* ================= v18.1: a much more powerful Nexa AI ================= */
+if (!P.copy) P.copy = '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>';
+// Before: a help guide that only answered "how do I…" in under 110 words.
+// Now: a real assistant — answers anything (homework, ideas, writing, translations, plans), remembers the
+// conversation, types its answer live, looks at photos you add, checks Google for up-to-date facts,
+// and can DO things in Nexa: open the right setting, open a chat, write a message for you, start an event or group.
+const AI_PRO = () => `You are Nexa AI, the smart, warm assistant built into Nexa (a messaging and social app). You can help with ANYTHING:
+answering questions, explaining homework step by step, writing and rewriting messages, bios, captions and stories, brainstorming, planning hangouts and trips,
+translating, maths, coding, advice, jokes and games — as well as everything about using Nexa.
+Style: friendly and clear. Short by default; longer only when the task needs it. Use **bold**, bullet points (- ) and numbered steps where helpful. Never make things up; if unsure, say so.
+About Nexa (only describe real features): ${AI_SYSTEM.replace(/^You are Nexa AI[^.]*\.\s*/, '').replace(/Answer in plain text[\s\S]*$/, '')}
+Also new: one-tap updates, a walkthrough after each update (Settings › Help › What's new tour), PIN or Face ID lock (Settings › Privacy), calls that ring even when Nexa is closed (turn on Settings › Notifications), your local time for friends (Settings › Privacy › My local time), Profile studio (Settings › Profile).
+You can offer buttons that DO things. Put each on its own line at the very end, exactly like:
+[[open:PAGE]] where PAGE is one of home, messages, people, events, notifications, settings.profile, settings.appearance, settings.privacy, settings.notifications, settings.chats, settings.account, settings.help
+[[chat:NAME]] opens a chat with that friend · [[draft:NAME|MESSAGE]] writes MESSAGE in that friend's chat, ready to send · [[event]] create an event · [[group]] new group chat · [[tour]] what's new tour
+Only use friend names from this list: ${friendIds().slice(0, 40).map(u => dname(u)).join(', ') || '(no friends yet)'}.
+The user is ${S.profile?.name || 'a Nexa user'}. Their local time is ${new Date().toLocaleString()}. They are on the ${S.page} page${S.conv && S.page === 'messages' ? ' in a chat with ' + convName(convOf(S.conv) || {}) : ''}.`;
+const aiNeedsWeb = q => /\b(today|tonight|tomorrow|yesterday|news|latest|newest|current|currently|right now|this (week|month|year)|weather|score|match|price|cost|stock|release|who (is|won)|when (is|does|did)|202[4-9]|live|trending|update on)\b/i.test(q);
+function aiMd(t) {
+  let h = esc(t);
+  h = h.replace(/```([\s\S]*?)```/g, (a, c) => `<pre class="ai-code">${c.replace(/^\w*\n/, '')}</pre>`);
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?]|$)/g, '$1<i>$2</i>');
+  h = h.replace(/^#{1,3}\s+(.+)$/gm, '<b class="ai-h">$1</b>');
+  h = h.replace(/^\s*[-•*]\s+(.+)$/gm, '<span class="ai-li">$1</span>').replace(/^\s*(\d+)[.)]\s+(.+)$/gm, '<span class="ai-li n"><em>$1</em>$2</span>');
+  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  h = h.replace(/(^|\s)(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+  // line breaks: real <br>s, but none around list items / headings / code (they're blocks already)
+  return h.split(/(<pre class="ai-code">[\s\S]*?<\/pre>)/).map((part, i) => i % 2 ? part : part.replace(/\n*(<span class="ai-li[^>]*>.*?<\/span>|<b class="ai-h">.*?<\/b>)\n?/g, '$1').replace(/^\n+|\n+$/g, '').replace(/\n{2,}/g, '<br><span class="ai-gap"></span>').replace(/\n/g, '<br>')).join('');
+}
+const findFriend = n => { n = String(n || '').trim().toLowerCase(); return friendIds().find(u => dname(u).toLowerCase() === n) || friendIds().find(u => dname(u).toLowerCase().startsWith(n) || (U(u)?.handle || '').toLowerCase() === n.replace(/^@/, '')); };
+function aiActions(text) {
+  const btns = []; const clean = String(text || '').replace(/\[\[(\w+)(?::([^\]]*))?\]\]/g, (all, k, v = '') => {
+    if (k === 'open') { const [pg, sec] = v.trim().split('.'); if (PAGES.includes(pg) || pg === 'settings') btns.push([sec ? 'Open ' + sec[0].toUpperCase() + sec.slice(1) + ' settings' : 'Open ' + pg[0].toUpperCase() + pg.slice(1), 'aiDo', 'open:' + v.trim()]); }
+    else if (k === 'chat') { const u = findFriend(v); if (u) btns.push(['Message ' + dname(u).split(' ')[0], 'aiDo', 'chat:' + u]); }
+    else if (k === 'draft') { const [n, ...m] = v.split('|'); const u = findFriend(n); if (u && m.join('|').trim()) btns.push(['Put it in ' + dname(u).split(' ')[0] + '\'s chat', 'aiDo', 'draft:' + u + '|' + m.join('|').trim()]); }
+    else if (k === 'event') btns.push(['Create an event', 'aiDo', 'event']);
+    else if (k === 'group') btns.push(['New group chat', 'aiDo', 'group']);
+    else if (k === 'tour') btns.push(['See what\'s new', 'aiDo', 'tour']);
+    return '';
+  }).trim();
+  return { clean, btns };
+}
+function aiSave() { try { lsSet('nexa.ai.' + S.me, S.ai.msgs.filter(m => !m.streaming).slice(-40).map(m => ({ me: m.me, text: m.text || '', html: m.me ? undefined : m.html }))); } catch {} }
+let aiLoaded = '';
+function aiLoad() { if (aiLoaded === S.me || !S.me) return; aiLoaded = S.me; const h = lsGet('nexa.ai.' + S.me, null); if (Array.isArray(h) && h.length) S.ai.msgs = h; }
+askAi = async function (q, img) {
+  q = (q || '').trim(); img = img || S.ai.img || null; if (!q && !img) return; aiLoad();
+  if (!S.be.ai?.stream) { S.form.aiQ = ''; return _askAiOld(q || 'photo'); }
+  S.ai.img = null; S.ai.msgs.push({ me: true, text: q || 'What\'s in this photo?', img }); S.form.aiQ = ''; S.ai.typing = true; render();
+  const scroll = () => setTimeout(() => { const st = $('#aiStream'); if (st) st.scrollTop = st.scrollHeight; }, 20);
+  scroll();
+  // the conversation so far (photos only for the newest message)
+  const hist = S.ai.msgs.slice(-14), contents = [];
+  hist.forEach((m, i) => {
+    const text = m.me ? m.text : (m.text || (m.html || '').replace(/<[^>]+>/g, ' ')).slice(0, 3000); if (!text && !m.img) return;
+    const parts = [{ text: text || ' ' }];
+    if (m.img && i === hist.length - 1) { const mm = String(m.img).match(/^data:(image\/\w+);base64,(.+)$/); if (mm) parts.unshift({ inlineData: { mimeType: mm[1], data: mm[2] } }); }
+    const role = m.me ? 'user' : 'model';
+    if (contents.length && contents[contents.length - 1].role === role) contents[contents.length - 1].parts.push(...parts); else contents.push({ role, parts });
+  });
+  while (contents.length && contents[0].role !== 'user') contents.shift();
+  const msg = { me: false, html: '', text: '', streaming: true }; let last = 0;
+  const show = t => { const { clean } = aiActions(t.replace(/\[\[[^\]]*$/, '')); msg.text = t; msg.html = aiMd(clean); S.ai.typing = false; if (!S.ai.msgs.includes(msg)) S.ai.msgs.push(msg); if (now() - last > 70) { last = now(); render(); scroll(); } };
+  let out = '';
+  const run = search => S.be.ai.stream({ system: AI_PRO(), contents, search, onText: show });
+  try { out = await run(aiNeedsWeb(q)); } catch { try { out = await run(false); } catch {} }
+  if (!out) { const i = S.ai.msgs.indexOf(msg); if (i >= 0) S.ai.msgs.splice(i, 1); S.ai.typing = false; S.ai.msgs.push({ me: false, html: 'I couldn\'t reach Nexa AI just now — check your connection and try again.' }); render(); return; }
+  const { clean, btns } = aiActions(out);
+  msg.streaming = false; msg.text = clean; msg.html = aiMd(clean) + (btns.length ? `<div class="ai-acts">${btns.map(([l, a, v]) => `<button class="btn sm pri" data-a="${a}" data-v="${esc(v)}">${esc(l)} →</button>`).join('')}</div>` : '');
+  if (!S.ai.msgs.includes(msg)) S.ai.msgs.push(msg);
+  S.ai.typing = false; render(); scroll(); aiSave();
+};
+const _askAiOld = async function (q) { // works without the live AI (local test mode): the built-in help answers
+  const s = q.toLowerCase(), hit = HELP.find(h => h.k.some(k => s.includes(k)));
+  S.ai.msgs.push({ me: true, text: q }); S.ai.typing = true; render(); await new Promise(r => setTimeout(r, 500));
+  let html = hit ? aiMd(hit.a) : 'I can help with anything about Nexa — friends, chats, calls, events, your profile and settings. (Full Nexa AI answers work on the live app.)';
+  if (hit?.go) html += `<div class="ai-acts"><button class="btn sm pri" data-a="${hit.go[1]}" data-v="${hit.go[2] === 'me' ? S.me : hit.go[2]}">${esc(hit.go[0])} →</button></div>`;
+  S.ai.msgs.push({ me: false, html }); S.ai.typing = false; render();
+};
+Object.assign(actions, {
+  aiDo: async d => {
+    const v = String(d.v || ''), [k, ...rest] = v.split(':'), arg = rest.join(':');
+    if (innerWidth <= 700) S.ai.open = false;
+    if (k === 'open') { const [pg, sec] = arg.split('.'); if (sec) { S.setSec = sec; go('settings'); } else go(pg); }
+    if (k === 'chat') { const id = await ensureDM(arg); if (id) openConv(id); }
+    if (k === 'draft') { const [u, ...m] = arg.split('|'); const id = await ensureDM(u); if (id) { S.draft[id] = m.join('|'); openConv(id); setTimeout(() => { const t = $('#composer'); if (t) { t.value = S.draft[id]; t.focus(); } }, 80); toast('Ready — check it and tap Send'); } }
+    if (k === 'event') actions.newEvent();
+    if (k === 'group') actions.newGroup();
+    if (k === 'tour') wnStart(APP_VERSION);
+    render();
+  },
+  aiNew: () => { S.ai.msgs = [{ me: false, text: 'New chat ✨ Ask me anything — homework, ideas, a message you want to write, or how to do something in Nexa.' }]; aiSave(); render(); },
+  aiCopy: async d => { const m = S.ai.msgs[+d.v]; try { await navigator.clipboard.writeText(m?.text || (m?.html || '').replace(/<[^>]+>/g, '')); toast('Copied'); } catch {} },
+  aiPhoto: () => $('#aiPhotoIn')?.click(),
+  aiPhotoOff: () => { S.ai.img = null; render(); },
+});
+// add a photo for Nexa AI to look at
+document.addEventListener('change', async e => { if (e.target?.id !== 'aiPhotoIn' || !e.target.files?.[0]) return; try { S.ai.img = await compress(e.target.files[0], 1024, .8); render(); $('#aiQ')?.focus(); } catch (err) { toast(esc(err.message)); } e.target.value = ''; });
+vAi = function () {
+  aiLoad();
+  const chips = ['✍️ Help me write a message', '💡 Plan a hangout with friends', '📚 Explain something simply', '🌍 Translate a message', '✨ Ideas for my bio', '🆕 What\'s new in Nexa?'];
+  const fresh = S.ai.msgs.length <= 1;
+  return `<aside class="ai ai2 glass${A('ai')}" aria-label="Nexa AI">
+    <div class="row ai-head"><span class="ai-orb">${ic('spark', 20, 2)}</span><span class="grow"><b style="display:block">Nexa AI</b><span class="mute small">Ask anything · it can look at photos and search the web</span></span>
+      <button class="ibtn" aria-label="New chat" title="New chat" data-a="aiNew">${ic('plus', 18)}</button><button class="ibtn" aria-label="Close Nexa AI" data-a="aiClose">${ic('x', 18)}</button></div>
+    <div class="stream" id="aiStream" style="flex:1">${S.ai.msgs.map((m, i) => `<div class="m ${m.me ? 'me' : 'them'}${A('ai' + i)}"><div class="bub ai-bub">${m.img ? `<img class="ai-img" src="${esc(m.img)}" alt="Your photo">` : ''}${m.me ? esc(m.text) : m.html || esc(m.text)}${!m.me && i && !m.streaming && (m.text || m.html) ? `<button class="ai-copy" data-a="aiCopy" data-v="${i}" aria-label="Copy">${ic('copy', 13)}</button>` : ''}</div></div>`).join('')}
+      ${S.ai.typing ? `<div class="typing${A('aity')}"><i></i><i></i><i></i></div>` : ''}</div>
+    ${fresh ? `<div class="pills ai-chips">${chips.map(c => `<button class="chip" data-a="aiAsk" data-v="${esc(c.replace(/^\S+\s/, ''))}">${c}</button>`).join('')}</div>` : ''}
+    ${S.ai.img ? `<div class="ai-att"><img src="${esc(S.ai.img)}" alt=""><span class="grow small">Photo added — ask about it</span><button class="ibtn" data-a="aiPhotoOff" aria-label="Remove photo">${ic('x', 14)}</button></div>` : ''}
+    <form class="composer glass ai-comp" data-submit="ai"><button type="button" class="ibtn" data-a="aiPhoto" aria-label="Add a photo">${ic('photo', 18)}</button><input type="file" id="aiPhotoIn" accept="image/*" hidden><input id="aiQ" data-model="form.aiQ" value="${esc(S.form.aiQ || '')}" placeholder="Ask Nexa AI anything…" aria-label="Ask Nexa AI" autocomplete="off"><button class="send" aria-label="Ask">${ic('send', 18, 2)}</button></form>
+  </aside>`;
+};
+// @nexa in chats: smarter too (checks the web when the question needs it)
+nexaInChat = async function (c, text) {
+  const q = text.replace(/@nexa\b/ig, '').trim(); let out = '';
+  if (S.be.ai?.stream) {
+    const prompt = `You were mentioned as @nexa in a ${c.type === 'dm' ? 'direct' : 'group'} chat. Reply helpfully to the latest request using the chat for context. Keep it under 120 words, plain text, no markdown, no [[buttons]].\n\nChat:\n${convTranscript(c, 30)}\n\nRequest from ${S.profile.name}: ${q || '(no question — say hi and offer help)'}`;
+    try { out = await S.be.ai.stream({ system: AI_PRO(), contents: [{ role: 'user', parts: [{ text: prompt }] }], search: aiNeedsWeb(q) }); } catch { try { out = await aiText(prompt); } catch {} }
+  }
+  if (!out) { const hit = HELP.find(h => h.k.some(k => q.toLowerCase().includes(k))); out = hit ? hit.a.replace(/\*\*/g, '') : 'Hi! I\'m Nexa AI. Mention me with a question, like “@nexa what should we do this weekend?” or “@nexa summarize”.'; }
+  await sendMessage({ text: aiActions(out).clean.replace(/\*\*/g, '').slice(0, 1500), bot: true }, c.id);
+};
+
+/* ================= v18.1: better sounds — premium message tones and ringtones ================= */
+// Layered "bell" synthesis (a soft body + a shimmer an octave up + a little room echo) instead of plain beeps.
+function synth(notes, o = {}) {
+  try {
+    const ctx = actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime + .01, out = ctx.createGain(); out.gain.value = o.vol ?? .16; out.connect(ctx.destination);
+    if (o.echo !== false) { const d = ctx.createDelay(1), fb = ctx.createGain(), lp = ctx.createBiquadFilter(), wet = ctx.createGain(); d.delayTime.value = o.echoT || .17; fb.gain.value = .28; lp.type = 'lowpass'; lp.frequency.value = 3200; wet.gain.value = .3; out.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(wet); wet.connect(ctx.destination); }
+    notes.forEach(([f, at, len = 1, v = 1]) => {
+      const dec = (o.dec || .55) * len, g = ctx.createGain(); g.connect(out);
+      g.gain.setValueAtTime(.0001, t + at); g.gain.exponentialRampToValueAtTime(v, t + at + (o.att || .008)); g.gain.exponentialRampToValueAtTime(.0001, t + at + dec);
+      const c = ctx.createOscillator(); c.type = o.type || 'sine'; c.frequency.value = f; c.connect(g);
+      if (o.fm) { const m = ctx.createOscillator(), mg = ctx.createGain(); m.frequency.value = f * (o.ratio || 3.5); mg.gain.setValueAtTime(f * o.fm, t + at); mg.gain.exponentialRampToValueAtTime(1, t + at + dec * .6); m.connect(mg); mg.connect(c.frequency); m.start(t + at); m.stop(t + at + dec + .05); }
+      const sh = ctx.createOscillator(), sg = ctx.createGain(); sh.type = 'sine'; sh.frequency.value = f * 2; sg.gain.value = o.shimmer ?? .18; sh.connect(sg); sg.connect(g);
+      c.start(t + at); sh.start(t + at); c.stop(t + at + dec + .05); sh.stop(t + at + dec + .05);
+    });
+  } catch {}
+}
+const PREMIUM_TONES = {
+  aurora: () => synth([[783.99, 0, .9], [1174.66, .085, 1.3]], { fm: .6, ratio: 3, dec: .7, vol: .15 }),
+  crystal: () => synth([[1567.98, 0, .7, .8], [2093, .06, .9, .6], [2637, .12, 1.2, .5]], { fm: .4, ratio: 4.2, dec: .55, vol: .11 }),
+  velvet: () => synth([[523.25, 0, 1], [659.25, .11, 1.4]], { type: 'triangle', dec: .8, vol: .13, shimmer: .1 }),
+  nova: () => synth([[880, 0, .5], [1318.51, .07, .6], [1760, .14, 1.4]], { fm: .9, ratio: 2, dec: .6, vol: .12 }),
+  halo: () => synth([[659.25, 0, 1.6, .7], [987.77, 0, 1.6, .5], [1318.51, .05, 1.8, .4]], { dec: .9, vol: .12, att: .03 }),
+  droplet: () => synth([[1400, 0, .35]], { fm: 1.4, ratio: 1.5, dec: .35, vol: .14, echoT: .12 }),
+};
+{ const old = { ...TONE_NAMES }; Object.keys(TONE_NAMES).forEach(k => delete TONE_NAMES[k]); Object.assign(TONE_NAMES, { aurora: '✨ Aurora (new)', crystal: '✨ Crystal (new)', velvet: '✨ Velvet (new)', nova: '✨ Nova (new)', halo: '✨ Halo (new)', droplet: '✨ Droplet (new)' }, old, { chime: 'Chime' }); }
+// new defaults sound nicer; anything you already picked stays the same
+Object.assign(ALERT_DEFAULT, { dm: 'aurora', group: 'droplet', mention: 'halo', request: 'velvet' });
+{
+  const _playToneV181 = playTone;
+  playTone = function (name) { if (!S.prefs.sounds || name === 'silent') return; if (PREMIUM_TONES[name]) return PREMIUM_TONES[name](); return _playToneV181(name); };
+  const _soundV181 = sound;
+  sound = function (kind) {
+    if (!S.prefs.sounds) return;
+    if (kind === 'send') return synth([[987.77, 0, .35, .6], [1318.51, .045, .4, .5]], { dec: .3, vol: .07, echo: false });
+    if (kind === 'recv') return PREMIUM_TONES.droplet();
+    return _soundV181(kind);
+  };
+}
+// ringtones (pick in Settings › Notifications)
+const RINGTONES = {
+  nexa: ['Nexa (classic)', null],
+  aurora: ['✨ Aurora', () => synth([[659.25, 0, 1], [830.61, .16, 1], [987.77, .32, 1], [1318.51, .48, 1.6], [987.77, .9, 1], [1318.51, 1.06, 1.8]], { fm: .5, ratio: 3, dec: .5, vol: .2 })],
+  lumen: ['✨ Lumen', () => synth([[1046.5, 0, .7], [1567.98, .12, .7], [1318.51, .24, .7], [2093, .36, 1.4], [1046.5, .8, .7], [1567.98, .92, .7], [1318.51, 1.04, .7], [2093, 1.16, 1.4]], { fm: .3, ratio: 4, dec: .45, vol: .16 })],
+  pulse: ['✨ Pulse', () => synth([[523.25, 0, .5], [523.25, .22, .5], [783.99, .44, .9], [523.25, .9, .5], [523.25, 1.12, .5], [783.99, 1.34, .9]], { type: 'triangle', dec: .4, vol: .2, shimmer: .25 })],
+  marimba: ['✨ Marimba', () => synth([[783.99, 0, .5], [987.77, .12, .5], [1174.66, .24, .5], [1567.98, .36, .9], [1174.66, .6, .5], [1567.98, .72, 1.2]], { type: 'triangle', fm: .8, ratio: 4, dec: .45, vol: .2 })],
+};
+{
+  const _ringToneV181 = ringTone;
+  ringTone = function () { const r = RINGTONES[S.prefs.ringtone || 'aurora']; if (r && r[1]) { try { (ringCtx = ringCtx || actx); } catch {} return r[1](); } return _ringToneV181(); };
+  Object.assign(actions, { ringPick: d => { savePrefs({ ringtone: d.v }); const r = RINGTONES[d.v]; r && r[1] ? r[1]() : _ringToneV181(); } });
+  const _vSettingsV181 = vSettings;
+  vSettings = function () {
+    let h = _vSettingsV181(); if (S.setSec !== 'notifications') return h;
+    const cur = S.prefs.ringtone || 'aurora';
+    const block = `<div class="panel alertpanel ringpanel" style="padding:16px;border-radius:18px;border:1px solid var(--line)"><b style="font-size:16px">📞 Ringtone</b><div class="mute small" style="margin-bottom:8px">What you hear when someone calls you while Nexa is open. Tap to hear it.</div>
+      <div class="pills">${Object.entries(RINGTONES).map(([k, [l]]) => `<button class="pill ${cur === k ? 'on' : ''}" data-a="ringPick" data-v="${k}">${esc(l)}</button>`).join('')}</div>
+      <div class="mute small" style="margin-top:8px">When Nexa is closed, calls ring with your phone's own notification sound, again and again until you answer — iPhones and browsers don't let web apps use custom sounds then.</div></div>`;
+    const i = h.indexOf('<div class="panel alertpanel"'); return i > 0 ? h.slice(0, i) + block + h.slice(i) : h;
+  };
+}
+if (location.hostname === 'localhost') Object.assign(window, { playTone: n => playTone(n), sound: k => sound(k), ringTone: () => ringTone(), synth });
+// What's new in 18.1 — the walk-through (people coming from before 18.0 also see the 18.0 highlights)
+WN_STEPS['18.1'] = [
+  { emoji: '🎉', title: 'Nexa 18.1 is here', text: 'Calls that really ring, Face ID that scans your face, a much smarter Nexa AI and new sounds. Tap Next — or Skip anytime.' },
+  { page: 'settings', sec: 'notifications', sel: '[data-a="deviceNotifs"]', emoji: '📞', title: 'Calls ring even when Nexa is closed', text: 'In another app, on your Home Screen, or Nexa closed — your phone rings again every few seconds, with sound, until you answer. Make sure this is on.' },
+  { page: 'settings', sec: 'notifications', sel: '.ringpanel', emoji: '🎵', title: 'New ringtones & sounds', text: 'Pick a ringtone and new message sounds like Aurora, Crystal and Halo. Tap one to hear it.' },
+  { page: 'settings', sec: 'privacy', sel: '[data-a="bioOn"], [data-a="bioOff"]', emoji: '🔒', title: 'Face ID, properly', text: 'Tap Turn on — Nexa scans your face and saves it. Next time, just look at your phone to open Nexa. Your face never leaves your phone.' },
+  { page: 'home', sel: '.qa[data-a="aiOpen"], .aicard[data-a="aiOpen"]', emoji: '✨', title: 'A much smarter Nexa AI', text: 'Ask it anything — homework, ideas, writing a message, translating. It can look at a photo, check the web for up-to-date answers, and even open things or write a message for you.' },
+  { emoji: '🔗', title: 'Links open with one tap', text: 'Websites and Google Meet links in chats now open straight away — even ones typed without https://.' },
+  { emoji: '🔓', since: '18.0', title: 'Updates are one tap', text: 'However many updates you missed, one tap unlocks the newest Nexa — you never have to delete or re-add the app.' },
+  { page: 'settings', sec: 'profile', sel: '[data-a="studioOpen"]', since: '18.0', emoji: '🖌️', title: 'Profile studio', text: 'Rings, effects and name styles — every single one is free.' },
+  { page: 'settings', sec: 'privacy', sel: '[data-a="tzOpen"]', since: '18.0', emoji: '🕒', title: 'Your local time', text: 'Friends abroad can see what time it is for you — only the time, never where you live. You choose who sees it.' },
+  { emoji: '💙', title: 'That\'s everything!', text: 'Have fun — and if you get stuck, ask Nexa AI or tap Help at the top.', last: true },
+];
