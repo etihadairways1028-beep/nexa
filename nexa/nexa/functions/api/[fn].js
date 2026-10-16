@@ -7,8 +7,9 @@ import music from '../../server/music.mjs';
 import avatar from '../../server/avatar.mjs';
 import turn from '../../server/turn.mjs';
 import quicklogin from '../../server/quicklogin.mjs';
+import passkey from '../../server/passkey.mjs';
 
-const HANDLERS = { notify, owner, support, music, avatar, turn, quicklogin };
+const HANDLERS = { notify, owner, support, music, avatar, turn, quicklogin, passkey };
 
 export async function onRequest(ctx) {
   const h = HANDLERS[ctx.params.fn];
@@ -16,7 +17,7 @@ export async function onRequest(ctx) {
   // the server code reads its settings from process.env (FIREBASE_SERVICE_ACCOUNT, OWNER_UID, …)
   globalThis.process = globalThis.process || {};
   const pe = globalThis.process.env || (globalThis.process.env = {});
-  for (const [k, v] of Object.entries(ctx.env || {})) if (typeof v === 'string') pe[k] = v;
+  for (const [k, v] of Object.entries(ctx.env || {})) if (typeof v === 'string') pe[k] = v.trim(); // stray spaces/new lines from copy-paste break logins
   try {
     return await h(ctx.request, { ip: ctx.request.headers.get('cf-connecting-ip') || '', waitUntil: p => ctx.waitUntil(p) });
   } catch (e) {
