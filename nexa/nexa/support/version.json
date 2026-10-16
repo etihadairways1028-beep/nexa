@@ -1,1 +1,11 @@
-{"version": "18.0", "notes": ["Updating is one tap: however many updates you missed, you jump straight to the newest Nexa — with a new 'Unlocking your new Nexa' screen", "Nexa never asks you to delete or re-add the app again", "After an update, Nexa walks you through each new thing, one at a time", "Lock Nexa with a PIN or with Face ID / fingerprint", "Calls ring with sound even when Nexa is closed (turn on notifications), stop ringing on your other devices when you answer, and show 'Missed call' if nobody answers"]}
+{
+ "version": "18.1",
+ "notes": [
+  "Calls really ring now: if Nexa is closed or you're in another app, your phone rings again every few seconds — with sound — until you answer",
+  "Face ID set-up scans your face and saves it, then you just look at your phone to open Nexa",
+  "Nexa AI is much smarter: ask it anything, add a photo, it checks the web and can open things or write messages for you",
+  "Links and Google Meet in chats open with one tap",
+  "New ringtones and message sounds (Settings › Notifications)",
+  "A brand-new premium 'Unlocking your new Nexa' screen after every update"
+ ]
+}
