@@ -1,9 +1,9 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '18.2';
-const NOTES = ["Fixed: on phones the bottom bar (Home · Chats · Events…) no longer covers the message box — it hides while you're in a chat or typing", "Fixed: the What's new walk-through can't get stuck covering the screen any more", "New: Settings › Notifications › Test: ring this phone"];
-const CACHE = 'nexa-shell-v53';
+const VERSION = '19.1';
+const NOTES = ["A whole new Nexa: a clean, professional dark look and a new website", "Lock and log in with Face ID, Touch ID, fingerprint or a PIN — your choice (Settings › Privacy)", "Two-step verification with an authenticator app", "Scheduled messages send even if your phone is off; export any chat", "Slow mode & auto-mod for groups, community emojis and a soundboard", "Prefer the old style? Settings › Appearance › Look lets you switch back"];
+const CACHE = 'nexa-shell-v57';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)|^\/manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {

@@ -1,12 +1,12 @@
 {
   "name": "Nexa",
   "short_name": "Nexa",
-  "description": "A messaging app like never before.",
+  "description": "Messages, voice and video calls, groups and communities in one fast, private app.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#05070f",
-  "theme_color": "#05070f",
+  "background_color": "#0E0F13",
+  "theme_color": "#0E0F13",
   "icons": [
     {
       "src": "icon-192-v4.png",
@@ -66,6 +66,39 @@
           "sizes": "192x192"
         }
       ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "lang": "en",
+  "dir": "ltr",
+  "screenshots": [
+    {
+      "src": "store/phone-1.jpg",
+      "sizes": "1080x2160",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Home"
+    },
+    {
+      "src": "store/phone-2.jpg",
+      "sizes": "1080x2160",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Chats"
+    },
+    {
+      "src": "store/phone-3.jpg",
+      "sizes": "1080x2160",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Profiles"
+    },
+    {
+      "src": "store/wide-1.jpg",
+      "sizes": "1440x900",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Nexa on a computer"
     }
   ]
 }

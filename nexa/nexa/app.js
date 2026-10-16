@@ -87,7 +87,7 @@ const logo = (s = 34, frame = true, cls = '') => `<img class="nlogo nlogo-img ${
 
 /* ---------------- constants ---------------- */
 const BGS = [
-  { id: 'nexa', name: 'Default Nexa', css: 'radial-gradient(90% 70% at 0% 0%, rgba(76,110,255,.30), transparent 60%), radial-gradient(80% 60% at 100% 100%, rgba(255,122,69,.20), transparent 60%), rgba(8,11,26,.45)' },
+  { id: 'nexa', name: 'Default', css: 'radial-gradient(90% 70% at 0% 0%, rgba(76,110,255,.30), transparent 60%), radial-gradient(80% 60% at 100% 100%, rgba(255,122,69,.20), transparent 60%), rgba(8,11,26,.45)' },
   { id: 'midnight', name: 'Midnight', css: 'linear-gradient(180deg,#04060e,#0b1230)' },
   { id: 'blue', name: 'Blue Glow', css: 'radial-gradient(70% 70% at 50% 110%, #2c55ff, transparent 70%), #060a1e' },
   { id: 'purple', name: 'Purple', css: 'radial-gradient(80% 80% at 20% 10%, #6b2fd1, transparent 65%), radial-gradient(60% 60% at 90% 90%, #3a1d7a, transparent 70%), #0a0616' },
@@ -107,7 +107,7 @@ const BGS = [
   { id: 'autumn', name: 'Autumn', css: 'radial-gradient(70% 60% at 80% 20%, rgba(255,150,60,.55), transparent 70%), linear-gradient(180deg,#2a1208,#5b2410)' }
 ];
 const ACCENTS = [
-  { a: '#3d7bff', b: '#5aa2ff', n: 'Nexa blue' }, { a: '#9b6bff', b: '#d46bff', n: 'Violet' }, { a: '#ff8a4c', b: '#ff4d6d', n: 'Ember' },
+  { a: '#5B6CFF', b: '#7C6CFF', n: 'Nexa' }, { a: '#9b6bff', b: '#d46bff', n: 'Violet' }, { a: '#ff8a4c', b: '#ff4d6d', n: 'Ember' },
   { a: '#ff4d6d', b: '#ff8a4c', n: 'Signal' }, { a: '#2fd4c4', b: '#5b7cff', n: 'Aqua' }, { a: '#3fbf6f', b: '#2fd4c4', n: 'Mint' }
 ];
 const GRADS = ['linear-gradient(135deg,#5b7cff,#9b6bff)', 'linear-gradient(135deg,#ff8a4c,#ff4d6d)', 'linear-gradient(135deg,#9b6bff,#ff8a4c)', 'linear-gradient(135deg,#2fd4c4,#5b7cff)', 'linear-gradient(135deg,#ff4d6d,#9b6bff)', 'linear-gradient(135deg,#3fbf6f,#2fd4c4)'];
@@ -324,7 +324,7 @@ const rsvpPills = e => `<div class="pills rsvp">${[['going', 'Going'], ['maybe',
 function setBright(v) { const r = document.documentElement, k = 0.45 + (+v / 100) * 0.95; r.style.setProperty('--skyB', k.toFixed(3)); r.style.setProperty('--dimA', Math.max(0, (k - 1) * 0.9).toFixed(3)); r.dataset.bright = k > 1.02 ? 'hi' : ''; }
 document.addEventListener('input', e => { if (e.target.id === 'brightRange') setBright(e.target.value); });
 document.addEventListener('change', e => { if (e.target.id === 'brightRange') savePrefs({ bright: +e.target.value }); });
-const lookOf = p => ['classic', 'aurora'].includes(p.look) ? p.look : 'liquid';
+const lookOf = p => p.lookV19 && ['classic', 'aurora', 'liquid'].includes(p.look) ? p.look : 'pro';
 /* ---------- Liquid Glass: moving highlights + lens edges (where the browser supports it) ---------- */
 (() => {
   let raf = 0, mx = 30, my = 0;
@@ -927,6 +927,7 @@ function vChat(c) {
   const bgImgUrl = bgImageFor(c, bgPref);
   const bgCss = thm ? `linear-gradient(160deg,${thm.c1},${thm.c2})` : bgImgUrl ? `url(${bgImgUrl}) center/cover` : bgObj.css;
   const bgCls = bgImgUrl || thm ? '' : (bgObj.cls || '');
+  const proPlain = !bgImgUrl && !thm && bgObj.id === 'nexa' && document.documentElement.dataset.look === 'pro';
   const all = (S.msgs[c.id] || []).filter(m => m.at > hiddenAt(c) && !(m.expiresAt && m.expiresAt < now()));
   const q = S.findOpen ? S.find.trim().toLowerCase() : '';
   const msgs = q ? all.filter(m => (m.text || '').toLowerCase().includes(q) || (m.poll?.q || '').toLowerCase().includes(q)) : all;
@@ -993,7 +994,7 @@ function vChat(c) {
   const rec = S.rec;
   const th = thm;
   return `<section class="chat glass card fs-${S.prefs.textSize}${A('chat' + c.id)}" style="${th ? `--ac:${th.c3};--ac2:color-mix(in oklab,${th.c3} 70%,#fff)` : ''}">
-    <div class="chatbg ${bgCls}" style="background:${bgCss}"></div>
+    <div class="chatbg ${bgCls}" style="background:${proPlain ? 'transparent' : bgCss}"></div>
     <header class="chathead" data-key="chathead">
       <button class="ibtn back" aria-label="Back to chats" data-a="closeConv">${ic('back')}</button>
       <button class="row grow" style="gap:12px;text-align:left;min-width:0" data-a="${cm ? 'commOpen' : c.type === 'event' ? 'eventOpen' : isGroup ? 'groupInfo' : 'profile'}" data-v="${cm ? cm.id : c.type === 'event' ? c.eventId : isGroup ? c.id : other}">${convAv(c, 44)}<span class="grow"><b class="ellip" style="display:block;font-size:16px">${streakBadge(c)}${esc(convName(c))}${!isGroup && nickOf(other) ? ` <span class="mute small" style="font-weight:600">· ${esc(U(other)?.name || '')}</span>` : ''}</b><span class="small mute row" style="gap:6px">${isMuted(c.id) ? ic('bellOff', 13) : ''}${c.ttl ? ic('timer', 13) : ''}${sub}</span></span></button>
@@ -1245,7 +1246,7 @@ function vSettings() {
     <div class="field">Photos <span style="font-weight:500">(up to 6)</span><div class="wphotos edit">${(pr.widgets?.photos || []).map((p, i) => `<span class="wph"><img src="${safeImg(p)}" alt=""><button class="stx" aria-label="Remove photo" data-a="widgetDel" data-i="${i}">${ic('x', 12, 2.5)}</button></span>`).join('')}${(pr.widgets?.photos || []).length < 6 ? `<label class="wph add" aria-label="Add a photo">${ic('plus', 20)}<input type="file" accept="image/*" class="sr" data-file="widgetPhoto"></label>` : ''}</div></div>
     <div><button class="btn" data-a="saveWidgets">Save widgets</button></div>`;
   if (s === 'appearance') body = `<h2 class="h1" style="font-size:24px">Appearance</h2>
-    <div class="field">Look<div class="looks">${[['aurora', 'Aurora Glass', 'Frosted glass with an aurora glow'], ['liquid', 'Liquid Glass', 'Clear, shiny glass like iOS 26'], ['classic', 'Classic Sky', 'The original blue night-sky glass']].map(([k, n, d]) => `<button class="lookcard ${lookOf(p) === k ? 'on' : ''}" data-a="pref" data-k="look" data-v="${k}"><span class="lk lk-${k}"><i></i><i></i><i></i></span><b>${n}</b><span class="mute small">${d}</span></button>`).join('')}</div></div>
+    <div class="field">Look<div class="looks">${[['pro', 'Nexa', 'Clean and calm — the new default'], ['aurora', 'Aurora Glass', 'Frosted glass with an aurora glow'], ['liquid', 'Liquid Glass', 'Clear, shiny glass like iOS 26'], ['classic', 'Classic Sky', 'The original blue night-sky glass']].map(([k, n, d]) => `<button class="lookcard ${lookOf(p) === k ? 'on' : ''}" data-a="lookPick" data-v="${k}"><span class="lk lk-${k}"><i></i><i></i><i></i></span><b>${n}</b><span class="mute small">${d}</span></button>`).join('')}</div></div>
     <div class="field">Brightness<div class="brightrow">${ic('moon', 18)}<input type="range" id="brightRange" min="0" max="100" step="1" value="${p.bright ?? 50}" aria-label="App brightness — darker to brighter">${ic('spark', 18)}</div><span class="mute small">Slide left for a darker app, right for a brighter one.</span></div>
     <div class="setrow"><span><b>Smooth mode</b><div class="mute small">Less see-through glass so Nexa runs faster on older phones and laptops.</div></span>${tog(p.lite, 'prefFlag', 'lite', 'Smooth mode')}</div>
     <div class="field">Mode<div class="pills"><button class="pill ${p.theme !== 'light' ? 'on' : ''}" data-a="pref" data-k="theme" data-v="dark">${ic('moon', 16)} Dark</button><button class="pill ${p.theme === 'light' ? 'on' : ''}" data-a="pref" data-k="theme" data-v="light">Bright</button></div></div>
@@ -1348,6 +1349,8 @@ function vMenu() {
       c.pinned ? ['unpin', 'pin', 'Unpin message'] : null,
       ['albumOpen', 'album', isG ? 'Group album' : 'Photo album'],
       ['mediaOpen', 'images', 'Photos, links & voice'],
+      ['exportChat', 'download', 'Export chat'],
+      canModerate(c) ? ['modOpen', 'shield', 'Slow mode & auto-mod'] : null,
       ['ttlOpen', 'timer', c.ttl ? 'Disappearing: ' + (TTL_OPTS.find(o => o[0] === c.ttl)?.[1] || 'on') : 'Disappearing messages'],
       ['hideConv', 'trash', 'Delete conversation', '', 'danger'],
       isG ? ['leaveGroup', 'logout', owner ? 'Leave group (transfer ownership)' : 'Leave group', '', 'danger'] : null,
@@ -3379,7 +3382,7 @@ function vModal4(m, f, head) {
     return head('Schedule a message', `Sends to ${esc(c ? convName(c) : 'this chat')} at the time you pick.`) + `
       <label class="field">Message<textarea class="inp" id="sch-text" data-model="form.schText" rows="3" maxlength="2000">${esc(f.schText ?? '')}</textarea></label>
       <label class="field">Send at<input class="inp" id="sch-at" type="datetime-local" data-model="form.schAt" value="${esc(f.schAt || local(def))}" min="${local(new Date())}"></label>
-      <div class="mute small" style="line-height:1.5">It sends on time while Nexa is open on any of your devices — otherwise the moment you next open it.</div>
+      <div class="mute small" style="line-height:1.5">${S.be.kind !== 'local' && S.be.push ? 'It sends on time even if your phone is off or Nexa is closed.' : 'It sends on time while Nexa is open on any of your devices — otherwise the moment you next open it.'}</div>
       ${S.authErr ? `<div class="err">${esc(S.authErr)}</div>` : ''}
       ${mine.length ? `<div class="sec">Scheduled in this chat</div>${mine.map(x => `<div class="item">${ic('clock', 18)}<span class="grow"><span class="small ellip" style="display:block">${esc(x.text)}</span><span class="mute small">${new Date(x.at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></span><button class="btn sm" data-a="schCancel" data-v="${x.id}">Cancel</button></div>`).join('')}` : ''}
       <div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Close</button><button class="btn pri" data-a="schSave">${ic('clock', 16)} Schedule</button></div>`;
@@ -5828,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '18.2';
+const APP_VERSION = '19.1';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -7676,7 +7679,18 @@ if (location.hostname === 'localhost') Object.assign(window, { upScreen, doUpdat
 // ever leaves your phone — Nexa only gets a yes/no from the device.
 const bioKey = () => 'nexa.bio.' + S.me;
 const hasBio = () => !!lsGet(bioKey(), null);
-const bioName = () => { const ua = navigator.userAgent; return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'Face ID' : /Macintosh/.test(ua) ? 'Touch ID' : /Windows/.test(ua) ? 'Windows Hello' : /Android/.test(ua) ? 'fingerprint / face unlock' : 'Face ID / fingerprint'; };
+// which kind of unlock this device has (websites can't ask the phone directly, so we tell by the device)
+const devBio = () => {
+  const ua = navigator.userAgent, tp = navigator.maxTouchPoints > 1;
+  if (/iPhone|iPod/.test(ua)) return Math.max(screen.width, screen.height) >= 812 ? { name: 'Face ID', kind: 'face' } : { name: 'Touch ID', kind: 'finger' };
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && tp)) return { name: 'Face ID or Touch ID', kind: 'face' };
+  if (/Macintosh/.test(ua)) return { name: 'Touch ID', kind: 'finger' };
+  if (/Windows/.test(ua)) return { name: 'Windows Hello', kind: 'face' };
+  if (/Android/.test(ua)) return { name: 'fingerprint', kind: 'finger' };
+  return { name: 'Face ID or fingerprint', kind: 'face' };
+};
+const bioName = () => devBio().name;
+const bioTitle = () => { const n = bioName(); return n[0].toUpperCase() + n.slice(1); };
 let bioOk = null;
 (async () => { try { bioOk = !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch { bioOk = false; } if (S.view === 'app') render(); })();
 const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -7691,26 +7705,28 @@ async function bioEnable() {
       authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none',
     } });
     if (!cred) throw new Error('cancelled');
-    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); render(); toast(`${bioName()} lock is on 🔒`);
+    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); render(); toast(`${bioTitle()} lock is on 🔒`);
   } catch (e) { if (e?.name !== 'NotAllowedError') toast(`Couldn't turn on ${bioName()} on this device`); }
 }
 async function bioCheck() {
-  const k = lsGet(bioKey(), null); if (!k) return false;
-  try { const a = await navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: 'public-key', id: unb64(k.id), transports: ['internal'] }], userVerification: 'required', timeout: 60000, rpId: location.hostname } }); return !!a; } catch { return false; }
+  const k = lsGet(bioKey(), null); if (!k) return false; S.bioErr = '';
+  // started straight from the tap (iPhone only allows Face ID from a tap)
+  try { const a = await navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: 'public-key', id: unb64(k.id) }], userVerification: 'required', timeout: 60000, rpId: location.hostname } }); return !!a; }
+  catch (e) { S.bioErr = (e && e.name) || 'Error'; return false; }
 }
 Object.assign(actions, {
   bioOn: () => bioEnable(),
-  bioOff: () => { lsSet(bioKey(), null); render(); toast(`${bioName()} lock turned off`); },
-  bioUnlock: async () => { if (S.bioBusy) return; S.bioBusy = true; S.authErr = ''; render(); const ok = await bioCheck(); S.bioBusy = false; if (ok) { S.locked = false; S.form.pinIn = ''; } else S.authErr = `${bioName()} didn't work — try again${hasPin() ? ' or use your PIN' : ''}.`; render(); },
+  bioOff: () => { lsSet(bioKey(), null); render(); toast(`${bioTitle()} lock turned off`); },
+  bioUnlock: async () => { if (S.bioBusy) return; S.bioBusy = true; S.authErr = ''; render(); const ok = await bioCheck(); S.bioBusy = false; if (ok) { S.locked = false; S.form.pinIn = ''; } else S.authErr = S.bioErr === 'NotAllowedError' ? `${bioTitle()} was cancelled or didn't recognise you — tap to try again${hasPin() ? ' or use your PIN' : ''}.` : `${bioTitle()} couldn't start on this phone (${S.bioErr}). Use your PIN, or log out and back in, then set ${bioName()} up again.`; render(); },
   pinForgot: () => { lsSet(pinKey(), null); lsSet(bioKey(), null); S.locked = false; S.be.auth.signOut(); },
 });
 // lock when opening Nexa, and after 5 minutes away — with either lock
 {
   let away = 0;
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') away = now(); else if (S.me && hasBio() && !hasPin() && away && now() - away > 5 * 60e3) { S.locked = true; render(); setTimeout(() => S.locked && actions.bioUnlock(), 350); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') away = now(); else if (S.me && hasBio() && !hasPin() && away && now() - away > 5 * 60e3) { S.locked = true; render(); } });
   // lock before the first chat is ever drawn
   const _vShellV180 = vShell;
-  vShell = function () { if (!S.lockedOnce && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; setTimeout(() => S.locked && actions.bioUnlock(), 450); return vLock(); } return _vShellV180(); };
+  vShell = function () { if (!S.lockedOnce && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; return vLock(); } return _vShellV180(); };
 }
 {
   const _vLockV180 = vLock;
@@ -7718,7 +7734,7 @@ Object.assign(actions, {
     if (!hasBio()) return _vLockV180();
     const pin = hasPin();
     return `<div class="onb"><div class="card glass col${A('lock')}" style="text-align:center;align-items:center;max-width:380px;gap:14px">${logo(52)}<h2 class="h1" style="font-size:22px">Nexa is locked</h2>
-      <button class="bio-btn" data-a="bioUnlock" ${S.bioBusy ? 'disabled' : ''}><span class="bio-ic">${ic('lock', 30, 2)}</span><b>${S.bioBusy ? 'Checking…' : 'Unlock with ' + esc(bioName())}</b></button>
+      <button class="bio-btn" data-a="bioUnlock" ${S.bioBusy ? 'disabled' : ''}><span class="bio-ic">${ic('lock', 30, 2)}</span><b>${S.bioBusy ? 'Look at your phone…' : 'Tap to unlock with ' + esc(bioName())}</b></button>
       ${pin ? `<div class="mute small">or enter your PIN</div><form class="col" style="width:100%;align-items:center" data-submit="unlock"><input class="inp pin" id="pinIn" data-model="form.pinIn" inputmode="numeric" maxlength="4" autocomplete="off" type="password" value="${esc(S.form.pinIn || '')}" aria-label="PIN"><button class="btn" style="width:100%">Unlock with PIN</button></form>` : ''}
       ${S.authErr ? `<div class="err">${esc(S.authErr)}</div>` : ''}
       <button class="small mute" style="text-decoration:underline" data-a="pinForgot">Can't unlock? Log out and sign in with your password</button></div></div>`;
@@ -7731,7 +7747,7 @@ Object.assign(actions, {
     const h = _vSettingsV180c();
     if (S.setSec !== 'privacy') return h;
     const name = bioName(), on = hasBio();
-    const bioRow = bioOk === false && !on ? '' : `<div class="setrow"><span><b>Unlock with ${esc(name)}</b><div class="mute small">${on ? `On — Nexa asks for ${esc(name)} when you open it. Your face or fingerprint never leaves your device.` : `Open Nexa with ${esc(name)} instead of${hasPin() ? ' (or as well as)' : ''} a PIN. Your face or fingerprint never leaves your device.`}</div></span>${on ? '<button class="btn sm" data-a="bioOff">Turn off</button>' : `<button class="btn sm pri" data-a="bioOn">${ic('lock', 14)} Turn on</button>`}</div>`;
+    const bioRow = bioOk === false && !on ? '' : `<div class="setrow"><span><b>Unlock with ${esc(name)}</b><div class="mute small">${on ? `On — use ${esc(name)} to open Nexa and to sign in without your password. Your face or fingerprint never leaves your device.` : `Open Nexa with ${esc(name)} instead of${hasPin() ? ' (or as well as)' : ''} a PIN. Your face or fingerprint never leaves your device.`}</div></span>${on ? '<button class="btn sm" data-a="bioOff">Turn off</button>' : `<button class="btn sm pri" data-a="bioOn">${ic('lock', 14)} Turn on</button>`}</div>`;
     return h.replace(/(<div class="setrow"><span><b>App lock on this device<\/b>[\s\S]*?<\/span><\/div>)/, `$1${bioRow}`);
   };
 }
@@ -7905,8 +7921,8 @@ function paintBioSetup() {
   const name = bioName(), face = /face/i.test(name);
   const t = { intro: [`Set up ${name}`, face ? 'Hold your phone in front of your face, like when you unlock it. Then Nexa opens with just a look.' : `Use ${name} to open Nexa — quicker than a PIN.`],
     scan: [face ? 'Scanning…' : 'Checking…', face ? 'Look at your phone' : `Use ${name} now`],
-    ok: [`${name} saved`, `Next time you open Nexa, ${face ? 'just look at your phone' : 'just use ' + name} to unlock it.`],
-    fail: ['Didn\'t finish', `${name} was cancelled or didn't work. Try again — keep your face in view.`] }[st.st];
+    ok: [`${bioTitle()} saved`, `Next time you open Nexa, ${face ? 'just look at your phone' : 'just use ' + name} to unlock it.`],
+    fail: ['Didn\'t finish', st.why && st.why !== 'NotAllowedError' ? `This phone wouldn't start ${name} (${st.why}). Make sure ${name} is set up in your phone's Settings, then try again.` : `${bioTitle()} was cancelled or didn't recognise you. Tap Try again — when the phone asks to save a passkey for Nexa, tap Continue.`] }[st.st];
   L.className = 'bf-' + st.st;
   L.innerHTML = `<div class="bf-card">
     <button class="bf-x" data-bf="close" aria-label="Close">${ic('x', 18, 2)}</button>
@@ -7931,7 +7947,7 @@ function bioScan() {
     lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); S.lockedOnce = true; // don't ask again straight away
     S.bioSetup = { st: 'ok' }; paintBioSetup(); render();
     try { navigator.vibrate?.([20, 50, 30]); } catch {} if (S.prefs.sounds !== false) upChime();
-  }).catch(() => { if (S.bioSetup) { S.bioSetup = { st: 'fail' }; paintBioSetup(); } });
+  }).catch(e => { if (S.bioSetup) { S.bioSetup = { st: 'fail', why: (e && e.name) || '' }; paintBioSetup(); } });
 }
 Object.assign(actions, { bioOn: () => { S.bioSetup = { st: 'intro' }; paintBioSetup(); } });
 // the lock screen: a face frame that scans while Face ID checks
@@ -8249,3 +8265,654 @@ UP_HL['18.2'] = ['Nothing covers the screen', 'Calls that really ring', 'Face ID
   new MutationObserver(() => { if (!sync.q) { sync.q = 1; requestAnimationFrame(() => { sync.q = 0; sync(); }); } }).observe(document.getElementById('app') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   sync();
 }
+
+WN_STEPS['18.3'] = WN_STEPS['18.2']; UP_HL['18.3'] = ['Sign in with Face ID', 'Face ID unlock fixed', 'Nothing covers the chat'];
+
+/* ================= v18.3: log IN with Face ID / fingerprint (no password) ================= */
+// The same Face ID set-up now does both: it unlocks Nexa AND signs you in on the log-in screen.
+// (On a website, Apple and Google only let Face ID / fingerprint be used through a "passkey" — the phone asks once
+//  "Save a passkey for Nexa?", then it's just a look or a touch every time. Your face never leaves your phone.)
+const PK_URL = () => CONFIG.passkeyEndpoint || '/api/passkey';
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => Uint8Array.from(atob(String(s).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(s).length + 3) % 4)), c => c.charCodeAt(0));
+async function pkCall(body, auth) {
+  let r; try { r = await fetch(PK_URL(), { method: 'POST', headers: { 'content-type': 'application/json', ...(auth ? { authorization: 'Bearer ' + auth } : {}) }, body: JSON.stringify(body) }); } catch { throw new Error('Can\'t reach Nexa right now. Check your internet.'); }
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Face ID log-in isn\'t available right now.'); return j;
+}
+// tiny CBOR reader — only to read the phone's public key on older iPhones that lack getPublicKey()
+function cbor(buf) {
+  let i = 0; const u = buf, rd = n => { let v = 0; for (let k = 0; k < n; k++) v = v * 256 + u[i++]; return v; };
+  const item = () => { const b = u[i++], t = b >> 5, a = b & 31; const len = a < 24 ? a : a === 24 ? rd(1) : a === 25 ? rd(2) : a === 26 ? rd(4) : rd(8);
+    if (t === 0) return len; if (t === 1) return -1 - len; if (t === 2) { const v = u.slice(i, i + len); i += len; return v; } if (t === 3) { const v = new TextDecoder().decode(u.slice(i, i + len)); i += len; return v; }
+    if (t === 4) return Array.from({ length: len }, item); if (t === 5) { const m = new Map(); for (let k = 0; k < len; k++) { const key = item(); m.set(key, item()); } return m; } if (t === 7) return a === 20 ? false : a === 21 ? true : null; throw new Error('cbor'); };
+  return { item, at: () => i, set: v => { i = v; } };
+}
+function coseToJwk(attObj) {
+  const att = cbor(new Uint8Array(attObj)).item(), ad = att.get('authData');
+  const credLen = ad[53] * 256 + ad[54], r = cbor(ad.slice(55 + credLen)), k = r.item();
+  const alg = k.get(3);
+  if (alg === -7) return { alg, jwk: { kty: 'EC', crv: 'P-256', x: b64u(k.get(-2)), y: b64u(k.get(-3)), ext: true } };
+  if (alg === -257) return { alg, jwk: { kty: 'RSA', n: b64u(k.get(-1)), e: b64u(k.get(-2)), alg: 'RS256', ext: true } };
+  return { alg };
+}
+// sign up this phone for Face ID log-in, right after the Face ID set-up saved it
+async function pkRegister(cred, reg) {
+  if (!reg || !S.be.auth?.idToken) return;
+  try {
+    const res = cred.response; let alg = res.getPublicKeyAlgorithm?.(), spki = null, jwk = null;
+    try { const k = res.getPublicKey?.(); if (k) spki = b64u(k); } catch {}
+    if (!spki) { const c = coseToJwk(res.attestationObject); alg = c.alg; jwk = c.jwk; }
+    await pkCall({ action: 'regFinish', id: reg.id, credId: b64u(cred.rawId), clientData: b64u(res.clientDataJSON), alg, spki, jwk }, await S.be.auth.idToken());
+    lsSet('nexa.pkLogin', { at: now(), name: S.profile?.name || '' });
+  } catch (e) { console.warn('Face ID log-in sign-up failed', e); }
+}
+// the set-up screen gets its challenge from the server BEFORE you tap (iPhone needs the scan to start straight from the tap)
+{
+  const _bioOn = actions.bioOn;
+  actions.bioOn = function () {
+    S.pkReg = null;
+    if (S.be.kind !== 'local' && S.be.auth?.idToken) S.be.auth.idToken().then(t => pkCall({ action: 'regBegin' }, t)).then(r => { S.pkReg = r; }).catch(() => {});
+    return _bioOn();
+  };
+}
+bioScan = function () {
+  const reg = S.pkReg;
+  const p = navigator.credentials.create({ publicKey: {
+    rp: { name: 'Nexa', id: location.hostname }, challenge: reg ? unb64u(reg.challenge) : rnd(32),
+    user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required', requireResidentKey: true }, timeout: 60000, attestation: 'none' } });
+  S.bioSetup = { st: 'scan', t0: now() }; paintBioSetup();
+  p.then(async cred => {
+    if (!cred) throw new Error('cancelled');
+    await Promise.all([pkRegister(cred, reg), new Promise(r => setTimeout(r, Math.max(0, 1600 - (now() - S.bioSetup.t0))))]);
+    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); S.lockedOnce = true;
+    S.bioSetup = { st: 'ok' }; paintBioSetup(); render();
+    try { navigator.vibrate?.([20, 50, 30]); } catch {} if (S.prefs.sounds !== false) upChime();
+  }).catch(e => { if (S.bioSetup) { S.bioSetup = { st: 'fail', why: (e && e.name) || '' }; paintBioSetup(); } });
+};
+// the log-in screen: "Sign in with Face ID"
+let pkLogin = null, pkLoginAt = 0;
+function pkPrefetch() { if (S.be.kind === 'local' || !window.PublicKeyCredential || (pkLogin && now() - pkLoginAt < 120000)) return; pkLoginAt = now(); pkCall({ action: 'loginBegin' }).then(r => { pkLogin = r; }).catch(() => { pkLogin = null; }); }
+Object.assign(actions, {
+  pkSignIn: () => {
+    if (S.be.kind === 'local') { S.authErr = 'Face ID log-in works on the live Nexa.'; return render(); }
+    const ch = pkLogin; if (!ch) { S.authErr = `One moment — getting ${bioName()} ready. Tap again.`; pkPrefetch(); return render(); }
+    pkLogin = null; S.authErr = ''; S.busy = true; render();
+    navigator.credentials.get({ publicKey: { challenge: unb64u(ch.challenge), rpId: location.hostname, userVerification: 'required', timeout: 60000 } })
+      .then(async a => {
+        const r = a.response;
+        const { token } = await pkCall({ action: 'loginFinish', id: ch.id, credId: b64u(a.rawId), clientData: b64u(r.clientDataJSON), authData: b64u(r.authenticatorData), sig: b64u(r.signature) });
+        await S.be.auth.signInWithToken(token); S.lockedOnce = true; // you just used Face ID — no second check
+      })
+      .catch(e => { S.authErr = e?.name === 'NotAllowedError' ? `${bioTitle()} was cancelled. Tap Sign in with ${bioName()} to try again.` : (e?.message || `${bioTitle()} log-in didn't work. Use your password.`); })
+      .finally(() => { S.busy = false; pkPrefetch(); render(); });
+  },
+});
+{
+  const _vAuthV183 = typeof vAuth === 'function' ? vAuth : null;
+  if (_vAuthV183) vAuth = function () {
+    const h = _vAuthV183();
+    if (S.authMode === 'signup' || S.authMode === 'code' || !window.PublicKeyCredential) return h;
+    setTimeout(pkPrefetch, 0);
+    const name = bioName();
+    const btn = `<button type="button" class="btn pk-btn" data-a="pkSignIn" ${S.busy ? 'disabled' : ''}>${bioIcon()}<span>Sign in with ${name}</span></button>`;
+    return h.replace('<div class="orline"><span>or</span></div>', `<div class="orline"><span>or</span></div>${btn}`);
+  };
+}
+if (location.hostname === 'localhost') Object.assign(window, { pkCall, pkRegister, coseToJwk, b64u, unb64u });
+
+/* ================= v18.4: everything that was missing ================= */
+// ---- 1) Scheduled messages go out even when your phone is off or Nexa is closed (the Nexa server sends them)
+async function apiNotify(body) {
+  if (!S.be.push || !S.be.auth?.idToken) return null;
+  try { const t = await S.be.auth.idToken(); const r = await fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t }, body: JSON.stringify(body) }); return await r.json().catch(() => null); } catch { return null; }
+}
+{
+  const live = () => S.be.kind !== 'local' && !!S.be.push;
+  const _run = runScheduled;
+  let lastTick = 0;
+  runScheduled = async function () {
+    if (!live()) return _run();
+    // the server sends them (so they still go out if this phone is off); we just nudge it once a minute
+    if (now() - lastTick > 60000 || (S.scheduled || []).some(x => x.at <= now() && now() - lastTick > 8000)) { lastTick = now(); apiNotify({ kind: 'schedTick' }); }
+  };
+  const sync = () => setTimeout(() => apiNotify({ kind: 'schedSync' }), 400);
+  const _save = actions.schSave, _cancel = actions.schCancel;
+  if (_save) actions.schSave = async d => { const r = await _save(d); sync(); return r; };
+  if (_cancel) actions.schCancel = async d => { const r = await _cancel(d); sync(); return r; };
+}
+
+// ---- 2) Export a chat: the whole conversation as a file you keep (text, or a web page with the photos)
+const msgPlain = m => m.deleted ? '(message deleted)' : m.system ? `— ${m.text || ''} —` : [m.text || '', m.image || (m.images || []).length ? '[photo]' : '', m.audio ? '[voice message]' : '', m.video ? '[video]' : '', m.sticker || m.stickerImg ? '[sticker]' : '', m.gif ? '[GIF]' : '', m.poll ? `[poll: ${m.poll.q || ''}]` : '', m.live ? '[live location]' : ''].filter(Boolean).join(' ');
+async function exportChat(kind) {
+  const c = convOf(S.conv); if (!c) return;
+  toast('Getting the whole chat ready…');
+  let msgs = [];
+  try { msgs = await db().query(`conversations/${c.id}/messages`, [], { order: ['at', 'asc'], limit: 10000 }); } catch { msgs = (S.msgs[c.id] || []).slice(); }
+  msgs = msgs.filter(m => (m.at || 0) > hiddenAt(c) && !blocked(m.from));
+  const title = convName(c), when = t => new Date(t).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const who = m => m.bot ? 'Nexa AI' : m.from === S.me ? (S.profile?.name || 'Me') : dname(m.from);
+  let blob, name = `Nexa chat - ${title.replace(/[\\/:*?"<>|]+/g, '').slice(0, 60)} - ${new Date().toISOString().slice(0, 10)}`;
+  if (kind === 'html') {
+    const rows = msgs.map(m => `<div class="m ${m.from === S.me ? 'me' : ''}"><div class="h"><b>${esc(who(m))}</b> <span>${esc(when(m.at))}</span></div>${m.text && !m.deleted ? `<div>${esc(m.text).replace(/\n/g, '<br>')}</div>` : ''}${[m.image, ...(m.images || [])].filter(u => /^(data:image|https:)/.test(u || '')).map(u => `<img src="${esc(u)}" alt="">`).join('')}${!m.text || m.deleted ? `<div class="x">${esc(msgPlain(m))}</div>` : ''}</div>`).join('');
+    blob = new Blob([`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)} — Nexa chat</title><style>body{font:15px/1.5 system-ui,sans-serif;background:#0b1024;color:#eef;max-width:720px;margin:0 auto;padding:20px}h1{font-size:22px}.m{background:#171d3d;border-radius:14px;padding:10px 14px;margin:8px 40px 8px 0}.m.me{background:#2b4bd8;margin:8px 0 8px 40px}.h span{opacity:.6;font-size:12px}.x{opacity:.7;font-style:italic}img{max-width:100%;border-radius:10px;margin-top:6px}</style><h1>${esc(title)}</h1><p style="opacity:.6">Exported from Nexa on ${esc(when(now()))} · ${msgs.length} messages</p>${rows}`], { type: 'text/html' });
+    name += '.html';
+  } else {
+    blob = new Blob([`${title} — exported from Nexa on ${when(now())}\n${msgs.length} messages\n\n` + msgs.map(m => `[${when(m.at)}] ${who(m)}: ${msgPlain(m)}`).join('\n')], { type: 'text/plain' });
+    name += '.txt';
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  S.modal = null; render(); toast(`Saved ${msgs.length} messages`);
+}
+
+// ---- 3) Slow mode & auto-mod for groups and community channels (owners and admins)
+function canModerate(c) {
+  if (!c) return false;
+  if (c.type === 'group') return ['owner', 'admin'].includes((c.roles || {})[S.me]);
+  if (c.type === 'channel') { const cm = commOf(c.communityId); return !!cm && commAdmin(cm); }
+  return false;
+}
+const SLOW_OPTS = [[0, 'Off'], [5, '5s'], [10, '10s'], [30, '30s'], [60, '1m'], [300, '5m'], [900, '15m']];
+const lastSent = {};
+function keepDraft(id, text) { if (!text || id !== S.conv) return; S.draft[id] = text; setTimeout(() => { const t = $('#composer'); if (t && !t.value) { t.value = text; } render(); }, 30); }
+function automodCheck(c, text) {
+  const am = c.automod || {}; if (canModerate(c)) return '';
+  const t = String(text || '').toLowerCase();
+  if (am.links && /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|gg|me|ly|xyz|app)\b)/i.test(t)) return 'Links are turned off in this chat by its admins.';
+  const bad = (am.words || []).find(w => w && new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(t)); if (bad) return 'Your message has a word the admins blocked in this chat.';
+  if (am.spam) { const mine = (S.msgs[c.id] || []).filter(m => m.from === S.me && now() - m.at < 30000); if (mine.length >= 5) return 'Slow down a little — too many messages in a row.'; if (t && mine.filter(m => (m.text || '').toLowerCase() === t).length >= 2) return 'You already sent that — no repeats please.'; }
+  if (am.caps && t.length > 12 && String(text).replace(/[^A-Za-z]/g, '').length > 10 && String(text) === String(text).toUpperCase()) return 'No ALL CAPS in this chat, please.';
+  return '';
+}
+{
+  const _send = sendMessage;
+  sendMessage = async function (payload, cid) {
+    const id = cid || S.conv, c = convOf(id);
+    if (c && !payload.system && !payload.bot && !payload.scheduled && (c.type === 'group' || c.type === 'channel')) {
+      const slow = +c.slowmode || 0;
+      if (slow && !canModerate(c)) {
+        const mine = (S.msgs[id] || []).filter(m => m.from === S.me).reduce((a, m) => Math.max(a, m.at || 0), lastSent[id] || 0), left = Math.ceil((mine + slow * 1000 - now()) / 1000);
+        if (left > 0) { keepDraft(id, payload.text); toast(`Slow mode is on — you can send again in ${left >= 60 ? Math.ceil(left / 60) + ' min' : left + 's'}.`); return null; }
+      }
+      const why = automodCheck(c, payload.text); if (why) { keepDraft(id, payload.text); toast('🛡️ ' + why); return null; }
+      lastSent[id] = now();
+    }
+    return _send(payload, cid);
+  };
+}
+Object.assign(actions, {
+  exportChat: () => { S.menu = null; S.modal = { type: 'exportChat' }; render(); },
+  exportGo: d => exportChat(d.v),
+  modOpen: () => { S.menu = null; const c = convOf(S.conv); S.form.amWords = ((c?.automod || {}).words || []).join(', '); S.modal = { type: 'moderation' }; render(); },
+  modSlow: async d => { await db().update('conversations/' + S.conv, { slowmode: +d.v }); toast(+d.v ? 'Slow mode on' : 'Slow mode off'); },
+  modToggle: async d => { const c = convOf(S.conv); const am = { ...(c?.automod || {}) }; am[d.v] = !am[d.v]; await db().update('conversations/' + S.conv, { automod: am }); },
+  modWords: async () => { const c = convOf(S.conv); const words = String(S.form.amWords || '').split(/[,\n]/).map(w => w.trim().toLowerCase()).filter(Boolean).slice(0, 60); await db().update('conversations/' + S.conv, { automod: { ...(c?.automod || {}), words } }); toast(words.length ? `Blocking ${words.length} word${words.length > 1 ? 's' : ''}` : 'No blocked words'); },
+});
+{
+  const _vModal5b = vModal5b;
+  vModal5b = function (m, f, head) {
+    if (m.type === 'exportChat') {
+      const c = convOf(S.conv);
+      return head('Export chat', `Save “${esc(c ? convName(c) : 'this chat')}” as a file on this device.`) + `<div class="col" style="gap:8px">
+        <button class="item" data-a="exportGo" data-v="html">${ic('images', 20)}<span class="grow"><b style="display:block">Web page with photos</b><span class="mute small">Opens in any browser — looks like the chat</span></span></button>
+        <button class="item" data-a="exportGo" data-v="txt">${ic('download', 20)}<span class="grow"><b style="display:block">Text file</b><span class="mute small">Small, just the words and times</span></span></button></div>`;
+    }
+    if (m.type === 'moderation') {
+      const c = convOf(S.conv); if (!c) return head('Moderation');
+      const am = c.automod || {}, slow = +c.slowmode || 0;
+      const tg = (k, l, d) => `<div class="setrow"><span><b>${l}</b><div class="mute small">${d}</div></span><button class="tog ${am[k] ? 'on' : ''}" role="switch" aria-checked="${!!am[k]}" aria-label="${l}" data-a="modToggle" data-v="${k}"></button></div>`;
+      return head('Slow mode & auto-mod', 'Keeps a busy chat calm. Owners and admins are never limited.') + `
+        <div class="field">Slow mode — how often each person can send<div class="pills">${SLOW_OPTS.map(([v, l]) => `<button class="pill ${slow === v ? 'on' : ''}" data-a="modSlow" data-v="${v}">${l}</button>`).join('')}</div></div>
+        ${tg('spam', 'Stop spam', 'Blocks 5+ messages in 30 seconds and the same message sent again and again.')}
+        ${tg('links', 'Block links', 'Only owners and admins can post links.')}
+        ${tg('caps', 'No ALL CAPS', 'Blocks long messages written in capitals.')}
+        <label class="field">Blocked words <span class="mute small" style="font-weight:500">(comma between each)</span><textarea class="inp" rows="2" data-model="form.amWords" placeholder="word, another word">${esc(f.amWords || '')}</textarea></label>
+        <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="modWords">Save words</button></div>`;
+    }
+    return _vModal5b(m, f, head);
+  };
+}
+// the message box shows when slow mode is on
+{
+  const _vChatV184 = typeof vChat === 'function' ? vChat : null;
+  if (_vChatV184) vChat = function (...a) { const h = _vChatV184(...a); const c = convOf(S.conv); if (!c || !+c.slowmode || canModerate(c)) return h; const l = SLOW_OPTS.find(o => o[0] === +c.slowmode)?.[1] || c.slowmode + 's'; return h.replace(/(<textarea[^>]*id="composer"[^>]*placeholder=")([^"]*)(")/, `$1🐢 Slow mode · ${l}$3`); };
+}
+
+// ---- 4) Community emojis & a soundboard
+// Owners/admins add the community's own emojis (type :name: to use them) and sounds; anyone in a voice room
+// can play a sound for everyone in the room. Built-in sounds need no uploads.
+const commGenChan = cm => (cm?.channels || []).find(k => k.kind === 'text')?.id;
+S.cemo = S.cemo || {}; S.csnd = S.csnd || {};
+const cemoWatch = {};
+function watchCommMedia(cm) {
+  const gen = commGenChan(cm); if (!cm || !gen || cemoWatch[cm.id]) return;
+  cemoWatch[cm.id] = true;
+  db().listenDoc(`conversations/${gen}/meta/emojis`, d => { S.cemo[cm.id] = (d && d.list) || []; render(); });
+  db().listenDoc(`conversations/${gen}/meta/sounds`, d => { S.csnd[cm.id] = (d && d.list) || []; });
+}
+const commOfConv = c => c && c.type === 'channel' ? commOf(c.communityId) : null;
+function cemoMap() { const cm = commOfConv(convOf(S.conv)); if (!cm) return null; watchCommMedia(cm); const l = S.cemo[cm.id] || []; return l.length ? Object.fromEntries(l.map(e => [e.n, e.src])) : null; }
+{
+  const _linkify = linkify;
+  linkify = function (text, q) { const h = _linkify(text, q); const map = cemoMap(); if (!map) return h; return h.replace(/:([a-z0-9_]{2,24}):/gi, (all, n) => map[n.toLowerCase()] && /^data:image\//.test(map[n.toLowerCase()]) ? `<img class="cemoji" src="${map[n.toLowerCase()]}" alt=":${esc(n)}:" title=":${esc(n)}:">` : all); };
+  const _vPicker = vPicker;
+  vPicker = function () { const h = _vPicker(); if ((S.pickTab || 'emoji') !== 'emoji') return h; const cm = commOfConv(convOf(S.conv)); const l = cm ? (S.cemo[cm.id] || []) : []; if (!l.length) return h; return h.replace('<div class="emgrid">', `<div class="sec" style="margin:4px 4px 2px">${esc(cm.name)}</div><div class="emgrid cemogrid">${l.map(e => `<button data-a="insEmoji" data-v=":${esc(e.n)}:" aria-label=":${esc(e.n)}:"><img src="${e.src}" alt=""></button>`).join('')}</div><div class="emgrid">`); };
+}
+function emojiImg(file) {
+  return new Promise((res, rej) => { if (!file || !file.type.startsWith('image/')) return rej(new Error('Pick an image.')); const img = new Image(); img.onload = () => { const s = 96, c = document.createElement('canvas'); c.width = c.height = s; const k = Math.min(s / img.width, s / img.height), w = img.width * k, h = img.height * k; c.getContext('2d').drawImage(img, (s - w) / 2, (s - h) / 2, w, h); let u = c.toDataURL('image/webp', .85); if (!u.startsWith('data:image/webp')) u = c.toDataURL('image/png'); res(u); URL.revokeObjectURL(img.src); }; img.onerror = () => rej(new Error('That image couldn\'t be opened.')); img.src = URL.createObjectURL(file); });
+}
+const cleanName = (s, fb) => (String(s || '').toLowerCase().replace(/\.[a-z0-9]+$/, '').replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 24) || fb);
+async function saveCommList(cm, kind, list) { const gen = commGenChan(cm); if (!gen) throw new Error('This community needs a text channel first.'); await db().set(`conversations/${gen}/meta/${kind}`, { list, by: S.me, at: now() }); }
+Object.assign(files, {
+  cemoUp: async file => {
+    const cm = commOf(S.modal?.id); if (!cm || !commAdmin(cm)) return;
+    const list = [...(S.cemo[cm.id] || [])]; if (list.length >= 40) throw new Error('A community can have 40 emojis.');
+    let n = cleanName(S.form.cemoName || file.name, 'emoji' + (list.length + 1)); while (list.some(e => e.n === n)) n += '_';
+    list.push({ n, src: await emojiImg(file) }); await saveCommList(cm, 'emojis', list); S.form.cemoName = ''; toast(`Added :${n}:`);
+  },
+  csndUp: async file => {
+    const cm = commOf(S.modal?.id); if (!cm || !commAdmin(cm)) return;
+    if (!file.type.startsWith('audio/')) throw new Error('Pick a sound file (mp3, m4a, wav…).');
+    if (file.size > 160000) throw new Error('Sounds must be short — under 160 KB (about 5 seconds).');
+    const list = [...(S.csnd[cm.id] || [])]; if (list.length >= 12) throw new Error('A community can have 12 sounds.');
+    const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+    const dur = await new Promise(res => { const a = new Audio(); a.onloadedmetadata = () => res(a.duration); a.onerror = () => res(0); a.src = src; });
+    if (dur > 7) throw new Error('Sounds can be up to 6 seconds long.');
+    let n = cleanName(S.form.csndName || file.name, 'sound' + (list.length + 1)); list.push({ n, src }); await saveCommList(cm, 'sounds', list); S.form.csndName = ''; toast(`Added the sound “${n}”`);
+  },
+});
+Object.assign(actions, {
+  cemoDel: async d => { const cm = commOf(S.modal?.id); if (!cm) return; await saveCommList(cm, 'emojis', (S.cemo[cm.id] || []).filter(e => e.n !== d.v)); },
+  csndDel: async d => { const cm = commOf(S.modal?.id); if (!cm) return; await saveCommList(cm, 'sounds', (S.csnd[cm.id] || []).filter(e => e.n !== d.v)); render(); },
+  csndPlay: d => { const cm = commOf(S.modal?.id); const s = cm && (S.csnd[cm.id] || []).find(x => x.n === d.v); if (s) playClip(s.src); },
+});
+{
+  const _vModal5bE = vModal5b;
+  vModal5b = function (m, f, head) {
+    const h = _vModal5bE(m, f, head);
+    if (m.type !== 'community' || !h) return h;
+    const cm = commOf(m.id); if (!cm) return h; watchCommMedia(cm);
+    const tabBtn = `<button class="tab ${m.tab === 'emojis' ? 'on' : ''}" data-a="commTab" data-v="emojis">Emojis</button>`;
+    let out = h.replace(/(<div class="tabs">[\s\S]*?)(<\/div>)/, `$1${tabBtn}$2`);
+    if (m.tab !== 'emojis') return out;
+    const adm = commAdmin(cm), em = S.cemo[cm.id] || [], sn = S.csnd[cm.id] || [];
+    const body = `<div class="sec">Emojis · type :name: in any channel</div>
+      <div class="cemolist">${em.map(e => `<div class="cemoitem"><img src="${e.src}" alt=""><span class="small">:${esc(e.n)}:</span>${adm ? `<button class="ibtn sm" aria-label="Remove :${esc(e.n)}:" data-a="cemoDel" data-v="${esc(e.n)}">${ic('x', 12)}</button>` : ''}</div>`).join('') || '<span class="mute small">No emojis yet.</span>'}</div>
+      ${adm ? `<div class="row" style="gap:8px"><input class="inp" data-model="form.cemoName" value="${esc(f.cemoName || '')}" maxlength="24" placeholder="name (e.g. hype)"><label class="btn sm pri">${ic('plus', 14)} Add emoji<input type="file" accept="image/*" class="sr" data-file="cemoUp"></label></div>` : ''}
+      <div class="sec" style="margin-top:10px">Soundboard · play them in voice rooms</div>
+      <div class="col" style="gap:4px">${sn.map(s => `<div class="item">${ic('volume', 18)}<b class="grow">${esc(s.n)}</b><button class="btn sm" data-a="csndPlay" data-v="${esc(s.n)}">${ic('play', 14)} Play</button>${adm ? `<button class="ibtn sm" aria-label="Remove sound" data-a="csndDel" data-v="${esc(s.n)}">${ic('trash', 14)}</button>` : ''}</div>`).join('') || '<span class="mute small">No custom sounds yet — the built-in ones always work.</span>'}</div>
+      ${adm ? `<div class="row" style="gap:8px"><input class="inp" data-model="form.csndName" value="${esc(f.csndName || '')}" maxlength="24" placeholder="name (e.g. airhorn)"><label class="btn sm pri">${ic('plus', 14)} Add sound<input type="file" accept="audio/*" class="sr" data-file="csndUp"></label></div><div class="mute small">Up to 6 seconds each.</div>` : ''}`;
+    return out.replace(/<div class="col scroll" style="gap:4px;max-height:420px">[\s\S]*<\/div>$/, `<div class="col scroll" style="gap:8px;max-height:460px">${body}</div>`);
+  };
+}
+// the built-in sounds (made on the fly, nothing to download)
+function noiseBurst(ctx, t, len, vol, f) { const b = ctx.createBuffer(1, ctx.sampleRate * len, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); const s = ctx.createBufferSource(), g = ctx.createGain(), fl = ctx.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f || 2000; s.buffer = b; g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(ctx.destination); s.start(t); }
+const SFX = {
+  airhorn: ['📯', 'Air horn', ctx => { const t = ctx.currentTime; [0, .28, .56].forEach((d, i) => { const len = i === 2 ? .9 : .22; [466, 470, 233].forEach(f => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.value = f; g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(.08, t + d + .02); g.gain.setValueAtTime(.08, t + d + len - .05); g.gain.exponentialRampToValueAtTime(.0001, t + d + len); o.connect(g); g.connect(ctx.destination); o.start(t + d); o.stop(t + d + len + .02); }); }); }],
+  tada: ['🎉', 'Ta-da', () => synth([[523.25, 0, .6], [659.25, .1, .6], [783.99, .2, .6], [1046.5, .32, 2]], { type: 'triangle', dec: .6, vol: .2 })],
+  badum: ['🥁', 'Ba-dum-tss', ctx => { const t = ctx.currentTime; [[0, 120], [.18, 90]].forEach(([d, f]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(f * 2, t + d); o.frequency.exponentialRampToValueAtTime(f, t + d + .12); g.gain.setValueAtTime(.4, t + d); g.gain.exponentialRampToValueAtTime(.0001, t + d + .25); o.connect(g); g.connect(ctx.destination); o.start(t + d); o.stop(t + d + .3); }); noiseBurst(ctx, t + .42, .9, .35, 7000); }],
+  applause: ['👏', 'Applause', ctx => { const t = ctx.currentTime; for (let i = 0; i < 60; i++) noiseBurst(ctx, t + Math.random() * 2.2, .05 + Math.random() * .05, .25 + Math.random() * .2, 1500 + Math.random() * 2500); }],
+  sad: ['🎺', 'Sad trombone', () => synth([[392, 0, 1.1], [370, .45, 1.1], [349.23, .9, 1.1], [329.63, 1.35, 3]], { type: 'sawtooth', dec: .5, vol: .06, shimmer: 0, echo: false })],
+  crickets: ['🦗', 'Crickets', ctx => { const t = ctx.currentTime; for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) { const o = ctx.createOscillator(), g = ctx.createGain(), d = r * .7 + k * .05; o.frequency.value = 4300; g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(.05, t + d + .01); g.gain.exponentialRampToValueAtTime(.0001, t + d + .04); o.connect(g); g.connect(ctx.destination); o.start(t + d); o.stop(t + d + .05); } }],
+  wow: ['😮', 'Wow', () => synth([[300, 0, 1.6]], { type: 'sine', dec: .9, vol: .25, fm: 2, ratio: .5 })],
+  ding: ['🔔', 'Ding', () => synth([[1318.51, 0, 2.5], [2637, 0, 1.5, .4]], { fm: .4, ratio: 3.5, dec: 1, vol: .2 })],
+};
+function playClip(src) { try { const a = new Audio(src); a.volume = .9; a.play().catch(() => {}); } catch {} }
+function playSfx(id, cid) {
+  if (S.prefs.sounds === false) return;
+  if (SFX[id]) { try { const ctx = actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); SFX[id][2](ctx); } catch {} return; }
+  const m = String(id).match(/^c:(.+?):(.+)$/); if (m) { const s = (S.csnd[m[1]] || []).find(x => x.n === m[2]); if (s) playClip(s.src); }
+}
+let sfxLast = 0;
+function sendSfx(id) {
+  if (!R) return; if (now() - sfxLast < 1500) return toast('One sound at a time 🙂'); sfxLast = now();
+  playSfx(id);
+  const live = Object.keys(R.peers || {}); live.forEach(u => db().add(`rooms/${R.id}/sig`, { to: u, from: S.me, type: 'sfx', sfx: String(id).slice(0, 80), at: now() }).catch(() => {}));
+  const who = (S.profile?.name || '').split(' ')[0]; sfxToast(who, id);
+}
+function sfxToast(who, id) { const name = SFX[id]?.[1] || String(id).split(':').pop(); const em = SFX[id]?.[0] || '🔊'; const el = document.createElement('div'); el.className = 'sfx-pop'; el.textContent = `${em} ${who} played ${name}`; document.body.appendChild(el); setTimeout(() => el.remove(), 2200); }
+{
+  const _onSignal = onSignal;
+  onSignal = async function (s) {
+    if (s && s.type === 'sfx') { if (!R || R.seen.has(s.id)) return; R.seen.add(s.id); db().del(`rooms/${R.id}/sig/${s.id}`).catch(() => {}); if (now() - (s.at || 0) < 15000) { playSfx(s.sfx); sfxToast(dname(s.from).split(' ')[0], s.sfx); } return; }
+    return _onSignal(s);
+  };
+  const _paintRoom = paintRoom;
+  paintRoom = function (force) {
+    const r = _paintRoom(force);
+    const layer = document.getElementById('roomLayer'); if (!R || !layer || R.min) return r;
+    const bar = layer.querySelector('.call-controls'); if (bar && !bar.querySelector('[data-sfx]')) bar.insertAdjacentHTML('afterbegin', `<button class="cbtn" data-sfx="open" aria-label="Soundboard">${ic('volume', 22, 2)}</button>`);
+    return r;
+  };
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-sfx]'); if (!b) return;
+    e.stopPropagation();
+    let p = document.getElementById('sfxPanel');
+    if (b.dataset.sfx === 'open') {
+      if (p) return p.remove();
+      const cmId = (R?.id || '').match(/^cv_([^_]+)_/)?.[1], cm = cmId ? commOf(cmId) : null; if (cm) watchCommMedia(cm);
+      const custom = cm ? (S.csnd[cm.id] || []) : [];
+      p = document.createElement('div'); p.id = 'sfxPanel'; p.className = 'glass';
+      p.innerHTML = `<div class="row spread"><b>Soundboard</b><button class="ibtn sm" data-sfx="close" aria-label="Close">${ic('x', 14)}</button></div><div class="sfxgrid">${Object.entries(SFX).map(([k, [e, l]]) => `<button data-sfx="${k}"><span>${e}</span>${l}</button>`).join('')}${custom.map(s => `<button data-sfx="c:${cm.id}:${esc(s.n)}"><span>🔊</span>${esc(s.n)}</button>`).join('')}</div><div class="mute small">Everyone in the room hears it.</div>`;
+      document.body.appendChild(p); return;
+    }
+    if (b.dataset.sfx === 'close') return p && p.remove();
+    sendSfx(b.dataset.sfx);
+  }, true);
+}
+if (location.hostname === 'localhost') Object.assign(window, { playSfx, SFX, exportChat, automodCheck, canModerate });
+
+// ---- 5) Two-step verification: after your password, a 6-digit code from an authenticator app
+// (Google Authenticator, Microsoft Authenticator, or the iPhone's own Passwords app). Face ID and code/QR log-ins
+// already prove it's you, so they skip it. Each phone/computer only asks once (then it's trusted for 60 days).
+const tfaKey = () => 'nexa.2fa.ok.' + S.me;
+const tfaTrusted = () => now() - (lsGet(tfaKey(), 0) || 0) < 60 * 864e5;
+const tfaTrust = () => lsSet(tfaKey(), now());
+{
+  // log-ins that are already a second step
+  const _redeem = redeemCode; redeemCode = async function (c) { lsSet('nexa.2fa.skip', now()); return _redeem(c); };
+  const _pk = actions.pkSignIn; actions.pkSignIn = function () { lsSet('nexa.2fa.skip', now()); return _pk(); };
+  // a password log-in on THIS device → must enter the code
+  const _signIn = S.be?.auth?.signIn;
+}
+Object.assign(actions, {
+  tfaOpen: async () => {
+    if (S.be.kind === 'local') return toast('Two-step verification works on the live Nexa.');
+    S.form.tfaCode = ''; S.authErr = ''; S.modal = { type: 'tfa', step: S.prefs.twofa ? 'off' : 'loading' }; render();
+    if (S.prefs.twofa) return;
+    try {
+      const r = await pkCall({ action: 'tfaSetup' }, await S.be.auth.idToken());
+      const label = encodeURIComponent('Nexa:@' + (S.profile?.handle || 'me')), uri = `otpauth://totp/${label}?secret=${r.secret}&issuer=Nexa&digits=6&period=30`;
+      let svg = ''; try { const Q = (await import('./qr.js')).default; const q = Q(0, 'M'); q.addData(uri); q.make(); svg = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
+      if (S.modal?.type === 'tfa') { S.modal = { type: 'tfa', step: 'scan', secret: r.secret, uri, svg }; render(); }
+    } catch (e) { if (S.modal?.type === 'tfa') { S.modal.step = 'err'; S.authErr = e.message; render(); } }
+  },
+  tfaEnable: async () => {
+    try { const r = await pkCall({ action: 'tfaEnable', code: S.form.tfaCode }, await S.be.auth.idToken()); tfaTrust(); await savePrefs({ twofa: true }); S.authErr = ''; S.modal = { type: 'tfa', step: 'backup', backup: r.backup }; render(); }
+    catch (e) { S.authErr = e.message; render(); }
+  },
+  tfaDisable: async () => {
+    try { await pkCall({ action: 'tfaDisable', code: S.form.tfaCode }, await S.be.auth.idToken()); await savePrefs({ twofa: false }); S.modal = null; render(); toast('Two-step verification is off'); }
+    catch (e) { S.authErr = e.message; render(); }
+  },
+  tfaCopy: async () => { try { await navigator.clipboard.writeText(S.modal.secret); toast('Key copied'); } catch {} },
+  tfaCheck: async () => {
+    S.busy = true; S.authErr = ''; render();
+    try { const r = await pkCall({ action: 'tfaVerify', code: S.form.tfaCode }, await S.be.auth.idToken()); tfaTrust(); S.tfaGate = false; S.form.tfaCode = ''; if (r.usedBackup) toast(`Backup code used — ${r.left} left`); }
+    catch (e) { S.authErr = e.message; }
+    S.busy = false; render();
+  },
+});
+// the code screen, before anything else is shown
+{
+  const _vShellV184 = vShell;
+  vShell = function () {
+    if (S.me && S.prefsLoaded && S.prefs.twofa && S.be.kind !== 'local' && !tfaTrusted()) {
+      if (now() - (lsGet('nexa.2fa.skip', 0) || 0) < 5 * 60e3) { tfaTrust(); lsSet('nexa.2fa.skip', 0); return _vShellV184(); }
+      return `<div class="onb"><div class="card glass col" style="text-align:center;align-items:center;max-width:380px;gap:14px">${logo(52)}<h2 class="h1" style="font-size:22px">Two-step verification</h2>
+        <div class="mute small" style="line-height:1.5">Open your authenticator app and type the 6-digit code for Nexa. Lost your phone? Use one of your backup codes.</div>
+        <form class="col" style="width:100%;gap:10px" data-submit="tfaCheck"><input class="inp pin" id="tfaIn" data-model="form.tfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" value="${esc(S.form.tfaCode || '')}" placeholder="123456" aria-label="Code"><button class="btn pri" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Checking…' : 'Continue'}</button></form>
+        ${S.authErr ? `<div class="err">${esc(S.authErr)}</div>` : ''}
+        <button class="small mute" style="text-decoration:underline" data-a="logoutNow">Log out</button></div></div>`;
+    }
+    return _vShellV184();
+  };
+  document.addEventListener('submit', e => { const f = e.target.closest('[data-submit="tfaCheck"]'); if (!f) return; e.preventDefault(); e.stopImmediatePropagation(); actions.tfaCheck(); }, true);
+}
+{
+  const _vModal5bT = vModal5b;
+  vModal5b = function (m, f, head) {
+    if (m.type !== 'tfa') return _vModal5bT(m, f, head);
+    const err = S.authErr ? `<div class="err">${esc(S.authErr)}</div>` : '';
+    const codeIn = `<input class="inp pin" data-model="form.tfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" value="${esc(f.tfaCode || '')}" placeholder="123456" aria-label="Code">`;
+    if (m.step === 'loading') return head('Two-step verification') + '<div class="empty">One moment…</div>';
+    if (m.step === 'err') return head('Two-step verification') + err;
+    if (m.step === 'scan') return head('Turn on two-step verification', 'After your password, Nexa will also ask for a code from your phone.') + `
+      <div class="col" style="gap:10px;align-items:center;text-align:center">
+        <div class="mute small">1. Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator, or on iPhone the camera → “Add verification code”).</div>
+        ${m.svg ? `<div class="tfa-qr">${m.svg}</div>` : ''}
+        <a class="btn sm" href="${esc(m.uri)}">${ic('lock', 14)} Open in authenticator app</a>
+        <button class="small mute" data-a="tfaCopy">Or copy the key: <b style="letter-spacing:.06em">${esc(m.secret.replace(/(.{4})/g, '$1 ').trim())}</b></button>
+        <div class="mute small">2. Type the 6-digit code it shows:</div>${codeIn}${err}
+        <button class="btn pri" style="width:100%" data-a="tfaEnable">Turn on</button></div>`;
+    if (m.step === 'backup') return head('✅ Two-step verification is on', 'Save these backup codes somewhere safe. Each one works once if you lose your phone.') + `
+      <div class="tfa-codes">${m.backup.map(c => `<code>${esc(c.slice(0, 4) + '-' + c.slice(4))}</code>`).join('')}</div>
+      <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn" data-a="tfaCopyAll">Copy codes</button><button class="btn pri" data-a="closeModal">Done</button></div>`;
+    return head('Turn off two-step verification', 'Type a code from your authenticator app (or a backup code) to turn it off.') + `<div class="col" style="gap:10px">${codeIn}${err}<button class="btn danger" data-a="tfaDisable">Turn off</button></div>`;
+  };
+  actions.tfaCopyAll = async () => { try { await navigator.clipboard.writeText((S.modal.backup || []).join('\n')); toast('Backup codes copied'); } catch {} };
+  const _vSettingsV184 = vSettings;
+  vSettings = function () {
+    const h = _vSettingsV184(); if (S.setSec !== 'privacy') return h;
+    const on = !!S.prefs.twofa;
+    const row = `<div class="setrow"><span><b>Two-step verification</b><div class="mute small">${on ? 'On — logging in with your password also needs a code from your authenticator app.' : 'Extra safety: logging in with a password also needs a 6-digit code from your phone.'}</div></span><button class="btn sm ${on ? '' : 'pri'}" data-a="tfaOpen">${on ? 'Turn off' : ic('shield', 14) + ' Turn on'}</button></div>`;
+    return h.replace(/(<div class="setrow"><span><b>App lock on this device<\/b>)/, row + '$1');
+  };
+}
+
+WN_STEPS['18.4'] = [
+  { emoji: '🎉', title: 'Nexa 18.4 is here', text: 'Log in with your face, two-step verification, messages that send later, chat export, and tools for big groups. Tap Next — or Skip anytime.' },
+  { page: 'settings', sec: 'privacy', sel: '[data-a="bioOn"], [data-a="bioOff"]', emoji: '🙂', title: 'Log in with Face ID', text: 'Turn on Face ID here once. Then the log-in screen has “Sign in with Face ID” — no password — and opening Nexa is just a tap and a look.' },
+  { page: 'settings', sec: 'privacy', sel: '[data-a="tfaOpen"]', emoji: '🛡️', title: 'Two-step verification', text: 'Extra safety: after your password, Nexa also asks for a 6-digit code from an authenticator app on your phone.' },
+  { emoji: '⏰', title: 'Messages that send later', text: 'In any chat tap + › Plan › Schedule. It now sends on time even if your phone is off.' },
+  { emoji: '💾', title: 'Export a chat', text: 'In a chat tap ••• › Export chat to save it as a web page with photos, or a text file.' },
+  { emoji: '🐢', title: 'Slow mode & auto-mod', text: 'Group and community admins: ••• › Slow mode & auto-mod — limit how often people send, stop spam, links, ALL CAPS and words you choose.' },
+  { emoji: '📯', title: 'Community emojis & soundboard', text: 'Communities can add their own emojis (type :name:) and sounds. In voice rooms, tap the speaker button to play a sound for everyone.' },
+  { emoji: '💙', title: 'That\'s everything!', text: 'Have fun — and if you get stuck, ask Nexa AI or tap Help at the top.', last: true },
+];
+UP_HL['18.4'] = ['Face ID log-in', 'Two-step verification', 'Send later', 'Export chats', 'Soundboard'];
+
+WN_STEPS['19.0'] = [
+  { emoji: '✨', title: 'Welcome to Nexa 19', text: 'A whole new look: calm, clean and professional. Everything you had is still right where it was. Tap Next — or Skip anytime.' },
+    { page: 'settings', sec: 'privacy', sel: '#lockCard', emoji: '🔐', title: 'Lock Nexa your way', text: 'Face ID, Touch ID or fingerprint — whatever your phone has — plus a PIN with a proper keypad as a backup. Use one or both, right here.' },
+  { page: 'settings', sec: 'privacy', sel: '[data-a="tfaOpen"]', emoji: '🛡️', title: 'Two-step verification', text: 'Extra safety: after your password, Nexa also asks for a 6-digit code from an authenticator app.' },
+  { emoji: '⏰', title: 'Send later & export', text: 'In a chat tap + › Plan › Schedule — it sends on time even with your phone off. ••• › Export chat saves a copy.' },
+  { emoji: '📯', title: 'For groups & communities', text: 'Slow mode and auto-mod keep big chats tidy. Communities get their own emojis and a soundboard in voice rooms.' },
+  { emoji: '🎨', title: 'Miss the old style?', text: 'Settings › Appearance › Look lets you switch back to Classic, Aurora or Liquid anytime.', last: true },
+];
+UP_HL['19.0'] = ['New look & website', 'Face ID, fingerprint or PIN', 'Two-step verification', 'Send later', 'Soundboard'];
+
+Object.assign(actions, { lookPick: d => savePrefs({ look: d.v, lookV19: d.v !== 'pro' }) });
+
+/* ================= v19: the Nexa website — a proper front page for people who aren't signed in ================= */
+const WS_FEATURES = [
+  ['msg', 'Messages that feel instant', 'Text, photos, voice notes, polls and replies — synced live on every device, even when you go offline.'],
+  ['video', 'Voice & video calls', 'Crystal-clear calls with friends or the whole group, with screen sharing for games, homework and work.'],
+  ['group', 'Communities', 'Channels, voice rooms, roles, slow mode and your own emojis — a home for your class, team or club.'],
+  ['spark', 'Nexa AI, built in', 'Ask anything, summarise a busy chat, translate a message or plan a weekend — right where you talk.'],
+  ['cal', 'Plans and events', 'Make plans, RSVP, share the place and the photos afterwards — all in one place.'],
+  ['user', 'Made to be yours', 'Profiles, themes, statuses and local time — so friends know you, wherever you are.'],
+];
+const WS_SAFETY = [
+  ['lock', 'Face ID & passkeys', 'Sign in with your face or fingerprint. No password to steal.'],
+  ['shield', 'Two-step verification', 'A code from your phone on every new log-in.'],
+  ['block', 'You decide who reaches you', 'Message requests, blocking and reporting built in.'],
+  ['eye', 'Private by default', 'Your local time, status and photos are only shown to who you choose.'],
+];
+function vLandingMock() {
+  const row = (n, t, c, u) => `<div class="lm-conv ${u ? 'on' : ''}"><span class="lm-av" style="background:${c}">${n[0]}</span><span class="lm-cb"><b>${n}</b><span>${t}</span></span></div>`;
+  return `<div class="lm" aria-hidden="true"><div class="lm-bar"><i></i><i></i><i></i></div><div class="lm-body">
+    <div class="lm-side">${['home', 'msg', 'people', 'cal', 'gear'].map((k, i) => `<span class="${i === 1 ? 'on' : ''}">${ic(k, 16)}</span>`).join('')}</div>
+    <div class="lm-list"><div class="lm-h">Messages</div>${row('Maya Chen', 'See you at 10 ☕', '#5B6CFF', 1)}${row('Design Club', 'Leo: shipped the new poster', '#0EA5E9')}${row('Weekend crew', 'Sam: who\'s driving?', '#F59E0B')}${row('Ava Ruiz', 'That was so good 😂', '#EC4899')}</div>
+    <div class="lm-chat"><div class="lm-ch"><span class="lm-av" style="background:#5B6CFF">M</span><b>Maya Chen</b><span class="lm-on">Online</span></div>
+      <div class="lm-msgs"><div class="t">Are we still on for Saturday?</div><div class="m">Yes! 10am at the new café</div><div class="t">Perfect — I'll bring Leo 🙌</div><div class="m">See you at 10 ☕</div></div>
+      <div class="lm-comp"><span>Message Maya</span><i>${ic('send', 14, 2)}</i></div></div></div></div>`;
+}
+{
+  const _vAuthV19 = vAuth;
+  vAuth = function () {
+    const h = _vAuthV19();
+    if (document.documentElement.dataset.look !== 'pro' || S.authMode === 'code') return h;
+    const form = (h.match(/<form class="auth-card[\s\S]*<\/form>/) || [''])[0];
+    const su = S.authMode === 'signup';
+    return `<div class="ws${A('ws')}">
+      <header class="ws-nav"><a class="ws-brand" href="#top">${logo(30)}<b>nexa</b></a><nav><a href="#features">Features</a><a href="#safety">Safety</a><a href="privacy.html">Privacy</a></nav><span class="grow"></span><button class="btn sm" data-a="wsGo" data-v="login">Log in</button><button class="btn sm pri" data-a="wsGo" data-v="signup">Get Nexa</button></header>
+      <section class="ws-hero" id="top">
+        <div class="ws-copy"><span class="ws-eyebrow">Early access · Free</span>
+          <h1>Where your people talk.</h1>
+          <p>Messages, voice and video calls, group chats and communities — in one fast, private app that works on every device.</p>
+          <div class="ws-ctas"><button class="btn pri lg" data-a="wsGo" data-v="signup">Create your account</button><button class="btn lg" data-a="wsGo" data-v="login">Log in</button></div>
+          <div class="ws-plat">Works on iPhone, Android, Windows and Mac — right in your browser. Add it to your Home Screen for the full app.</div></div>
+        <div class="ws-form" id="ws-form">${form}</div>
+      </section>
+      <section class="ws-shot">${vLandingMock()}</section>
+      <section class="ws-sec" id="features"><span class="ws-eyebrow">Everything in one place</span><h2>Built for the way you talk.</h2>
+        <div class="ws-grid">${WS_FEATURES.map(([i, t, d]) => `<div class="ws-card"><span class="ws-ic">${ic(i, 20)}</span><b>${t}</b><p>${d}</p></div>`).join('')}</div></section>
+      <section class="ws-sec" id="safety"><span class="ws-eyebrow">Safety</span><h2>Private by design.</h2><p class="ws-lead">Your account, your conversations and who can reach you — all under your control.</p>
+        <div class="ws-grid four">${WS_SAFETY.map(([i, t, d]) => `<div class="ws-card"><span class="ws-ic">${ic(i, 20)}</span><b>${t}</b><p>${d}</p></div>`).join('')}</div></section>
+      <section class="ws-cta"><h2>Bring your people together.</h2><p>Free for everyone. Set up in under a minute.</p><button class="btn pri lg" data-a="wsGo" data-v="signup">Get started</button></section>
+      <footer class="ws-foot"><span class="ws-brand">${logo(22)}<b>nexa</b></span><span class="mute">© ${new Date().getFullYear()} Nexa</span><span class="grow"></span><a href="privacy.html">Privacy</a><a href="mailto:nexaconnectofficial@gmail.com">Support</a></footer>
+    </div>`;
+  };
+  Object.assign(actions, {
+    wsGo: d => { S.authMode = d.v; S.authErr = ''; render(); setTimeout(() => { const f = document.getElementById('ws-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); (document.getElementById(d.v === 'signup' ? 'f-name' : 'f-email'))?.focus({ preventScroll: true }); }, 60); },
+  });
+}
+
+/* ================= v19: Face ID, Touch ID, fingerprint or PIN — one lock that matches your look ================= */
+// The phone's own check does the work (your face or fingerprint never leaves it). Nexa picks the right name and
+// picture for the device: Face ID on newer iPhones, Touch ID on iPhones with a Home button and on Macs, fingerprint
+// on Android. A 4-digit PIN works everywhere — on its own or as the backup. Every screen here uses the look you
+// picked in Settings › Appearance (Nexa, Liquid Glass, Aurora or Classic, dark or bright).
+const FINGER_SVG = `<svg viewBox="0 0 120 120" class="bf-face" aria-hidden="true"><g class="bf-f" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round">
+  <path d="M30 46c7-13 18-20 30-20s23 7 30 20"/><path d="M36 92c-4-9-6-18-6-28 0-17 13-29 30-29s30 12 30 29v3"/>
+  <path d="M47 99c-5-10-7-21-7-34 0-11 9-20 20-20s20 9 20 20c0 9 2 17 6 24"/><path d="M60 64c0 15 4 27 12 38"/>
+  <path d="M50 64c0-6 4-10 10-10s10 4 10 10c0 11 2 19 7 27"/><path d="M84 96c-2-4-3-8-4-13"/></g>
+  <path class="bf-ok" d="M36 62l16 16 32-34" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const KEYPAD_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">${[[5,5],[12,5],[19,5],[5,12],[12,12],[19,12],[5,19],[12,19],[19,19]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</svg>`;
+function bioIcon() { return devBio().kind === 'finger' ? FINGER_SVG : FACE_SVG; }
+const pinPadHtml = (val, keyAct, delAct, extra = '') => {
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'x', '0', 'del'];
+  const sub = { 2: 'ABC', 3: 'DEF', 4: 'GHI', 5: 'JKL', 6: 'MNO', 7: 'PQRS', 8: 'TUV', 9: 'WXYZ' };
+  return `<div class="lk-dots" aria-label="${(val || '').length} of 4 digits">${[0, 1, 2, 3].map(i => `<i class="${(val || '').length > i ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="lk-pad">${keys.map(k => k === 'x' ? (extra || '<span></span>') : k === 'del'
+      ? `<button type="button" class="lk-key fn" data-a="${delAct}" aria-label="Delete">${ic('back', 22, 2)}</button>`
+      : `<button type="button" class="lk-key" data-a="${keyAct}" data-v="${k}"><b>${k}</b>${sub[k] ? `<small>${sub[k]}</small>` : ''}</button>`).join('')}</div>`;
+};
+// the lock screen
+vLock = function () {
+  const bio = hasBio(), pin = hasPin(), name = bioName();
+  const pad = pin && (!bio || S.lockPad);
+  const busy = S.bioBusy ? 'busy' : '';
+  const bioKey = bio ? `<button type="button" class="lk-key fn lk-bk" data-a="bioUnlock" aria-label="Use ${esc(name)}">${bioIcon()}</button>` : '';
+  return `<div class="onb lk-wrap"><div class="card glass col lk-card ${S.lkShake ? 'shake' : ''}">
+    <div class="lk-top">${logo(52)}<h2 class="h1">Nexa is locked</h2><p class="mute">${pad ? 'Enter your PIN' : `Use ${esc(name)} to open Nexa`}</p></div>
+    ${pad ? pinPadHtml(S.form.pinIn, 'lkKey', 'lkDel', bioKey)
+      : `<button type="button" class="lk-bio ${busy}" data-a="bioUnlock" aria-label="Unlock with ${esc(name)}">${bioIcon()}<span class="bf-line"></span></button>
+         <b class="lk-hint">${S.bioBusy ? (devBio().kind === 'finger' ? 'Touch the sensor…' : 'Look at your phone…') : `Tap to use ${esc(name)}`}</b>`}
+    ${S.authErr ? `<div class="err" role="alert">${esc(S.authErr)}</div>` : ''}
+    <div class="lk-foot">${bio && pin ? `<button type="button" class="btn sm" data-a="lkPad">${pad ? bioIcon() + ' Use ' + esc(name) : KEYPAD_SVG + ' Use PIN'}</button>` : ''}
+    <button type="button" class="lk-link" data-a="pinForgot">${pin ? 'Forgot PIN?' : 'Can\'t unlock?'} Log out</button></div></div></div>`;
+};
+const lkTry = async () => {
+  const v = S.form.pinIn || ''; if (v.length < 4) return render();
+  const ok = (await pinHash(v)) === lsGet(pinKey(), null);
+  if (ok) { S.locked = false; S.authErr = ''; S.form.pinIn = ''; S.lockPad = false; try { navigator.vibrate?.(15); } catch {} return render(); }
+  S.lkTries = (S.lkTries || 0) + 1; S.authErr = S.lkTries >= 5 ? 'Wrong PIN. Forgot it? Log out below and sign in with your password.' : 'Wrong PIN — try again.';
+  S.lkShake = true; render(); try { navigator.vibrate?.([40, 40, 40]); } catch {}
+  setTimeout(() => { S.lkShake = false; S.form.pinIn = ''; render(); }, 420);
+};
+Object.assign(actions, {
+  lkKey: d => { if (S.lkShake) return; S.authErr = ''; S.form.pinIn = ((S.form.pinIn || '') + d.v).slice(0, 4); if (S.form.pinIn.length === 4) setTimeout(lkTry, 120); render(); },
+  lkDel: () => { S.form.pinIn = (S.form.pinIn || '').slice(0, -1); render(); },
+  lkPad: () => { S.lockPad = !S.lockPad; S.authErr = ''; S.form.pinIn = ''; render(); },
+});
+{
+  const _bu = actions.bioUnlock;
+  actions.bioUnlock = async function (d, auto) {
+    await _bu(); if (!S.locked) { S.lockPad = false; S.lkAuto = false; return; }
+    if (auto && S.bioErr === 'NotAllowedError') { S.authErr = ''; return render(); } // they closed the prompt — just wait for a tap
+    if (S.bioErr && hasPin()) { S.lockPad = true; render(); }
+  };
+  // Android and computers: start the face/fingerprint check by itself when Nexa opens, like a real app.
+  // (iPhone and iPad only allow it after a tap, so there you tap the big button.)
+  const apple = () => /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+  const _vl = vLock;
+  vLock = function () {
+    const h = _vl();
+    if (hasBio() && !S.lockPad && !S.bioBusy && !S.lkAuto && !apple() && document.visibilityState === 'visible') { S.lkAuto = true; setTimeout(() => S.locked && !S.bioBusy && actions.bioUnlock({}, true), 350); }
+    return h;
+  };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') S.lkAuto = false; });
+}
+// typing the PIN on a keyboard works too
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (S.view === 'app' && S.locked && hasPin() && (!hasBio() || S.lockPad)) {
+    if (/^\d$/.test(e.key)) { e.preventDefault(); actions.lkKey({ v: e.key }); } else if (e.key === 'Backspace') { e.preventDefault(); actions.lkDel(); }
+  } else if (S.modal?.type === 'pinSet') {
+    if (/^\d$/.test(e.key)) { e.preventDefault(); actions.pinPadKey({ v: e.key }); } else if (e.key === 'Backspace') { e.preventDefault(); actions.pinPadDel(); }
+  }
+}, true);
+// choosing a PIN: the same keypad, enter it twice
+{
+  const _m = vModal4;
+  vModal4 = function (m, f, head) {
+    if (m.type !== 'pinSet') return _m(m, f, head);
+    const two = f.pinStep === 2;
+    return head(hasPin() ? 'Change your PIN' : 'Choose a PIN', two ? 'Enter it again to confirm.' : 'Pick 4 digits you\'ll remember. Nexa asks for it when you open the app.') + `
+      <div class="col lk-set ${S.lkShake ? 'shake' : ''}">${pinPadHtml(two ? f.pin2 : f.pin1, 'pinPadKey', 'pinPadDel')}</div>
+      ${S.authErr ? `<div class="err" role="alert" style="text-align:center">${esc(S.authErr)}</div>` : ''}`;
+  };
+  const _open = actions.pinOpen;
+  actions.pinOpen = function () { _open(); S.form.pinStep = 1; render(); };
+  Object.assign(actions, {
+    pinPadKey: d => {
+      const f = S.form, k = f.pinStep === 2 ? 'pin2' : 'pin1'; if (S.lkShake) return;
+      S.authErr = ''; f[k] = ((f[k] || '') + d.v).slice(0, 4); render();
+      if (f[k].length < 4) return;
+      setTimeout(async () => {
+        if (f.pinStep !== 2) { f.pinStep = 2; f.pin2 = ''; return render(); }
+        if (f.pin1 === f.pin2) { await actions.pinSave(); f.pinStep = 1; try { navigator.vibrate?.(15); } catch {} return; }
+        S.authErr = 'Those didn\'t match. Choose your PIN again.'; S.lkShake = true; render();
+        setTimeout(() => { S.lkShake = false; f.pin1 = f.pin2 = ''; f.pinStep = 1; render(); }, 420);
+      }, 150);
+    },
+    pinPadDel: () => { const f = S.form, k = f.pinStep === 2 ? 'pin2' : 'pin1'; f[k] = (f[k] || '').slice(0, -1); render(); },
+  });
+}
+// Settings › Privacy: one "Lock Nexa" card — Face ID / fingerprint, PIN, or both
+{
+  const _s = vSettings;
+  vSettings = function () {
+    let h = _s(); if (S.setSec !== 'privacy') return h;
+    const bio = hasBio(), pin = hasPin(), d = devBio(), name = bioTitle(), can = bioOk !== false || bio;
+    h = h.replace(/<div class="setrow"><span><b>App lock on this device<\/b>[\s\S]*?<\/button><\/span><\/div>/, '')
+      .replace(/<div class="setrow"><span><b>Unlock with [\s\S]*?<\/button><\/div>/, '');
+    const opt = (on, icon, title, sub, btns) => `<div class="lockopt ${on ? 'on' : ''}"><span class="lo-ic">${icon}</span><span class="grow"><b>${title}</b>${on ? '<span class="lo-on">On</span>' : ''}<div class="mute small">${sub}</div></span><span class="row" style="gap:6px">${btns}</span></div>`;
+    const card = `<div class="field" id="lockCard">Lock Nexa<div class="lockpick">
+      ${can ? opt(bio, bioIcon(), esc(name), bio ? (d.kind === 'face' ? 'Opens with a look.' : 'Opens with your fingerprint.') + ' Also signs you in without a password.' : (d.kind === 'face' ? 'Open Nexa with just a look. Your face never leaves your phone.' : 'Open Nexa with your fingerprint. It never leaves your phone.'),
+        bio ? '<button class="btn sm" data-a="bioOff">Turn off</button>' : '<button class="btn sm pri" data-a="bioOn">Turn on</button>')
+      : `<div class="lockopt"><span class="lo-ic">${FACE_SVG}</span><span class="grow"><b>Face ID / fingerprint</b><div class="mute small">This browser can't use Face ID or fingerprint. Open Nexa in Safari or Chrome, or use a PIN.</div></span></div>`}
+      ${opt(pin, KEYPAD_SVG, 'PIN', pin ? (bio ? `Your backup if ${esc(bioName())} doesn't work.` : 'Nexa asks for your 4-digit PIN when you open it.') : (bio ? `A backup for when ${esc(bioName())} doesn't work.` : '4 digits. Works on every device.'),
+        pin ? '<button class="btn sm" data-a="pinOpen">Change</button><button class="btn sm" data-a="pinRemove">Turn off</button>' : `<button class="btn sm ${bio ? '' : 'pri'}" data-a="pinOpen">Set PIN</button>`)}
+      </div><div class="mute small" style="font-weight:500">Nexa locks when you open it and after 5 minutes away. ${bio && pin ? `It asks for ${esc(bioName())} first — your PIN is the backup.` : 'Use one or both.'}</div></div>`;
+    // put it at the top of Privacy, right under the title
+    return h.replace(/(<h2 class="h1"[^>]*>Privacy[^<]*<\/h2>)/, `$1${card}`) === h ? h + card : h.replace(/(<h2 class="h1"[^>]*>Privacy[^<]*<\/h2>)/, `$1${card}`);
+  };
+}
+// the set-up screen: right picture and words for this device, a "Use a PIN instead" way out, and it follows your look
+{
+  const _p = paintBioSetup;
+  paintBioSetup = function () {
+    _p();
+    const L = document.getElementById('bioLayer'); if (!L || !S.bioSetup) return;
+    L.querySelector('.bf-card')?.classList.add('card', 'glass');
+    const d = devBio();
+    if (d.kind === 'finger') {
+      const f = L.querySelector('svg.bf-face'); if (f) f.outerHTML = FINGER_SVG;
+      const sm = L.querySelector('.bf-card small'); if (sm) sm.innerHTML = `${ic('lock', 12, 2)} Your fingerprint never leaves your phone`;
+      const st = S.bioSetup.st, p = L.querySelector('.bf-card p'), h2 = L.querySelector('.bf-card h2');
+      if (st === 'intro' && p) p.textContent = `Put your finger on the sensor when your phone asks. Then Nexa opens with just a touch.`;
+      if (st === 'scan') { if (h2) h2.textContent = 'Checking…'; if (p) p.textContent = 'Touch the sensor now'; }
+    }
+    if (S.bioSetup.st === 'intro' && !L.querySelector('[data-bf="pin"]')) {
+      const go = L.querySelector('.bf-go'); go?.insertAdjacentHTML('afterend', `<button class="bf-alt" data-bf="pin">${KEYPAD_SVG} Use a PIN instead</button>`);
+      L.querySelector('[data-bf="pin"]').addEventListener('click', e => { e.stopPropagation(); S.bioSetup = null; paintBioSetup(); actions.pinOpen(); });
+    }
+  };
+}
+if (location.hostname === 'localhost') Object.assign(window, { devBio, hasPin, hasBio, render, paintBioSetup, vLockV19: () => vLock(), __setBioOk: v => { bioOk = v; } });
+
+WN_STEPS['19.1'] = WN_STEPS['19.0']; UP_HL['19.1'] = UP_HL['19.0'];
