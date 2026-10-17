@@ -641,7 +641,7 @@ function vAuth() {
       ${su ? `<div class="row" style="gap:12px;align-items:flex-start">
         <label class="field grow">Display name<input class="inp" id="f-name" data-model="form.name" value="${esc(f.name || '')}" autocomplete="name" placeholder="Your name" required></label>
         <label class="field grow">Username<input class="inp" id="f-handle" data-model="form.handle" value="${esc(f.handle || '')}" autocomplete="username" placeholder="yourhandle" required></label></div>` : ''}
-      <label class="field">${su ? 'Email' : 'Email' + (S.be.kind === 'local' ? ' or username' : '')}<input class="inp" id="f-email" data-model="form.email" value="${esc(f.email || '')}" type="${su ? 'email' : 'text'}" autocomplete="${su ? 'email' : 'username'}" placeholder="you@example.com"></label>
+      <label class="field">${su ? 'Email' : 'Email' + (S.be.kind === 'local' ? ' or username' : '')}<input class="inp" id="f-email" data-model="form.email" value="${esc(f.email || '')}" type="${su ? 'email' : 'text'}" autocomplete="${su ? 'email' : 'username webauthn'}" placeholder="you@example.com"></label>
       <label class="field">Password<input class="inp" id="f-pw" data-model="form.pw" type="password" autocomplete="${su ? 'new-password' : 'current-password'}" placeholder="${su ? 'At least 6 characters' : '••••••••'}"></label>
       ${S.authErr ? `<div class="err" role="alert">${esc(S.authErr)}</div>` : ''}
       <button class="btn pri" style="height:50px;font-size:15px" ${S.busy ? 'disabled' : ''}>${S.busy ? 'One moment…' : su ? 'Create account' : 'Log in'}</button>
@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '19.2';
+const APP_VERSION = '19.3';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -7924,7 +7924,7 @@ function paintBioSetup() {
   const t = { intro: [`Set up ${name}`, face ? 'Hold your phone in front of your face, like when you unlock it. Then Nexa opens with just a look.' : `Use ${name} to open Nexa — quicker than a PIN.`],
     scan: [face ? 'Scanning…' : 'Checking…', face ? 'Look at your phone' : `Use ${name} now`],
     ok: [`${bioTitle()} saved`, `Next time you open Nexa, ${face ? 'just look at your phone' : 'just use ' + name} to unlock it.`],
-    fail: ['Didn\'t finish', st.why && st.why !== 'NotAllowedError' ? `This phone wouldn't start ${name} (${st.why}). Make sure ${name} is set up in your phone's Settings, then try again.` : `${bioTitle()} was cancelled or didn't recognise you. Tap Try again — when the phone asks to save a passkey for Nexa, tap Continue.`] }[st.st];
+    fail: ['Didn\'t finish', st.why && st.why !== 'NotAllowedError' ? `This phone wouldn't start ${name} (${st.why}). Make sure ${name} is set up in your phone's Settings, then try again.` : `${bioTitle()} was cancelled or didn't recognise you. Tap Try again — if your phone asks to save a sign-in for Nexa, tap Continue.`] }[st.st];
   L.className = 'bf-' + st.st;
   L.innerHTML = `<div class="bf-card">
     <button class="bf-x" data-bf="close" aria-label="Close">${ic('x', 18, 2)}</button>
@@ -8727,7 +8727,7 @@ const WS_FEATURES = [
   ['user', 'Made to be yours', 'Profiles, themes, statuses and local time — so friends know you, wherever you are.'],
 ];
 const WS_SAFETY = [
-  ['lock', 'Face ID & passkeys', 'Sign in with your face or fingerprint. No password to steal.'],
+  ['lock', 'Face ID & fingerprint log-in', 'Sign in with just a look or a touch. No password to steal.'],
   ['shield', 'Two-step verification', 'A code from your phone on every new log-in.'],
   ['block', 'You decide who reaches you', 'Message requests, blocking and reporting built in.'],
   ['eye', 'Private by default', 'Your local time, status and photos are only shown to who you choose.'],
@@ -9030,3 +9030,72 @@ if (IS_TEST) {
   actions.bioKindPick = d => { lsSet('nexa.bioKind', d.v); render(); toast(`Got it — Nexa will say ${esc(bioName())} on this phone`); };
 }
 if (location.hostname === 'localhost') Object.assign(window, { IS_TEST, claimInvite });
+
+/* ================= v19.3: Face ID / fingerprint log-in that knows who you are ================= */
+// Your phone remembers which Nexa account you set Face ID up for. So:
+// • this phone has logged in with Face ID before → Nexa opens on "Welcome back, <name>" — one look and you're in
+//   (Android and computers don't even need the tap; iPhone needs one tap, Apple's rule);
+// • tap the email box → the phone itself suggests your account above the keyboard; pick it and you're in.
+// No passwords, nothing to type. (Websites can only reach Face ID this way — Apple and Google call it a
+// "passkey", but you never have to think about it.)
+const pkKnown = () => lsGet('nexa.pkLogin', null);
+const pkApple = () => /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+async function pkFinish(ch, a) {
+  const r = a.response;
+  const { token } = await pkCall({ action: 'loginFinish', id: ch.id, credId: b64u(a.rawId), clientData: b64u(r.clientDataJSON), authData: b64u(r.authenticatorData), sig: b64u(r.signature) });
+  lsSet('nexa.2fa.skip', now());
+  await S.be.auth.signInWithToken(token); S.lockedOnce = true;
+  lsSet('nexa.pkLogin', { ...(pkKnown() || {}), at: now() });
+}
+// the email box offers your account (conditional mediation) — waits quietly until you pick it
+let pkCond = null, pkCondT = 0;
+async function pkConditional() {
+  if (S.be.kind === 'local' || pkCond || S.view !== 'auth' || S.authMode === 'signup') return;
+  try { if (!window.PublicKeyCredential?.isConditionalMediationAvailable || !(await PublicKeyCredential.isConditionalMediationAvailable())) return; } catch { return; }
+  const ch = await pkCall({ action: 'loginBegin' }).catch(() => null); if (!ch || pkCond || S.view !== 'auth') return;
+  const ctl = new AbortController(); pkCond = ctl;
+  clearTimeout(pkCondT); pkCondT = setTimeout(() => { if (pkCond === ctl) { ctl.abort(); pkCond = null; pkConditional(); } }, 150000); // fresh code before it expires
+  try {
+    const a = await navigator.credentials.get({ mediation: 'conditional', signal: ctl.signal, publicKey: { challenge: unb64u(ch.challenge), rpId: location.hostname, userVerification: 'required', timeout: 170000 } });
+    if (pkCond === ctl) pkCond = null; clearTimeout(pkCondT);
+    if (a) { S.busy = true; S.authErr = ''; render(); await pkFinish(ch, a); }
+  } catch (e) {
+    if (pkCond === ctl) pkCond = null;
+    if (e?.name !== 'AbortError' && S.view === 'auth') { S.busy = false; if (e?.message && !/NotAllowed|cancel/i.test(e.name + e.message)) { S.authErr = e.message; render(); } setTimeout(pkConditional, 2000); }
+  } finally { S.busy = false; }
+}
+const pkStopCond = () => { if (pkCond) { try { pkCond.abort(); } catch {} pkCond = null; } clearTimeout(pkCondT); };
+{
+  // the big button stops the quiet one first (a phone only does one Face ID request at a time)
+  const _pk = actions.pkSignIn;
+  actions.pkSignIn = function (...a) { pkStopCond(); return _pk(...a); };
+  // remember the name to greet you with
+  setInterval(() => { const k = pkKnown(); if (k && S.view === 'app' && S.profile?.name && (k.name !== S.profile.name || k.handle !== S.profile.handle)) lsSet('nexa.pkLogin', { ...k, name: S.profile.name, handle: S.profile.handle || '', av: (S.profile.avatar || '').length < 60000 ? S.profile.avatar || '' : '' }); }, 5000);
+  Object.assign(actions, {
+    pkOther: () => { pkStopCond(); S.pkOther = true; S.authErr = ''; render(); setTimeout(pkConditional, 300); },
+    pkBack: () => { S.pkOther = false; S.authErr = ''; render(); },
+  });
+  // "Welcome back" screen for a phone that has used Face ID log-in before
+  const _va = vAuth;
+  vAuth = function () {
+    const k = pkKnown();
+    if (k && !S.pkOther && (S.be.kind !== 'local' || (location.hostname === 'localhost' && window.__pkForce)) && window.PublicKeyCredential && (!S.authMode || S.authMode === 'login') && !lsGet('nexa.addHandle', null)) {
+      const name = k.name || 'there', first = name.split(' ')[0];
+      const face = k.av ? `<img class="wb-av" src="${esc(k.av)}" alt="">` : `<span class="wb-av wb-ini">${esc(name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase())}</span>`;
+      setTimeout(pkPrefetch, 0);
+      if (!pkApple() && !S.pkAutoTried) { S.pkAutoTried = true; setTimeout(() => { if (S.view === 'auth' && !S.pkOther && !S.busy) actions.pkSignIn(); }, 900); }
+      return `<div class="wb-wrap"><div class="wb-glow"></div><div class="card wb-card${A('wb')}">
+        ${logo(44)}${face}
+        <h1 class="disp">Welcome back, ${esc(first)}</h1>
+        ${k.handle ? `<span class="mute">@${esc(k.handle)}</span>` : ''}
+        <button class="wb-go" data-a="pkSignIn" ${S.busy ? 'disabled' : ''}>${bioIcon()}<span>${S.busy ? (devBio().kind === 'finger' ? 'Touch the sensor…' : 'Look at your phone…') : `Continue with ${esc(bioName())}`}</span></button>
+        ${S.authErr ? `<div class="err" role="alert">${esc(S.authErr)}</div>` : ''}
+        <button class="wb-alt" data-a="pkOther">Use another account or a password</button></div></div>`;
+    }
+    const h = _va();
+    if (S.authMode !== 'signup') setTimeout(pkConditional, 400);
+    return k && S.pkOther && (!S.authMode || S.authMode === 'login') ? h.replace(/(<form class="auth-card[^>]*>)/, `$1<button type="button" class="wb-back" data-a="pkBack">${bioIcon()} Back to ${esc((k.name || '').split(' ')[0] || 'your account')}</button>`) : h;
+  };
+}
+WN_STEPS['19.3'] = WN_STEPS['19.2']; UP_HL['19.3'] = ['New look & website', 'Face ID log-in that knows you', 'Invite friends in one tap', 'Send later', 'Soundboard'];
+if (location.hostname === 'localhost') Object.assign(window, { pkConditional, pkKnown });

@@ -2387,3 +2387,28 @@ img.nlogo-img{flex:none!important;aspect-ratio:1/1;min-width:0;max-width:none}
 :root[data-test="1"] body{box-shadow:inset 0 3px 0 #F59E0B}
 button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
 .invbanner.top{margin:0 0 18px}
+
+/* v19.3: log-in — a little liquid glass (not too much) + "Welcome back" Face ID screen */
+.ws-form{position:relative}
+.ws-form::before{content:"";position:absolute;right:-40px;top:-40px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,color-mix(in oklab,var(--ac) 45%,transparent),transparent 70%);filter:blur(30px);opacity:.55;pointer-events:none}
+.ws-form::after{content:"";position:absolute;left:10%;bottom:-30px;width:260px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(56,189,248,.35),transparent 70%);filter:blur(34px);opacity:.45;pointer-events:none}
+:root[data-look="pro"]:not(#_) .ws-form .auth-card,.wb-card{position:relative;z-index:1;background:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.03) 55%,rgba(255,255,255,.05));-webkit-backdrop-filter:blur(22px) saturate(1.45);backdrop-filter:blur(22px) saturate(1.45);border:1px solid rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(255,255,255,.04),0 30px 80px -30px rgba(0,0,0,.75)}
+:root[data-look="pro"]:not(#_) .ws-form .auth-card .inp{background:rgba(10,12,18,.45);border-color:rgba(255,255,255,.1)}
+:root[data-theme="light"][data-look="pro"]:not(#_) .ws-form .auth-card,:root[data-theme="light"] .wb-card{background:linear-gradient(160deg,rgba(255,255,255,.78),rgba(255,255,255,.55));border-color:rgba(20,22,30,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 30px 70px -30px rgba(20,22,40,.35)}
+:root[data-theme="light"][data-look="pro"]:not(#_) .ws-form .auth-card .inp{background:rgba(255,255,255,.7);border-color:rgba(20,22,30,.1)}
+.wb-wrap{min-height:100dvh;display:grid;place-items:center;padding:24px 16px;position:relative;overflow:hidden;background:var(--ground)}
+.wb-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(40% 35% at 30% 30%,color-mix(in oklab,var(--ac) 38%,transparent),transparent 70%),radial-gradient(35% 30% at 72% 68%,rgba(56,189,248,.28),transparent 70%)}
+.wb-card{width:min(380px,100%);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:28px 24px 20px;border-radius:24px;color:var(--text)}
+.wb-card .nlogo-img{margin-bottom:6px}
+.wb-av{width:84px;height:84px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 3px rgba(255,255,255,.14),0 12px 30px -10px rgba(0,0,0,.6)}
+.wb-ini{display:grid;place-items:center;font-size:30px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.wb-card h1{font-size:26px;margin:8px 0 0;letter-spacing:-.02em}
+.wb-go{margin-top:14px;width:100%;height:54px;border:0;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:10px;font:inherit;font-size:16px;font-weight:700;color:#fff;cursor:pointer;background:linear-gradient(135deg,var(--ac),var(--ac2));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 14px 34px -14px var(--ac);transition:transform .12s}
+.wb-go:active{transform:scale(.98)}.wb-go:disabled{opacity:.75}
+.wb-go .bf-face{width:26px;height:26px;color:#fff}
+.wb-alt,.wb-back{background:none;border:0;font:inherit;font-size:14px;color:var(--mute);cursor:pointer;padding:8px}
+.wb-alt{text-decoration:underline}
+.wb-back{display:flex;align-items:center;gap:8px;margin:-6px 0 8px;padding:6px 0;color:var(--ac);font-weight:600}
+.wb-back .bf-face{width:20px;height:20px;color:var(--ac)}
+.wb-card .err{margin:4px 0 0}
+@media (max-width:900px){.ws-form::before{right:auto;left:50%;top:-60px;margin-left:-170px}.ws-form::after{left:auto;right:0;bottom:20%}}
