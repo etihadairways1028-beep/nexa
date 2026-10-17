@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '19.3';
+const APP_VERSION = '19.4';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9099,3 +9099,107 @@ const pkStopCond = () => { if (pkCond) { try { pkCond.abort(); } catch {} pkCond
 }
 WN_STEPS['19.3'] = WN_STEPS['19.2']; UP_HL['19.3'] = ['New look & website', 'Face ID log-in that knows you', 'Invite friends in one tap', 'Send later', 'Soundboard'];
 if (location.hostname === 'localhost') Object.assign(window, { pkConditional, pkKnown });
+
+/* ================= v19.4: Face ID / fingerprint log-in that always gets saved properly ================= */
+// The bug: if you tapped "Start scan" before Nexa had fetched its one-time code from the server (or that
+// failed), your phone saved a Face ID key but Nexa's server never learned about it — so log-in later said
+// "isn't set up". Now: the button waits until Nexa is ready, a failed save is shown (not hidden), a phone
+// with an old broken key gets fixed automatically, and after a password log-in Nexa offers to turn it on.
+const pkLive = () => S.be.kind !== 'local' && !!S.be.auth?.idToken;
+const pkFetchReg = async () => {
+  if (!pkLive()) return;
+  S.pkRegWait = true; S.pkRegErr = ''; paintBioSetup();
+  try { const t = await S.be.auth.idToken(); S.pkReg = await pkCall({ action: 'regBegin' }, t); S.pkRegAt = now(); }
+  catch (e) { S.pkReg = null; S.pkRegErr = e?.message || 'Can\'t reach Nexa right now.'; }
+  S.pkRegWait = false; paintBioSetup();
+};
+{
+  const _on = actions.bioOn;
+  actions.bioOn = function () {
+    const r = _on(); // opens the set-up screen
+    if (pkLive()) { S.pkReg = null; pkFetchReg(); }
+    clearInterval(S.pkRegIv); S.pkRegIv = setInterval(() => { if (!S.bioSetup) return clearInterval(S.pkRegIv); if (S.bioSetup.st !== 'scan' && pkLive() && now() - (S.pkRegAt || 0) > 140000 && !S.pkRegWait) pkFetchReg(); }, 10000);
+    return r;
+  };
+  // "Start scan" only once Nexa is ready (the phone's check has to start straight from your tap)
+  const _paint = paintBioSetup;
+  paintBioSetup = function () {
+    _paint();
+    const L = document.getElementById('bioLayer'), st = S.bioSetup?.st;
+    if (L && st === 'fail' && S.bioSetup.why === 'Error') { const p = L.querySelector('.bf-card p'); if (p) p.textContent = `Your phone said yes, but Nexa couldn't save it. Check your internet and tap Try again.`; }
+    if (!L || !pkLive() || (st !== 'intro' && st !== 'fail')) return;
+    const go = L.querySelector('.bf-go[data-bf="scan"]'); if (!go) return;
+    if (S.pkRegWait || !S.pkReg) {
+      go.disabled = true; go.innerHTML = S.pkRegErr ? 'Can\'t reach Nexa — tap to retry' : '<span class="bf-spin"></span> Getting ready…';
+      if (S.pkRegErr) { go.disabled = false; go.dataset.bf = 'retry'; go.onclick = e => { e.stopPropagation(); pkFetchReg(); }; }
+    }
+  };
+  const _scan = bioScan;
+  bioScan = function () {
+    if (pkLive() && !S.pkReg) { pkFetchReg(); return; } // never save a key the server doesn't know about
+    const r = _scan(); S.pkReg = null; return r; // each code works once
+  };
+  // a failed save is a failure — show it instead of saying "saved"
+  const _reg = pkRegister;
+  pkRegister = async function (cred, reg) {
+    if (!reg || !S.be.auth?.idToken) { if (pkLive()) throw new Error('not ready'); return; }
+    const res = cred.response; let alg = res.getPublicKeyAlgorithm?.(), spki = null, jwk = null;
+    try { const k = res.getPublicKey?.(); if (k) spki = b64u(k); } catch {}
+    if (!spki) { const c = coseToJwk(res.attestationObject); alg = c.alg; jwk = c.jwk; }
+    await pkCall({ action: 'regFinish', id: reg.id, credId: b64u(cred.rawId), clientData: b64u(res.clientDataJSON), alg, spki, jwk }, await S.be.auth.idToken());
+    lsSet('nexa.pkLogin', { ...(pkKnown() || {}), at: now(), name: S.profile?.name || '', handle: S.profile?.handle || '' });
+    lsSet('nexa.pkRepair', null); lsSet('nexa.pkOfferNo', null);
+  };
+}
+// log-in found a key the server doesn't know (an old, broken one): explain, clean it up, and fix it after the password log-in
+const PK_STALE = /isn't set up for Nexa on this phone/i;
+const pkStale = credIdB64 => {
+  lsSet('nexa.pkRepair', 1); lsSet('nexa.pkLogin', null);
+  try { if (credIdB64) PublicKeyCredential.signalUnknownCredential?.({ rpId: location.hostname, credentialId: credIdB64 })?.catch?.(() => {}); } catch {}
+  return `${bioTitle()} needs a quick refresh on this phone. Log in with your password once — Nexa will then set ${bioName()} up again in one tap.`;
+};
+{
+  const _pf = pkFinish;
+  pkFinish = async function (ch, a) { try { const r = await _pf(ch, a); S.pkTry = now(); return r; } catch (e) { if (PK_STALE.test(e?.message || '')) throw new Error(pkStale(b64u(a.rawId))); throw e; } };
+  // the older "Sign in with Face ID" button path: same friendly message
+  setInterval(() => { if (S.view === 'auth' && PK_STALE.test(S.authErr || '')) { S.authErr = pkStale(''); render(); } }, 400);
+  const _pk = actions.pkSignIn;
+  actions.pkSignIn = function (...a) {
+    const au = S.be.auth; // remember a log-in that really happened by face/finger (not just a try)
+    if (au && au.signInWithToken && !au.signInWithToken.__pk) { const f = au.signInWithToken; au.signInWithToken = Object.assign(async t => { S.pkTry = now(); return f.call(au, t); }, { __pk: 1 }); }
+    return _pk(...a);
+  };
+}
+// after logging in with a password: "Log in with Face ID next time?"
+{
+  let was = S.view;
+  setInterval(() => {
+    const v = S.view; if (v === was) return; const from = was; was = v;
+    if (from !== 'auth' || v !== 'app') return;
+    if (now() - (S.pkTry || 0) < 120000) { if (!pkKnown()) lsSet('nexa.pkLogin', { at: now() }); return; } // just used Face ID
+    setTimeout(() => {
+      if (!pkLive() || bioOk === false || !window.PublicKeyCredential || S.view !== 'app' || S.locked) return;
+      const repair = !!lsGet('nexa.pkRepair', null);
+      if (!repair && (pkKnown() || now() - (lsGet('nexa.pkOfferNo', 0) || 0) < 14 * 864e5)) return;
+      if (S.modal || S.wn || document.getElementById('tourLayer')) return;
+      S.modal = { type: 'pkOffer', repair }; render();
+    }, 2500);
+  }, 500);
+  const _m4 = vModal4;
+  vModal4 = function (m, f, head) {
+    if (m.type !== 'pkOffer') return _m4(m, f, head);
+    const n = bioName();
+    return `<div class="col pkoffer" style="align-items:center;text-align:center;gap:12px">
+      <span class="pko-ic">${bioIcon()}</span>
+      <h2 class="disp" style="margin:0;font-size:22px">${m.repair ? `Fix ${esc(n)} log-in` : `Log in with ${esc(n)} next time?`}</h2>
+      <p class="mute" style="margin:0;line-height:1.5">${m.repair ? `Your phone's old ${esc(n)} key for Nexa stopped working. One tap sets it up again.` : `No password next time — Nexa will know it's you${devBio().kind === 'face' ? ' with just a look' : ' with just a touch'}.`}</p>
+      <button class="btn pri" style="width:100%;height:48px" data-a="pkOfferYes">${bioIcon()} Turn on ${esc(n)}</button>
+      <button class="btn" style="width:100%" data-a="pkOfferNo">Not now</button></div>`;
+  };
+  Object.assign(actions, {
+    pkOfferYes: () => { S.modal = null; render(); actions.bioOn(); },
+    pkOfferNo: () => { lsSet('nexa.pkOfferNo', now()); S.modal = null; render(); },
+  });
+}
+WN_STEPS['19.4'] = WN_STEPS['19.3']; UP_HL['19.4'] = UP_HL['19.3'];
+if (location.hostname === 'localhost') Object.assign(window, { pkRegister: (...a) => pkRegister(...a), pkFetchReg, bioScan: () => bioScan() });
