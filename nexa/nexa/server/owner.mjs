@@ -64,10 +64,10 @@ export async function ensureOwnerHandle(db, uid) {
   return out;
 }
 
-export async function deliver(db, uid, data, ttl) {
+export async function deliver(db, uid, data, ttl, pre, maxTokens = 20) {
   const pdoc = db.doc(`users/${uid}/private/push`);
-  const push = (await pdoc.get()).data() || {};
-  const tokens = [...new Set([...Object.values(push.devices || {}), ...(push.tokens || [])])].filter(t => typeof t === 'string' && t).slice(0, 20);
+  const push = pre || (await pdoc.get()).data() || {};
+  const tokens = [...new Set([...(push.tokens || []).slice().reverse(), ...Object.values(push.devices || {})])].filter(t => typeof t === 'string' && t).slice(0, maxTokens);
   if (!tokens.length) return 0;
   const res = await admin.messaging().sendEachForMulticast({ tokens, data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? '')])), webpush: { headers: { Urgency: 'high', TTL: String(ttl) } } });
   return res.successCount;
@@ -82,7 +82,7 @@ export async function sendAs(db, me, cid, conv, text, req, extra = {}) {
   await Promise.all((conv.members || []).filter(u => u !== me).map(async u => {
     const prefs = (await db.doc(`users/${u}/private/prefs`).get()).data() || {};
     if (prefs.deviceNotifs === false || (prefs.muted || {})[cid]) return;
-    await deliver(db, u, { kind: 'message', title: (extra.agent ? extra.agent + ' · ' : '') + (prof.name || 'Nexa'), body: prefs.pushPreview === false ? 'New message' : text.slice(0, 140), chat: cid, tag: 'c_' + cid, msg: ref.id }, 86400).catch(() => 0);
+    await deliver(db, u, { kind: 'message', title: (extra.agent ? extra.agent + ' · ' : '') + (prof.name || 'Nexa'), body: prefs.pushPreview === false ? 'New message' : text.slice(0, 140), chat: cid, tag: 'c_' + cid, msg: ref.id }, 86400, null, 3).catch(() => 0);
   }));
   return ref.id;
 }
@@ -131,12 +131,35 @@ export async function pushAgents(db, data, onlyAgent) {
   let tokens = Object.keys(sec.devices || {}).filter(Boolean);
   // a person can ask for one agent (Shiv, Arrick or Yaseen) — then only that agent's devices buzz (everyone, if they have none)
   if (onlyAgent) { const mine = tokens.filter(t => ((sec.devices[t] || {}).agent || '') === onlyAgent); if (mine.length) tokens = mine; }
-  tokens = tokens.slice(0, 40);
+  tokens = tokens.slice(-10); // newest devices; keeps each request inside Cloudflare's limit
   if (!tokens.length) return 0;
   const res = await admin.messaging().sendEachForMulticast({ tokens, data: Object.fromEntries(Object.entries({ kind: 'notification', page: 'notifications', ...data }).map(([k, v]) => [k, String(v ?? '')])), webpush: { headers: { Urgency: 'high', TTL: '86400' } } });
   const dead = []; res.responses.forEach((r, i) => { const c = r.error && r.error.code || ''; if (!r.success && /not-registered|invalid-registration|invalid-argument/.test(c)) dead.push(tokens[i]); });
   if (dead.length) { const devs = { ...(sec.devices || {}) }; dead.forEach(t => delete devs[t]); await db.doc('supportSecrets/main').update({ devices: devs }).catch(() => {}); }
   return res.successCount;
+}
+// ---------- pushes to many people, sent in small rounds (Cloudflare's free plan allows 50 outgoing requests per call).
+// The owner/support page calls 'pushJob' again and again until it says done.
+const ROUND = 10;
+export async function startPushJob(db, ids, data, by) {
+  // tidy up jobs nobody finished (closed tab) — older than a day
+  try { const old = await db.collection('pushJobs').where('at', '<', Date.now() - 864e5).limit(5).get(); await Promise.all(old.docs.map(d => d.ref.delete().catch(() => {}))); } catch {}
+  const ref = await db.collection('pushJobs').add({ ids, data, by, at: Date.now(), next: 0, expireAt: Date.now() + 864e5 });
+  return ref.id;
+}
+export async function runPushJob(db, job, from, by) {
+  if (!/^[\w-]{1,100}$/.test(String(job || ''))) return { error: 'Bad job' };
+  const j = (await db.doc('pushJobs/' + job).get()).data();
+  if (!j || j.by !== by) return { error: 'Job not found' };
+  // the server decides where the next round starts, so a round can never be sent twice
+  const start = Math.max(0, Math.floor(+j.next || 0)), ids = (j.ids || []).slice(start, start + ROUND);
+  if (from != null && +from !== start) return { done: start >= (j.ids || []).length, next: start, total: (j.ids || []).length, pushed: 0 };
+  if (!ids.length) { await db.doc('pushJobs/' + job).delete().catch(() => {}); return { done: true, next: start, total: (j.ids || []).length }; }
+  const snaps = await db.getAll(...ids.map(u => db.doc(`users/${u}/private/push`)));
+  const r = await Promise.all(ids.map((u, i) => deliver(db, u, { ...j.data, tag: (j.data.tag || 'job') + '_' + u }, 86400, snaps[i].data() || {}, 3).catch(() => 0)));
+  const next = start + ids.length, done = next >= (j.ids || []).length;
+  if (done) await db.doc('pushJobs/' + job).delete().catch(() => {}); else await db.doc('pushJobs/' + job).update({ next }).catch(() => {});
+  return { done, next, total: (j.ids || []).length, pushed: r.reduce((a, b) => a + b, 0) };
 }
 export const dayKey = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 
@@ -161,6 +184,7 @@ async function dashboard(db) {
   return {
     stats: { users: users.filter(u => !u.deleted).length, unfinished: users.filter(u => !u.finishedSignup).length, new24h: users.filter(u => now - u.joined < day).length, new7d: users.filter(u => now - u.joined < 7 * day).length, active24h: users.filter(u => now - u.lastActive < day).length, active7d: users.filter(u => now - u.lastActive < 7 * day).length, onlineNow: users.filter(u => now - u.lastActive < 3 * 60e3).length, chats, groups, messages, events, moments, reports, bans, friendships },
     signups, users, at: now,
+    invites: await (async () => { try { const d = (await db.doc('stats/invites').get()).data() || {}; const wk = new Date(now - 7 * day).toISOString().slice(0, 10); let all = 0, week = 0; for (const [k, n] of Object.entries(d)) { all += +n || 0; if (k >= wk) week += +n || 0; } return { all, week }; } catch { return { all: 0, week: 0 }; } })(),
     msgDays: await (async () => { const out = []; for (let i = 29; i >= 0; i--) { const k = dayKey(now - i * day); out.push({ day: k, n: 0 }); } try { const qs = await db.collection('stats').where('day', '>=', out[0].day).get(); const m = {}; qs.docs.forEach(d => { const v = d.data(); m[v.day] = v.messages || 0; }); out.forEach(o => { o.n = m[o.day] || 0; }); } catch {} return out; })(),
     safety: await (async () => { const c = async q => { try { return (await q.count().get()).data().count; } catch { return null; } }; return { flagsOpen: await c(db.collection('flags').where('status', '==', 'open')), warnings: await c(db.collection('warnings')) }; })(),
     newest: users.filter(u => u.finishedSignup && !u.deleted).slice(0, 8).map(u => ({ id: u.id, name: u.name, handle: u.handle, joined: u.joined, avatar: (profiles[u.id] || {}).avatar || '' })),
@@ -314,8 +338,8 @@ export default async (req) => {
     const note = String(body.note || '').trim().slice(0, 120);
     const ids = (await db.collection('users').select().get()).docs.map(d => d.id).filter(u => u !== me);
     for (let i = 0; i < ids.length; i += 400) { const b = db.batch(); ids.slice(i, i + 400).forEach(u => b.set(db.collection('notifications').doc(), { to: u, from: me, type: 'update_ask', title: '🚀 Update Nexa', body: note || 'A new version of Nexa is ready — tap Update now.', at: now, read: false })); await b.commit(); }
-    let pushed = 0; for (let i = 0; i < ids.length; i += 25) { const r = await Promise.all(ids.slice(i, i + 25).map(u => deliver(db, u, { kind: 'notification', title: '🚀 Update Nexa', body: note || 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd_all_' + now }, 86400).catch(() => 0))); pushed += r.filter(Boolean).length; }
-    return ok({ people: ids.length, pushed });
+    const job = await startPushJob(db, ids, { kind: 'notification', title: '🚀 Update Nexa', body: note || 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd' }, me);
+    return ok({ people: ids.length, job });
   }
   if (body.action === 'announce') {
     const t = String(body.text || '').trim().slice(0, 300); if (!t) return json({ error: 'Write your announcement first' }, 400);
@@ -323,9 +347,10 @@ export default async (req) => {
     await ref.update({ lastAnnounce: now });
     const ids = (await db.collection('users').select().get()).docs.map(d => d.id).filter(u => u !== me);
     for (let i = 0; i < ids.length; i += 400) { const b = db.batch(); ids.slice(i, i + 400).forEach(u => b.set(db.collection('notifications').doc(), { to: u, from: me, type: 'announcement', title: '📣 ' + (body.title ? String(body.title).slice(0, 60) : 'News from Nexa'), body: t, at: now, read: false })); await b.commit(); }
-    let pushed = 0; if (body.push !== false) for (let i = 0; i < ids.length; i += 25) { const r = await Promise.all(ids.slice(i, i + 25).map(u => deliver(db, u, { kind: 'notification', title: '📣 ' + (body.title ? String(body.title).slice(0, 60) : 'News from Nexa'), body: t, page: 'notifications', tag: 'ann_' + now }, 86400).catch(() => 0))); pushed += r.reduce((a, b) => a + b, 0); }
-    return ok({ people: ids.length, pushed });
+    const job = body.push !== false ? await startPushJob(db, ids, { kind: 'notification', title: '📣 ' + (body.title ? String(body.title).slice(0, 60) : 'News from Nexa'), body: t, page: 'notifications', tag: 'ann' }, me) : '';
+    return ok({ people: ids.length, job });
   }
+  if (body.action === 'pushJob') { const r = await runPushJob(db, body.job, body.from, me); return r.error ? json({ error: r.error }, 404) : ok(r); }
   if (body.action === 'prefs') {
     const p = body.prefs || {}, patch = {};
     if ('bg' in p) { const b = String(p.bg || ''); if (b.length > 950000) return json({ error: 'That photo is too big.' }, 400); patch.bg = b; }

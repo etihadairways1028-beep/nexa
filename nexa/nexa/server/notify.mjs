@@ -171,6 +171,32 @@ export default async (req, ctx = {}) => {
     } catch (e) { return json({ ok: false, error: e.message }); }
   }
 
+  // ---------- invite links: someone new signed up from a friend's /@handle link → make them friends straight away
+  if (body.kind === 'inviteJoin') {
+    const h = String(body.handle || '').toLowerCase();
+    if (!/^[a-z0-9_.]{2,24}$/.test(h)) return json({ ok: false, error: 'bad handle' }, 400);
+    const rec = (await db.doc('handles/' + h).get()).data(); const inv = rec && rec.uid;
+    if (!inv || inv === uid) return json({ ok: false, skip: 'no-inviter' });
+    const code = String(body.code || ''); const ic = ((await db.doc(`users/${inv}/private/invite`).get()).data() || {}).code;
+    if (!code || !ic || code !== ic) return json({ ok: false, skip: 'bad-code' }); // only links the person really shared
+    const made = Date.parse((await admin.auth().getUser(uid)).metadata.creationTime || '') || 0;
+    if (Date.now() - made > 3 * 864e5) return json({ ok: false, skip: 'not-new' }); // only brand-new accounts
+    if ((await db.doc('bans/' + inv).get()).exists) return json({ ok: false, skip: 'inviter-banned' });
+    if ((await db.doc(`blocks/${inv}__${uid}`).get()).exists || (await db.doc(`blocks/${uid}__${inv}`).get()).exists) return json({ ok: false, skip: 'blocked' });
+    if (inv === ((await db.doc('handles/owner').get()).data() || {}).uid) return json({ ok: false, skip: 'owner' });
+    if ((((await db.doc(`users/${inv}/private/prefs`).get()).data() || {}).blocked || []).includes(uid)) return json({ ok: false, skip: 'blocked' });
+    try { await db.doc('inviteLog/' + uid).create({ by: inv, at: Date.now() }); } catch { return json({ ok: true, skip: 'already' }); }
+    const pair = [uid, inv].sort();
+    const b = db.batch();
+    b.set(db.doc('friendships/' + pair.join('__')), { members: pair, at: Date.now(), invite: true });
+    b.delete(db.doc(`friendRequests/${uid}__${inv}`)); b.delete(db.doc(`friendRequests/${inv}__${uid}`));
+    b.set(db.doc('users/' + uid), { ref: inv }, { merge: true });
+    b.set(db.doc('stats/invites'), { [new Date().toISOString().slice(0, 10)]: admin.firestore.FieldValue.increment(1) }, { merge: true });
+    await b.commit();
+    await deliver(db, inv, { kind: 'invite', title: `${name} joined Nexa from your invite 🎉`, body: 'You\'re friends now — say hi!', page: 'messages', tag: 'inv_' + uid, icon }, 86400).catch(() => {});
+    return json({ ok: true, friend: inv });
+  }
+
   // ---------- a new chat message
   if (body.kind === 'message') {
     const cid = String(body.conv || ''), mid = String(body.msg || '');
