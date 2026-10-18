@@ -1,0 +1,104 @@
+{
+  "name": "Nexa Test",
+  "short_name": "Nexa Test",
+  "description": "Messages, voice and video calls, groups and communities in one fast, private app.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0E0F13",
+  "theme_color": "#F59E0B",
+  "icons": [
+    {
+      "src": "icon-192-v4.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512-v4.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-v4.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "categories": [
+    "social",
+    "communication"
+  ],
+  "shortcuts": [
+    {
+      "name": "Messages",
+      "short_name": "Chats",
+      "url": "./?page=messages",
+      "icons": [
+        {
+          "src": "icon-192-v4.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "url": "./?page=events",
+      "icons": [
+        {
+          "src": "icon-192-v4.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "People",
+      "url": "./?page=people",
+      "icons": [
+        {
+          "src": "icon-192-v4.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "lang": "en",
+  "dir": "ltr",
+  "screenshots": [
+    {
+      "src": "store/phone-1.jpg",
+      "sizes": "1080x2160",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Home"
+    },
+    {
+      "src": "store/phone-2.jpg",
+      "sizes": "1080x2160",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Chats"
+    },
+    {
+      "src": "store/phone-3.jpg",
+      "sizes": "1080x2160",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Profiles"
+    },
+    {
+      "src": "store/wide-1.jpg",
+      "sizes": "1440x900",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Nexa on a computer"
+    }
+  ]
+}
