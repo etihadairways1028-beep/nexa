@@ -1,14 +1,14 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '19.5';
+const VERSION = '19.6';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
-const QUIET = false;
+const QUIET = true;
 const NOTES = ["A brand-new Home: your day at a glance, chats that need you, and an Ask Nexa AI bar", "Fresh glass look for the whole app — choose Off, Light, Medium or Strong (Settings › Appearance)", "New bright mode with soft colour behind clear glass, and glassier buttons", "Face ID, Touch ID and fingerprint log-in that knows your account — and fixes old keys in one tap", "Invite friends: they sign up with your link and you're friends straight away", "The website is now liquid glass too"];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '61';
+const CACHE = PREFIX + '62';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
@@ -36,7 +36,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('message', e => {
   const d = e.data || {};
   if (d.type === 'clear' && d.tag) e.waitUntil(self.registration.getNotifications({ tag: d.tag }).then(ns => ns.forEach(n => n.close())));
-  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: QUIET ? [] : NOTES, quiet: QUIET, test: TEST });
+  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: NOTES, quiet: QUIET, test: TEST });
   if (d.type === 'skipWaiting') self.skipWaiting();
   if (d.type === 'fest') festOff = !d.k;
 });

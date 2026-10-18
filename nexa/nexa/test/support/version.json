@@ -1,5 +1,5 @@
 {
- "version": "19.5",
+ "version": "19.6",
  "notes": [
   "A brand-new Home: your day at a glance, chats that need you, and an Ask Nexa AI bar",
   "Fresh glass look for the whole app — choose Off, Light, Medium or Strong (Settings › Appearance)",
@@ -7,5 +7,6 @@
   "Face ID, Touch ID and fingerprint log-in that knows your account — and fixes old keys in one tap",
   "Invite friends: they sign up with your link and you're friends straight away",
   "The website is now liquid glass too"
- ]
+ ],
+ "quiet": true
 }

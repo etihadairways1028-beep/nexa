@@ -2654,3 +2654,22 @@ button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
   .nd-row .btn.sm{height:32px;padding:0 12px}
   .home .livecard{padding:12px 14px!important}
 }
+/* v19.5: softer colours behind the glass (they were too strong) */
+:root[data-look="pro"][data-glass="1"]{--bA:.2;--gBlur:blur(22px) saturate(1.3)}
+:root[data-look="pro"][data-glass="2"]{--bA:.3;--gBlur:blur(34px) saturate(1.4)}
+:root[data-look="pro"][data-glass="3"]{--bA:.42;--gBlur:blur(42px) saturate(1.5)}
+:root[data-theme="light"][data-look="pro"][data-glass="1"]{--bA:.22}
+:root[data-theme="light"][data-look="pro"][data-glass="2"]{--bA:.32}
+:root[data-theme="light"][data-look="pro"][data-glass="3"]{--bA:.42}
+:root[data-look="pro"]:is([data-glass="1"],[data-glass="2"],[data-glass="3"]):not(#_):not(#__) body{background:
+  radial-gradient(45% 40% at 8% 6%,rgb(92 98 196/var(--bA)),transparent 72%),
+  radial-gradient(40% 38% at 95% 14%,rgb(72 120 170/calc(var(--bA)*.75)),transparent 72%),
+  radial-gradient(45% 42% at 72% 100%,rgb(118 86 180/calc(var(--bA)*.8)),transparent 72%),
+  radial-gradient(35% 35% at 0% 95%,rgb(140 80 130/calc(var(--bA)*.45)),transparent 72%),
+  #0D0E15 fixed!important;background-attachment:fixed!important}
+:root[data-theme="light"][data-look="pro"]:is([data-glass="1"],[data-glass="2"],[data-glass="3"]):not(#_):not(#__) body{background:
+  radial-gradient(48% 46% at 6% 4%,rgb(150 158 236/var(--bA)),transparent 72%),
+  radial-gradient(42% 42% at 96% 10%,rgb(140 196 232/calc(var(--bA)*.8)),transparent 72%),
+  radial-gradient(46% 46% at 72% 98%,rgb(214 170 236/calc(var(--bA)*.7)),transparent 72%),
+  radial-gradient(40% 40% at 2% 96%,rgb(244 196 160/calc(var(--bA)*.45)),transparent 72%),
+  #EEF0F6 fixed!important;background-attachment:fixed!important}

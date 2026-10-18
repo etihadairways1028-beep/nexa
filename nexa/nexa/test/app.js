@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '19.5';
+const APP_VERSION = '19.6';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9315,3 +9315,8 @@ if (location.hostname === 'localhost') Object.assign(window, { HOME_DEFAULT });
     return tpl.innerHTML;
   };
 }
+
+/* ================= v19.6: softer colours — a quiet update for anyone who already has 19.5 ================= */
+WN_STEPS['19.6'] = WN_STEPS['19.5']; UP_HL['19.6'] = UP_HL['19.5'];
+// already saw 19.5's walk-through? then 19.6 just slips in (no update screen, no tour). Older versions get the full tour.
+try { const seen = lsGet('nexa.seenVersion', null); if (seen && verNum(seen) >= verNum('19.5') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
