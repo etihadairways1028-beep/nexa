@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '19.4';
+const APP_VERSION = '19.5';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9027,7 +9027,7 @@ if (IS_TEST) {
     const pick = `<div class="biopick"><span class="mute small">My phone uses</span>${list.map(([k, n]) => `<button class="pill sm ${(cur || '') === k || (!cur && devBio().name.toLowerCase() === n.toLowerCase()) ? 'on' : ''}" data-a="bioKindPick" data-v="${k}">${n}</button>`).join('')}</div>`;
     return h.includes('id="lockCard"') && !h.includes('lo-ic">' + FACE_SVG + '</span><span class="grow"><b>Face ID / fingerprint</b>') ? h.replace('</div><div class="mute small" style="font-weight:500">Nexa locks', pick + '</div><div class="mute small" style="font-weight:500">Nexa locks') : h;
   };
-  actions.bioKindPick = d => { lsSet('nexa.bioKind', d.v); render(); toast(`Got it — Nexa will say ${esc(bioName())} on this phone`); };
+  actions.bioKindPick = d => { lsSet('nexa.bioKind', d.v); render(); toast(`Got it — Nexa will say ${esc(bioName())} on this ${devWord()}`); };
 }
 if (location.hostname === 'localhost') Object.assign(window, { IS_TEST, claimInvite });
 
@@ -9153,16 +9153,20 @@ const pkFetchReg = async () => {
 }
 // log-in found a key the server doesn't know (an old, broken one): explain, clean it up, and fix it after the password log-in
 const PK_STALE = /isn't set up for Nexa on this phone/i;
+const devWord = () => { const ua = navigator.userAgent; return /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Mobi|iPhone|Android/.test(ua) ? 'phone' : 'computer'; };
+// remember which key the phone/computer just used, so a broken one can be cleaned up
+let pkLastId = '';
+try { const _g = navigator.credentials?.get?.bind(navigator.credentials); if (_g) navigator.credentials.get = async o => { const a = await _g(o); try { if (a?.rawId) pkLastId = b64u(a.rawId); } catch {} return a; }; } catch {}
 const pkStale = credIdB64 => {
   lsSet('nexa.pkRepair', 1); lsSet('nexa.pkLogin', null);
   try { if (credIdB64) PublicKeyCredential.signalUnknownCredential?.({ rpId: location.hostname, credentialId: credIdB64 })?.catch?.(() => {}); } catch {}
-  return `${bioTitle()} needs a quick refresh on this phone. Log in with your password once — Nexa will then set ${bioName()} up again in one tap.`;
+  return `This ${devWord()} has an old ${bioName()} key for Nexa that no longer works (it was saved by an older version of Nexa). Log in with your password once — Nexa will then set ${bioName()} up again in one tap, and it'll work from then on.`;
 };
 {
   const _pf = pkFinish;
   pkFinish = async function (ch, a) { try { const r = await _pf(ch, a); S.pkTry = now(); return r; } catch (e) { if (PK_STALE.test(e?.message || '')) throw new Error(pkStale(b64u(a.rawId))); throw e; } };
   // the older "Sign in with Face ID" button path: same friendly message
-  setInterval(() => { if (S.view === 'auth' && PK_STALE.test(S.authErr || '')) { S.authErr = pkStale(''); render(); } }, 400);
+  setInterval(() => { if (S.view === 'auth' && PK_STALE.test(S.authErr || '')) { S.authErr = pkStale(pkLastId); render(); } }, 400);
   const _pk = actions.pkSignIn;
   actions.pkSignIn = function (...a) {
     const au = S.be.auth; // remember a log-in that really happened by face/finger (not just a try)
@@ -9192,7 +9196,7 @@ const pkStale = credIdB64 => {
     return `<div class="col pkoffer" style="align-items:center;text-align:center;gap:12px">
       <span class="pko-ic">${bioIcon()}</span>
       <h2 class="disp" style="margin:0;font-size:22px">${m.repair ? `Fix ${esc(n)} log-in` : `Log in with ${esc(n)} next time?`}</h2>
-      <p class="mute" style="margin:0;line-height:1.5">${m.repair ? `Your phone's old ${esc(n)} key for Nexa stopped working. One tap sets it up again.` : `No password next time — Nexa will know it's you${devBio().kind === 'face' ? ' with just a look' : ' with just a touch'}.`}</p>
+      <p class="mute" style="margin:0;line-height:1.5">${m.repair ? `This ${devWord()}'s old ${esc(n)} key for Nexa stopped working. One tap sets it up again.` : `No password next time — Nexa will know it's you${devBio().kind === 'face' ? ' with just a look' : ' with just a touch'}.`}</p>
       <button class="btn pri" style="width:100%;height:48px" data-a="pkOfferYes">${bioIcon()} Turn on ${esc(n)}</button>
       <button class="btn" style="width:100%" data-a="pkOfferNo">Not now</button></div>`;
   };
@@ -9203,3 +9207,111 @@ const pkStale = credIdB64 => {
 }
 WN_STEPS['19.4'] = WN_STEPS['19.3']; UP_HL['19.4'] = UP_HL['19.3'];
 if (location.hostname === 'localhost') Object.assign(window, { pkRegister: (...a) => pkRegister(...a), pkFetchReg, bioScan: () => bioScan() });
+
+/* ================= v19.5: a fresh glass look for the whole app — and you choose how much glass ================= */
+// Settings › Appearance › Glass: Off (solid), Light, Medium (default) or Strong. Phones get a lighter blur so
+// scrolling stays smooth. Any of the other looks (Liquid Glass, Aurora, Classic) still work as before.
+const GLASS = [['0', 'Off'], ['1', 'Light'], ['2', 'Medium'], ['3', 'Strong']];
+const glassOf = p => { const g = String(p?.glassLvl ?? '2'); return ['0', '1', '2', '3'].includes(g) ? g : '2'; };
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) { const r = _at(...a); try { const root = document.documentElement; root.dataset.glass = root.dataset.look === 'pro' ? glassOf(S.prefs) : ''; } catch {} return r; };
+  try { applyTheme(); } catch {}
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (S.setSec !== 'appearance' || lookOf(S.prefs) !== 'pro') return h;
+    const cur = glassOf(S.prefs);
+    const row = `<div class="field" id="glassPick">Glass<div class="seg glassseg">${GLASS.map(([v, n]) => `<button class="${cur === v ? 'on' : ''}" data-a="glassPick" data-v="${v}">${n}</button>`).join('')}</div><span class="mute small" style="font-weight:500">${cur === '0' ? 'Solid panels — the calmest look.' : cur === '1' ? 'A hint of glass.' : cur === '2' ? 'Clear glass over soft colour — the default.' : 'Full liquid glass, like the website.'}</span></div>`;
+    return h.replace(/(<div class="field">Look<div class="looks">[\s\S]*?<\/button><\/div><\/div>)/, `$1${row}`)
+      .replace('Clean and calm — the new default', 'Fresh glass — the new default');
+  };
+  actions.glassPick = d => { savePrefs({ glassLvl: d.v }); applyTheme(); render(); };
+}
+WN_STEPS['19.5'] = [...WN_STEPS['19.4'].slice(0, 1),
+  { page: 'settings', sec: 'appearance', sel: '#glassPick', emoji: '🫧', title: 'Fresh glass, your way', text: 'Nexa is now made of clear glass over soft colour. Too much or too little? Pick Off, Light, Medium or Strong right here.' },
+  ...WN_STEPS['19.4'].slice(1)];
+UP_HL['19.5'] = ['Fresh glass look', 'Face ID log-in that knows you', 'Invite friends in one tap', 'Send later', 'Soundboard'];
+
+/* ================= v19.5: the new Home dashboard ================= */
+// A calmer, smarter Home: what's happening today at a glance, an "Ask Nexa AI" bar, the chats that need you
+// (with Reply right there), and your day. Every card can still be moved, resized or hidden with Customise.
+{
+  const fmtDay = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeOf = t => { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString([], { day: 'numeric', month: 'short' }); };
+  const needs = () => sortedConvs().filter(c => unread(c) && !isMuted(c.id) && !isRequestForMe(c)).slice(0, 4);
+  function vNeedsCard() {
+    if (!S.ready?.convs) return '';
+    const list = needs(), onl = friendIds().filter(u => presence(u) !== 'offline');
+    if (!list.length && innerWidth <= 700) return '';
+    const body = list.length ? `<div class="list nd-list">${list.map(c => `<div class="nd-row">${convAv(c, 44)}<button class="grow nd-txt" data-a="openConv" data-v="${c.id}"><span class="row spread"><b class="ellip">${esc(convName(c))}</b><span class="small mute">${c.last?.at ? timeOf(c.last.at) : ''}</span></span><span class="small ellip" style="display:block">${esc(lastLine(c))}</span></button><button class="btn sm pri" data-a="openConv" data-v="${c.id}">Reply</button></div>`).join('')}</div>`
+      : `<div class="nd-zero"><span class="nd-ok">${ic('check', 22, 2.4)}</span><span class="grow"><b>You're all caught up</b><span class="small mute" style="display:block">${onl.length ? `${esc(dname(onl[0]).split(' ')[0])} is online — say hi?` : 'New messages that need a reply show up here.'}</span></span>${onl.length ? `<button class="btn sm" data-a="dm" data-v="${onl[0]}">${ic('msg', 14)} Message</button>` : `<button class="btn sm" data-a="inviteShare">${ic('userplus', 14)} Invite</button>`}</div>`;
+    return `<section class="panel glass card needs"><div class="row spread"><h2 class="h2">Needs you</h2>${list.length ? `<span class="nd-count">${list.length}</span>` : ''}</div>${body}</section>`;
+  }
+  function vTodayCard() {
+    const evs = upcoming().slice(0, 3), sch = (S.scheduled || []).filter(x => x.at > now()).sort((a, b) => a.at - b.at);
+    const live = (S.rooms || []).filter(r => (roomLive(r.id) || []).length);
+    const rows = [
+      ...evs.map(e => `<button class="td-row" data-a="eventOpen" data-v="${e.id}"><span class="td-ic ev">${ic('cal', 16)}</span><span class="grow"><b class="ellip" style="display:block">${esc(e.title)}</b><span class="small mute">${e.date === todayStr() ? 'Today' : esc(e.date)}${e.time ? ' · ' + esc(e.time) : ''}</span></span></button>`),
+      ...live.slice(0, 2).map(r => `<div class="td-row"><span class="td-ic live">${ic('volume', 16)}</span><span class="grow"><b class="ellip" style="display:block">${esc(r.name || 'Hangout')}</b><span class="small mute">${roomLive(r.id).length} in the room now</span></span></div>`),
+      sch.length ? `<div class="td-row"><span class="td-ic sch">${ic('clock', 16)}</span><span class="grow"><b style="display:block">${sch.length} message${sch.length > 1 ? 's' : ''} sending later</b><span class="small mute">Next at ${new Date(sch[0].at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></span></div>` : '',
+    ].filter(Boolean);
+    if (!rows.length && innerWidth <= 700) return '';
+    return `<section class="panel glass card todaycard"><div class="row spread"><h2 class="h2">Your day</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="newEvent">+ Plan</button></div>${rows.length ? `<div class="list">${rows.join('')}</div>` : `<div class="mute small" style="line-height:1.5">Nothing planned yet. Plan something with friends — they'll get an invite.</div>`}</section>`;
+  }
+  // the new cards sit right under the welcome card (and work with Customise)
+  const _pf = vPinnedFriends;
+  vPinnedFriends = function () { return vNeedsCard() + vTodayCard() + _pf(); };
+  Object.assign(HOME_CARDS, { needs: 'Needs you', today: 'Your day' });
+  if (!HOME_DEFAULT.main.includes('needs')) HOME_DEFAULT.main.splice(HOME_DEFAULT.main.indexOf('hero') + 1, 0, 'needs');
+  if (!HOME_DEFAULT.side.includes('today')) HOME_DEFAULT.side.unshift('today');
+  const _key = homeCardKey;
+  homeCardKey = function (sec) { const c = sec.classList; if (c.contains('needs')) return 'needs'; if (c.contains('todaycard')) return 'today'; return _key(sec); };
+  // the new welcome card
+  const _vh = vHome;
+  vHome = function () {
+    const h = _vh();
+    const first = esc((S.profile?.name || '').split(' ')[0]);
+    const hr = new Date().getHours(), greet = hr < 5 ? 'Good night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+    const c = counts(), onl = friendIds().filter(u => presence(u) !== 'offline').length, ev = upcoming()[0];
+    const chip = (icon, txt, a, v, hot) => `<button class="dh-chip ${hot ? 'hot' : ''}" data-a="${a}" ${v ? `data-v="${v}"` : ''}>${ic(icon, 15)}<span>${txt}</span></button>`;
+    const chips = [
+      chip('msg', c.msg ? `${c.msg} unread` : 'No unread', 'go', 'messages', c.msg),
+      chip('people', `${onl} online`, 'go', 'people'),
+      chip('cal', ev ? (ev.date === todayStr() ? `${esc(ev.title)} today` : `Next: ${esc(ev.title)}`) : 'No plans', ev ? 'eventOpen' : 'newEvent', ev ? ev.id : '', ev && ev.date === todayStr()),
+      c.notif ? chip('bell', `${c.notif} new`, 'go', 'notifications', 1) : '',
+    ].join('');
+    const hero = `<div class="dh-top"><div class="grow"><span class="dh-date">${esc(fmtDay())}</span><h1 class="disp hello">${greet}, ${first}</h1></div></div>
+      <div class="dh-chips">${chips}</div>
+      <div class="dh-ask">${ic('spark', 18)}<input id="dhQ" placeholder="${innerWidth <= 700 ? 'Ask Nexa AI anything…' : 'Ask Nexa AI — plan a weekend, write a message, translate…'}" autocomplete="off" aria-label="Ask Nexa AI"><button class="btn sm pri" data-a="dhAsk">Ask</button></div>
+      <div class="dh-qa">
+        <button class="dh-q" data-a="newChat">${ic('pen', 18)}<span>Message</span></button>
+        <button class="dh-q" data-a="newGroup">${ic('group', 18)}<span>Group</span></button>
+        <button class="dh-q" data-a="newEvent">${ic('cal', 18)}<span>Event</span></button>
+        <button class="dh-q" data-a="go" data-v="people">${ic('userplus', 18)}<span>Add friend</span></button>
+        <button class="dh-q" data-a="inviteShare">${ic('send', 18)}<span>Invite</span></button>
+      </div>`;
+    return h.replace(/(<section class="hero glass card)([^"]*)("[^>]*>)(<button class="hc-open"[\s\S]*?<\/button>)?[\s\S]*?(<\/section>)/, (m, a, cls, b, btn, end) => `${a}${cls} dash-hero${b}${btn || ''}${hero}${end}`);
+  };
+  Object.assign(actions, {
+    dhAsk: () => { const q = (document.getElementById('dhQ')?.value || '').trim(); if (!q) return actions.aiOpen(); S.ai.open = true; render(); askAi(q); },
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target?.id === 'dhQ') { e.preventDefault(); actions.dhAsk(); } });
+}
+if (location.hostname === 'localhost') Object.assign(window, { HOME_DEFAULT });
+// phones: leave out cards that repeat something or have nothing in them, so Home isn't crowded
+{
+  const tpl = document.createElement('template');
+  const _vh = vHome;
+  vHome = function () {
+    const h = _vh(); if (innerWidth > 700 || S.homeEdit) return h;
+    tpl.innerHTML = h;
+    const title = s => (s.querySelector('h2')?.textContent || '').trim();
+    tpl.content.querySelectorAll('section').forEach(s => {
+      const t = title(s), empty = !s.querySelector('.item, .list > *, .td-row, .nd-row, .ev, .evcard, img');
+      const drop = t === 'Recent conversations' || (t === 'Upcoming events' && empty) || (t === 'Friend requests' && empty) || (t === 'Notifications' && empty);
+      if (!drop) return;
+      const hc = s.closest('.hc'); (hc || s).remove();
+    });
+    return tpl.innerHTML;
+  };
+}

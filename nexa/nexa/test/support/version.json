@@ -1,12 +1,11 @@
 {
- "version": "19.4",
+ "version": "19.5",
  "notes": [
-  "A whole new Nexa: a clean, professional dark look and a new website",
-  "Face ID and fingerprint log-in that knows your account — one look and you're in. Plus PIN lock (Settings › Privacy)",
+  "A brand-new Home: your day at a glance, chats that need you, and an Ask Nexa AI bar",
+  "Fresh glass look for the whole app — choose Off, Light, Medium or Strong (Settings › Appearance)",
+  "New bright mode with soft colour behind clear glass, and glassier buttons",
+  "Face ID, Touch ID and fingerprint log-in that knows your account — and fixes old keys in one tap",
   "Invite friends: they sign up with your link and you're friends straight away",
-  "Two-step verification with an authenticator app",
-  "Scheduled messages send even if your phone is off; export any chat",
-  "Slow mode & auto-mod for groups, community emojis and a soundboard",
-  "Prefer the old style? Settings › Appearance › Look lets you switch back"
+  "The website is now liquid glass too"
  ]
 }
