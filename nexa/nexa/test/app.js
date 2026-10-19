@@ -751,7 +751,7 @@ function vHome() {
   return `<div class="home v8">
     <div class="h-main">
       <section class="hero glass card">
-        <h1 class="disp hello">${greet}, ${esc(S.profile.name.split(' ')[0])}</h1>
+        <h1 class="disp hello">${greet}, <i class="hn">${esc(S.profile.name.split(' ')[0])}</i></h1>
         <div class="mute hsub">${sub}</div>
         <div class="qa-grid">
           <button class="qa" data-a="newChat"><span class="ic">${ic('pen', 20)}</span>New message</button>
@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '19.6';
+const APP_VERSION = '20.0';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -8752,7 +8752,7 @@ function vLandingMock() {
       <header class="ws-nav"><a class="ws-brand" href="#top">${logo(30)}<b>nexa</b></a><nav><a href="#features">Features</a><a href="#safety">Safety</a><a href="privacy.html">Privacy</a></nav><span class="grow"></span><button class="btn sm" data-a="wsGo" data-v="login">Log in</button><button class="btn sm pri" data-a="wsGo" data-v="signup">Get Nexa</button></header>
       <section class="ws-hero" id="top">
         <div class="ws-copy"><span class="ws-eyebrow">Early access · Free</span>
-          <h1>Where your people talk.</h1>
+          <h1>Where your <i class="ws-pt">people talk.</i></h1>
           <p>Messages, voice and video calls, group chats and communities — in one fast, private app that works on every device.</p>
           <div class="ws-ctas"><button class="btn pri lg" data-a="wsGo" data-v="signup">Create your account</button><button class="btn lg" data-a="wsGo" data-v="login">Log in</button></div>
           <div class="ws-plat">Works on iPhone, Android, Windows and Mac — right in your browser. Add it to your Home Screen for the full app.</div></div>
@@ -9280,7 +9280,7 @@ UP_HL['19.5'] = ['Fresh glass look', 'Face ID log-in that knows you', 'Invite fr
       chip('cal', ev ? (ev.date === todayStr() ? `${esc(ev.title)} today` : `Next: ${esc(ev.title)}`) : 'No plans', ev ? 'eventOpen' : 'newEvent', ev ? ev.id : '', ev && ev.date === todayStr()),
       c.notif ? chip('bell', `${c.notif} new`, 'go', 'notifications', 1) : '',
     ].join('');
-    const hero = `<div class="dh-top"><div class="grow"><span class="dh-date">${esc(fmtDay())}</span><h1 class="disp hello">${greet}, ${first}</h1></div></div>
+    const hero = `<div class="dh-top"><div class="grow"><span class="dh-date">${esc(fmtDay())}</span><h1 class="disp hello">${greet}, <i class="hn">${first}</i></h1></div></div>
       <div class="dh-chips">${chips}</div>
       <div class="dh-ask">${ic('spark', 18)}<input id="dhQ" placeholder="${innerWidth <= 700 ? 'Ask Nexa AI anything…' : 'Ask Nexa AI — plan a weekend, write a message, translate…'}" autocomplete="off" aria-label="Ask Nexa AI"><button class="btn sm pri" data-a="dhAsk">Ask</button></div>
       <div class="dh-qa">
@@ -9319,4 +9319,76 @@ if (location.hostname === 'localhost') Object.assign(window, { HOME_DEFAULT });
 /* ================= v19.6: softer colours — a quiet update for anyone who already has 19.5 ================= */
 WN_STEPS['19.6'] = WN_STEPS['19.5']; UP_HL['19.6'] = UP_HL['19.5'];
 // already saw 19.5's walk-through? then 19.6 just slips in (no update screen, no tour). Older versions get the full tour.
-try { const seen = lsGet('nexa.seenVersion', null); if (seen && verNum(seen) >= verNum('19.5') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '19.6' && seen && verNum(seen) >= verNum('19.5') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* ================= v20.0: Nexa Signature styles — Prism (new default), Halo, Onyx ================= */
+// Settings › Appearance › Style. Prism: ink black, serif headings and the prism edge from the logo's glass N.
+// Halo: richer liquid glass. Onyx: pure black & white. "Glass" keeps the 19.x look exactly as it was.
+const SIGS = [['prism', 'Prism', 'Ink black with a prism edge — made for Nexa'], ['halo', 'Halo', 'Rich liquid glass and colour'], ['onyx', 'Onyx', 'Pure black & white, saves battery'], ['glass', 'Glass', 'The 19.x glass look']];
+const sigOf = p => { const v = p?.sig || 'prism'; return SIGS.some(x => x[0] === v) ? v : 'prism'; };
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const root = document.documentElement, sg = root.dataset.look === 'pro' ? sigOf(S.prefs) : 'glass';
+      root.dataset.sig = sg === 'glass' ? '' : sg;
+      if (sg === 'prism' || sg === 'onyx') root.dataset.glass = '';
+      if (sg === 'halo') root.dataset.glass = glassOf(S.prefs) === '0' ? '2' : glassOf(S.prefs);
+      const m = document.querySelector('meta[name="theme-color"]'); if (m && sg !== 'glass') m.content = sg === 'onyx' ? (S.prefs.theme === 'light' ? '#ffffff' : '#000000') : sg === 'prism' ? (S.prefs.theme === 'light' ? '#F5F3EE' : '#09090F') : '#0E0F1A';
+      lsSet('nexa.sig', root.dataset.sig);
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const _s = vSettings;
+  vSettings = function () {
+    let h = _s(); if (S.setSec !== 'appearance') return h;
+    const cur = lookOf(S.prefs) === 'pro' ? sigOf(S.prefs) : '';
+    const row = `<div class="field" id="sigPick">Style<div class="sigrow">${SIGS.map(([k, n, d]) => `<button class="sigcard ${cur === k ? 'on' : ''}" data-a="sigPick" data-v="${k}" aria-pressed="${cur === k}"><span class="sigsw sw-${k}"><i></i></span><b>${n}</b><span class="mute small">${d}</span></button>`).join('')}</div></div>`;
+    if (cur === 'prism' || cur === 'onyx') h = h.replace(/<div class="field" id="glassPick">[\s\S]*?<\/span><\/div>/, '');
+    h = h.replace(/<button class="lookcard[^"]*" data-a="lookPick" data-v="pro">[\s\S]*?<\/button>/, '').replace('<div class="field">Look<div class="looks">', '<div class="field">Classic looks<div class="looks">');
+    return h.replace(/<div class="field">Classic looks<div class="looks">/, `${row}$&`);
+  };
+  Object.assign(actions, { sigPick: d => savePrefs({ sig: d.v, look: 'pro', lookV19: false }) });
+}
+WN_STEPS['20.0'] = [
+  { emoji: '✨', title: 'Welcome to Nexa 20', text: 'A look made only for Nexa. Meet Prism: ink black, beautiful headings and a rainbow edge from the Nexa logo. Tap Next — or Skip anytime.' },
+  { emoji: '🎨', title: 'Pick your style', text: 'Prefer something else? Settings › Appearance › Style: Prism, Halo (rich glass), Onyx (pure black & white) or the Glass look you had before.' },
+  ...(WN_STEPS['19.5'] || []).slice(1)
+];
+UP_HL['20.0'] = ['Prism — a look made only for Nexa', 'Halo and Onyx styles', 'New fonts and a glowing send button', 'Brand-new Home', 'Face ID log-in that knows you'];
+
+/* v20.0: choose the edge colour — keep the rainbow, or one colour you like (Settings › Appearance and Profile) */
+const SIGCOLS = [['rainbow', 'Rainbow', ''], ['indigo', 'Indigo', '#8C97FF'], ['blue', 'Blue', '#4DA3FF'], ['teal', 'Teal', '#2FD3C1'], ['green', 'Green', '#5BD68A'], ['gold', 'Gold', '#F4C25B'], ['pink', 'Pink', '#FF7FB0'], ['red', 'Red', '#FF6B6B'], ['purple', 'Purple', '#B07CFF'], ['white', 'Silver', '#D9D9E3']];
+const sigColOf = p => SIGCOLS.find(x => x[0] === p?.sigCol) || SIGCOLS[0];
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const st = document.documentElement.style, [k, , c] = sigColOf(S.prefs);
+      const props = ['--prism', '--prismL', '--prismEdge', '--prismCard', '--glowA', '--glowB', '--prismText'];
+      if (k === 'rainbow') props.forEach(x => st.removeProperty(x));
+      else {
+        const m = (pct) => `color-mix(in oklab, ${c} ${pct}%, transparent)`;
+        st.setProperty('--prism', `conic-gradient(${c},${c})`); st.setProperty('--prismL', `linear-gradient(90deg,${c},color-mix(in oklab, ${c} 75%, #fff))`);
+        st.setProperty('--prismEdge', `linear-gradient(120deg,${m(95)},${m(55)})`); st.setProperty('--prismCard', `linear-gradient(120deg,${m(55)},rgba(255,255,255,.04) 45%,${m(35)})`);
+        st.setProperty('--glowA', m(70)); st.setProperty('--glowB', m(45)); st.setProperty('--prismText', `linear-gradient(90deg,color-mix(in oklab, ${c} 80%, #000),color-mix(in oklab, ${c} 60%, #000))`);
+      }
+      lsSet('nexa.sigCol', k === 'rainbow' ? null : c);
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const pickRow = () => { const cur = sigColOf(S.prefs)[0]; return `<div class="field" id="sigColPick">Edge colour<div class="sigcols">${SIGCOLS.map(([k, n, c]) => `<button class="sigcol ${k === 'rainbow' ? 'rb' : ''} ${cur === k ? 'on' : ''}" ${c ? `style="background:${c}"` : ''} data-a="sigColPick" data-v="${k}" title="${n}" aria-label="${n}" aria-pressed="${cur === k}"></button>`).join('')}</div><span class="mute small" style="font-weight:500">${cur === 'rainbow' ? 'The rainbow prism from the Nexa logo.' : 'One colour for edges, rings and the send button — no rainbow.'}</span></div>`; };
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s();
+    if (lookOf(S.prefs) !== 'pro' || !['prism', 'onyx'].includes(sigOf(S.prefs))) return h;
+    if (S.setSec === 'appearance') return h.replace(/(<div class="field" id="sigPick">[\s\S]*?<\/button><\/div><\/div>)/, `$1${pickRow()}`);
+    if (S.setSec === 'profile' || !S.setSec) { const i = h.lastIndexOf('</section>'); return i > 0 ? h.slice(0, i) + `<div class="sigprof" style="margin-top:18px">${pickRow()}</div>` + h.slice(i) : h; }
+    return h;
+  };
+  Object.assign(actions, { sigColPick: d => savePrefs({ sigCol: d.v }) });
+}

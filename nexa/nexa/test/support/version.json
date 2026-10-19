@@ -1,12 +1,10 @@
 {
- "version": "19.6",
+ "version": "20.0",
  "notes": [
-  "A brand-new Home: your day at a glance, chats that need you, and an Ask Nexa AI bar",
-  "Fresh glass look for the whole app — choose Off, Light, Medium or Strong (Settings › Appearance)",
-  "New bright mode with soft colour behind clear glass, and glassier buttons",
-  "Face ID, Touch ID and fingerprint log-in that knows your account — and fixes old keys in one tap",
-  "Invite friends: they sign up with your link and you're friends straight away",
-  "The website is now liquid glass too"
+  "Prism — a brand-new look made only for Nexa: ink black, beautiful headings and a rainbow edge from the Nexa logo",
+  "Pick your style in Settings › Appearance: Prism, Halo (rich glass), Onyx (pure black & white) or the Glass look you had before",
+  "New Nexa fonts and a glowing send button",
+  "Everything from 19.6: new Home, glass levels, Face ID log-in that knows you, invites"
  ],
- "quiet": true
+ "quiet": false
 }

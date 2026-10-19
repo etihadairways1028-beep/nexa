@@ -1,19 +1,21 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '19.6';
+const VERSION = '20.0';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
-const QUIET = true;
-const NOTES = ["A brand-new Home: your day at a glance, chats that need you, and an Ask Nexa AI bar", "Fresh glass look for the whole app — choose Off, Light, Medium or Strong (Settings › Appearance)", "New bright mode with soft colour behind clear glass, and glassier buttons", "Face ID, Touch ID and fingerprint log-in that knows your account — and fixes old keys in one tap", "Invite friends: they sign up with your link and you're friends straight away", "The website is now liquid glass too"];
+const QUIET = false;
+const NOTES = ["Prism — a brand-new look made only for Nexa: ink black, beautiful headings and a rainbow edge from the Nexa logo", "Pick your style in Settings › Appearance: Prism, Halo (rich glass), Onyx (pure black & white) or the Glass look you had before", "New Nexa fonts and a glowing send button", "Everything from 19.6: new Home, glass levels, Face ID log-in that knows you, invites"];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '62';
+const CACHE = PREFIX + '63';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
+const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
+  await Promise.all(FONTS.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})));
   // Moving from the old "update straight away" versions: switch once now; from here on, updates wait for a tap.
   const olds = (await caches.keys()).filter(k => k.startsWith(PREFIX) && /v\d+$/.test(k) && k !== CACHE);
   if (!olds.length || olds.every(k => +k.split('-v')[1] < 29)) self.skipWaiting();
