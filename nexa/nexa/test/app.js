@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '20.0';
+const APP_VERSION = '20.1';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9324,7 +9324,7 @@ try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '19.6' &
 /* ================= v20.0: Nexa Signature styles — Prism (new default), Halo, Onyx ================= */
 // Settings › Appearance › Style. Prism: ink black, serif headings and the prism edge from the logo's glass N.
 // Halo: richer liquid glass. Onyx: pure black & white. "Glass" keeps the 19.x look exactly as it was.
-const SIGS = [['prism', 'Prism', 'Ink black with a prism edge — made for Nexa'], ['halo', 'Halo', 'Rich liquid glass and colour'], ['onyx', 'Onyx', 'Pure black & white, saves battery'], ['glass', 'Glass', 'The 19.x glass look']];
+const SIGS = [['prism', 'Prism', 'Liquid glass with a prism edge — made for Nexa'], ['halo', 'Halo', 'Rich liquid glass and colour'], ['onyx', 'Onyx', 'Pure black & white, saves battery'], ['glass', 'Glass', 'The 19.x glass look']];
 const sigOf = p => { const v = p?.sig || 'prism'; return SIGS.some(x => x[0] === v) ? v : 'prism'; };
 {
   const _at = applyTheme;
@@ -9333,7 +9333,8 @@ const sigOf = p => { const v = p?.sig || 'prism'; return SIGS.some(x => x[0] ===
     try {
       const root = document.documentElement, sg = root.dataset.look === 'pro' ? sigOf(S.prefs) : 'glass';
       root.dataset.sig = sg === 'glass' ? '' : sg;
-      if (sg === 'prism' || sg === 'onyx') root.dataset.glass = '';
+      if (sg === 'onyx') root.dataset.glass = '';
+      if (sg === 'prism') root.dataset.glass = glassOf(S.prefs);
       if (sg === 'halo') root.dataset.glass = glassOf(S.prefs) === '0' ? '2' : glassOf(S.prefs);
       const m = document.querySelector('meta[name="theme-color"]'); if (m && sg !== 'glass') m.content = sg === 'onyx' ? (S.prefs.theme === 'light' ? '#ffffff' : '#000000') : sg === 'prism' ? (S.prefs.theme === 'light' ? '#F5F3EE' : '#09090F') : '#0E0F1A';
       lsSet('nexa.sig', root.dataset.sig);
@@ -9346,7 +9347,7 @@ const sigOf = p => { const v = p?.sig || 'prism'; return SIGS.some(x => x[0] ===
     let h = _s(); if (S.setSec !== 'appearance') return h;
     const cur = lookOf(S.prefs) === 'pro' ? sigOf(S.prefs) : '';
     const row = `<div class="field" id="sigPick">Style<div class="sigrow">${SIGS.map(([k, n, d]) => `<button class="sigcard ${cur === k ? 'on' : ''}" data-a="sigPick" data-v="${k}" aria-pressed="${cur === k}"><span class="sigsw sw-${k}"><i></i></span><b>${n}</b><span class="mute small">${d}</span></button>`).join('')}</div></div>`;
-    if (cur === 'prism' || cur === 'onyx') h = h.replace(/<div class="field" id="glassPick">[\s\S]*?<\/span><\/div>/, '');
+    if (cur === 'onyx') h = h.replace(/<div class="field" id="glassPick">[\s\S]*?<\/span><\/div>/, '');
     h = h.replace(/<button class="lookcard[^"]*" data-a="lookPick" data-v="pro">[\s\S]*?<\/button>/, '').replace('<div class="field">Look<div class="looks">', '<div class="field">Classic looks<div class="looks">');
     return h.replace(/<div class="field">Classic looks<div class="looks">/, `${row}$&`);
   };
@@ -9392,3 +9393,8 @@ const sigColOf = p => SIGCOLS.find(x => x[0] === p?.sigCol) || SIGCOLS[0];
   };
   Object.assign(actions, { sigColPick: d => savePrefs({ sigCol: d.v }) });
 }
+
+/* ================= v20.1: Prism is liquid glass, your own background works in every style, easier to read ================= */
+WN_STEPS['20.1'] = WN_STEPS['20.0']; UP_HL['20.1'] = UP_HL['20.0'];
+// already saw the 20.0 tour? then 20.1 just installs (no tour again)
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '20.1' && seen && verNum(seen) >= verNum('20.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}

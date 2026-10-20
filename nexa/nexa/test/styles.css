@@ -2776,7 +2776,7 @@ button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
 :root:is([data-sig="prism"],[data-sig="onyx"]):not(#_):not(#__):not(#___) .side .nav.on svg{color:var(--text)!important}
 :root[data-sig="prism"]:not(#_):not(#__):not(#___) .side .nav.on{position:relative}
 :root[data-sig="prism"]:not(#_):not(#__):not(#___) .side .nav.on::before{content:"";position:absolute;left:0;top:25%;bottom:25%;width:3px;border-radius:2px;background:var(--prismL)}
-:root[data-sig="prism"][data-theme="light"]:not(#_):not(#__):not(#___) .dash-hero .hello i{background:var(--prismText,linear-gradient(100deg,#4B55D8,#0FA3C9 30%,#22A86A 50%,#D99A00 66%,#D2487A 84%,#8A4FD8))}
+:root[data-sig="prism"][data-theme="light"]:not(#_):not(#__):not(#___) .dash-hero .hello i{background:var(--prismText,linear-gradient(100deg,#4B55D8,#0FA3C9 30%,#22A86A 50%,#D99A00 66%,#D2487A 84%,#8A4FD8));-webkit-background-clip:text;background-clip:text;color:transparent}
 .ws-pt{font-style:normal}
 /* Prism on the website */
 :root[data-sig="prism"]:not(#_):not(#__):not(#___) .ws{background:radial-gradient(700px 600px at 0% 0%,rgba(110,120,255,.20),transparent 70%),radial-gradient(600px 500px at 100% 60%,rgba(255,140,180,.08),transparent 70%),#09090F!important}
@@ -2790,3 +2790,79 @@ button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
 .sigcol{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);position:relative}
 .sigcol.on{outline:2px solid var(--text);outline-offset:2px}
 .sigcol.rb{background:conic-gradient(from 200deg,#7C8CFF,#5EE1FF,#7DFFB2,#FFE27A,#FF8FB1,#B48CFF,#7C8CFF)}
+
+/* ================= v20.1: Prism becomes real glass + your own background works again ================= */
+/* backgrounds: the chosen app background (Aurora, Still night, Seasonal or your own photo) shows in every Nexa style */
+:root[data-look="pro"]:not([data-sky="atmosphere"]):not(#_):not(#__):not(#___) .sky{display:block!important;z-index:0}
+:root[data-look="pro"]:not([data-sky="atmosphere"]):not(#_):not(#__):not(#___) .sky>:is(.photo,.cloud,.grain){display:none!important}
+:root[data-look="pro"][data-sky="custom"]:not(#_):not(#__):not(#___) .sky>:not(.custom){display:none!important}
+:root[data-look="pro"][data-sky="custom"]:not(#_):not(#__):not(#___) .sky .custom{display:block!important;opacity:1;background-size:cover;background-position:center}
+:root[data-look="pro"][data-sky="custom"]:not([data-theme="light"]):not(#_):not(#__):not(#___) .sky::before{content:"";position:absolute;inset:0;z-index:2;background:rgba(6,6,12,.28)}
+:root[data-look="pro"]:not([data-sky="atmosphere"]):not(#_):not(#__):not(#___) #app{position:relative;z-index:1}
+
+/* glass strength for Prism (Settings › Appearance › Glass) */
+:root[data-sig="prism"]{--pgA:.06;--pgB:30px;--pgS:1.8;--pgHi:.26}
+:root[data-sig="prism"][data-glass="1"]{--pgA:.14;--pgB:18px;--pgS:1.4;--pgHi:.16}
+:root[data-sig="prism"][data-glass="3"]{--pgA:.025;--pgB:44px;--pgS:2;--pgHi:.36}
+:root[data-sig="prism"][data-theme="light"]{--pgA:.42;--pgHi:.9}
+:root[data-sig="prism"][data-theme="light"][data-glass="1"]{--pgA:.66}
+:root[data-sig="prism"][data-theme="light"][data-glass="3"]{--pgA:.26}
+/* colour behind the glass so there is something to see through it */
+:root[data-sig="prism"][data-sky="atmosphere"]:not([data-theme="light"]):not(#_):not(#__):not(#___) body{background:
+  radial-gradient(48% 38% at 4% 2%,rgba(98,108,255,.42),transparent 72%),
+  radial-gradient(40% 34% at 100% 26%,rgba(168,92,230,.30),transparent 72%),
+  radial-gradient(46% 36% at 12% 84%,rgba(40,170,200,.22),transparent 72%),
+  radial-gradient(40% 32% at 92% 100%,rgba(255,120,170,.20),transparent 72%),
+  #0A0A12 fixed!important}
+:root[data-sig="prism"][data-sky="atmosphere"][data-theme="light"]:not(#_):not(#__):not(#___) body{background:
+  radial-gradient(48% 38% at 4% 2%,rgba(124,140,255,.38),transparent 72%),
+  radial-gradient(40% 34% at 100% 26%,rgba(200,140,255,.28),transparent 72%),
+  radial-gradient(46% 36% at 12% 84%,rgba(94,200,230,.26),transparent 72%),
+  radial-gradient(40% 32% at 92% 100%,rgba(255,150,190,.26),transparent 72%),
+  #F2F1F6 fixed!important}
+:root[data-sig="prism"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.glass,.card,.panel,.mtop,.chathead,.tabbar,.composer,.side,.modal .sheet,.menu,.pop){
+  background:linear-gradient(180deg,rgba(255,255,255,calc(var(--pgA) + .035)),rgba(255,255,255,var(--pgA)))!important;
+  backdrop-filter:blur(var(--pgB)) saturate(var(--pgS))!important;-webkit-backdrop-filter:blur(var(--pgB)) saturate(var(--pgS))!important;
+  border:1px solid rgba(255,255,255,.13)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,var(--pgHi)),inset 0 -1px 0 rgba(255,255,255,.04),0 24px 60px -32px rgba(0,0,0,.75)!important}
+:root[data-sig="prism"][data-theme="light"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.glass,.card,.panel,.mtop,.chathead,.tabbar,.composer,.side,.modal .sheet,.menu,.pop){
+  border-color:rgba(255,255,255,.75)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 20px 50px -30px rgba(40,40,90,.35)!important}
+:root[data-sig="prism"][data-glass="0"]:not(#_):not(#__):not(#___) :is(.glass,.card,.panel,.mtop,.chathead,.tabbar,.composer){background:color-mix(in oklab,var(--ground) 92%,#fff)!important;backdrop-filter:none!important}
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) section.chat{background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+/* prism rim on the hero cards — drawn as a ring so the card itself stays see-through */
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) :is(.needs,.dash-hero,.auth-card){position:relative}
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) :is(.needs,.dash-hero,.auth-card)::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;background:var(--prismCard);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;z-index:0}
+/* bubbles: theirs are frosted, yours keep the prism edge */
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) .them .bub{background:rgba(255,255,255,.11)!important;border:1px solid rgba(255,255,255,.12)!important;color:var(--text)!important}
+:root[data-sig="prism"][data-theme="light"]:not(#_):not(#__):not(#___) .them .bub{background:rgba(255,255,255,.82)!important;border-color:rgba(20,18,30,.06)!important}
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) .me .bub{--sigOut:rgba(40,42,96,.92)}
+:root[data-sig="prism"][data-theme="light"]:not(#_):not(#__):not(#___) .me .bub{--sigOut:#ECEBFA}
+/* everything readable: muted text a step brighter, small labels never fade into the glass */
+:root[data-sig="prism"]:not([data-theme="light"]){--mute:#B4B2C2;--faint:#8F8DA0}
+:root[data-sig="prism"][data-theme="light"]{--mute:#55535F;--faint:#7A7886}
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) :is(.mute,.small.mute,.dh-q span,.tabbar button span){text-shadow:none}
+/* bars stay readable over anything scrolling underneath */
+:root[data-sig="prism"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.tabbar,.mtop,.chathead,.composer):not(.x_):not(.y_){background:linear-gradient(180deg,rgba(30,30,46,.92),rgba(20,20,32,.90))!important}
+:root[data-sig="prism"][data-theme="light"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.tabbar,.mtop,.chathead,.composer):not(.x_):not(.y_){background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(250,250,253,.92))!important}
+:root[data-sig="halo"]:not(#_):not(#__):not(#___) :is(.tabbar,.mtop,.chathead){background:linear-gradient(180deg,rgba(40,40,70,.90),rgba(26,26,48,.88))!important;backdrop-filter:blur(26px) saturate(1.5)!important;-webkit-backdrop-filter:blur(26px) saturate(1.5)!important}
+:root[data-sig="onyx"]:not(#_):not(#__):not(#___) .tabbar{background:rgba(10,10,10,.94)!important}
+:root[data-sig="onyx"][data-theme="light"]:not(#_):not(#__):not(#___) .tabbar{background:rgba(255,255,255,.95)!important}
+/* small grey text darker in bright mode, chips and the "Today" label readable */
+:root[data-sig="prism"][data-theme="light"]{--mute:#4A4856;--faint:#6E6C7A}
+:root[data-sig="onyx"][data-theme="light"]{--mute:#5E5E5E}
+:root[data-sig="onyx"]:not([data-theme="light"]){--mute:#9A9A9A}
+:root:is([data-sig="prism"],[data-sig="onyx"],[data-sig="halo"]):not(#_):not(#__):not(#___) .stream .day{background:rgba(127,127,140,.18)!important;color:var(--text)!important}
+:root:is([data-sig="prism"],[data-sig="onyx"])[data-theme="light"]:not(#_):not(#__):not(#___) .stream .day{background:rgba(20,18,30,.07)!important;color:#2A2933!important}
+:root[data-sig="onyx"]:not(#_):not(#__):not(#___) .pill{color:var(--text)!important}
+:root[data-sig="halo"]:not(#_):not(#__):not(#___) :is(.btn.pri,.send,.wb-go) *{color:#fff!important;-webkit-text-fill-color:#fff!important}
+:root[data-sig="halo"]:not(#_):not(#__):not(#___) .dh-chip span{color:var(--text)!important;-webkit-text-fill-color:currentColor!important}
+
+/* your own photo behind: a soft veil so text stays readable */
+:root[data-look="pro"][data-sky="custom"][data-theme="light"]:not(#_):not(#__):not(#___) .sky::before{content:"";position:absolute;inset:0;z-index:2;background:rgba(245,244,250,.55)}
+:root[data-look="pro"]:not([data-sky="atmosphere"]):not([data-theme="light"]):not(#_):not(#__):not(#___) .page :is(.mute,.small,h1,h2,.pmoments span){text-shadow:0 1px 8px rgba(0,0,0,.55)}
+:root[data-look="pro"]:not([data-sky="atmosphere"]):not([data-theme="light"]):not(#_):not(#__):not(#___) :is(.glass,.card,.panel) :is(.mute,.small,h1,h2){text-shadow:none}
+/* liquid sheen on Prism cards */
+:root[data-sig="prism"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.panel,.dash-hero){position:relative}
+:root[data-sig="prism"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.panel,.dash-hero)::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background:linear-gradient(160deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 28%),linear-gradient(115deg,transparent 38%,rgba(255,255,255,.05) 48%,transparent 58%)}
+:root[data-sig="prism"][data-theme="light"]:not([data-glass="0"]):not(#_):not(#__):not(#___) :is(.panel,.dash-hero)::after{background:linear-gradient(160deg,rgba(255,255,255,.7) 0%,rgba(255,255,255,0) 30%)}
+:root[data-sig="prism"]:not(#_):not(#__):not(#___) :is(.panel,.dash-hero)>*{position:relative;z-index:1}
