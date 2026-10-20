@@ -1,11 +1,12 @@
 {
- "version": "19.1",
+ "version": "21.0",
  "notes": [
-  "A whole new Nexa: a clean, professional dark look and a new website",
-  "Lock and log in with Face ID, Touch ID, fingerprint or a PIN — your choice (Settings › Privacy)",
-  "Two-step verification with an authenticator app",
-  "Scheduled messages send even if your phone is off; export any chat",
-  "Slow mode & auto-mod for groups, community emojis and a soundboard",
-  "Prefer the old style? Settings › Appearance › Look lets you switch back"
- ]
+  "Nexa 1.0 is here: the first official version.",
+  "Your style: Prism, Halo or Onyx, with your own colours.",
+  "One unlock with PIN, Face ID or fingerprint.",
+  "Chat backgrounds, reactions, polls and plans.",
+  "Invite friends with your link."
+ ],
+ "quiet": false,
+ "display": "1.0"
 }
