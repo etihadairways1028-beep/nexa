@@ -451,7 +451,7 @@ function startData() {
   unsubs.base.push(db().listenDoc(`users/${me}/private/pics`, d => { S.pics = d || {}; render(); }));
   S.ready = {}; S.myStickers = []; S.scheduled = [];
   watchStickers(); watchScheduled(); watchDrafts(); watchCommunities(); watchRooms(); watchCards();
-  if (hasPin()) S.locked = true;
+  if (hasPin() && !lockSkip()) S.locked = true;
   unsubs.base.push(db().listenDoc('admins/' + me, a => { const was = S.isAdmin; S.isAdmin = !!a; if (S.isAdmin && !was) watchAdmin(); render(); }));
   unsubs.base.push(db().listenDoc('bans/' + me, b => { S.banned = b; render(); }));
   unsubs.base.push(db().listen('calls', [['to', '==', me], ['status', '==', 'ringing']], r => onIncomingCalls(r)));
@@ -641,7 +641,7 @@ function vAuth() {
       ${su ? `<div class="row" style="gap:12px;align-items:flex-start">
         <label class="field grow">Display name<input class="inp" id="f-name" data-model="form.name" value="${esc(f.name || '')}" autocomplete="name" placeholder="Your name" required></label>
         <label class="field grow">Username<input class="inp" id="f-handle" data-model="form.handle" value="${esc(f.handle || '')}" autocomplete="username" placeholder="yourhandle" required></label></div>` : ''}
-      <label class="field">${su ? 'Email' : 'Email' + (S.be.kind === 'local' ? ' or username' : '')}<input class="inp" id="f-email" data-model="form.email" value="${esc(f.email || '')}" type="${su ? 'email' : 'text'}" autocomplete="${su ? 'email' : 'username'}" placeholder="you@example.com"></label>
+      <label class="field">${su ? 'Email' : 'Email' + (S.be.kind === 'local' ? ' or username' : '')}<input class="inp" id="f-email" data-model="form.email" value="${esc(f.email || '')}" type="${su ? 'email' : 'text'}" autocomplete="${su ? 'email' : 'username webauthn'}" placeholder="you@example.com"></label>
       <label class="field">Password<input class="inp" id="f-pw" data-model="form.pw" type="password" autocomplete="${su ? 'new-password' : 'current-password'}" placeholder="${su ? 'At least 6 characters' : '••••••••'}"></label>
       ${S.authErr ? `<div class="err" role="alert">${esc(S.authErr)}</div>` : ''}
       <button class="btn pri" style="height:50px;font-size:15px" ${S.busy ? 'disabled' : ''}>${S.busy ? 'One moment…' : su ? 'Create account' : 'Log in'}</button>
@@ -751,7 +751,7 @@ function vHome() {
   return `<div class="home v8">
     <div class="h-main">
       <section class="hero glass card">
-        <h1 class="disp hello">${greet}, ${esc(S.profile.name.split(' ')[0])}</h1>
+        <h1 class="disp hello">${greet}, <i class="hn">${esc(S.profile.name.split(' ')[0])}</i></h1>
         <div class="mute hsub">${sub}</div>
         <div class="qa-grid">
           <button class="qa" data-a="newChat"><span class="ic">${ic('pen', 20)}</span>New message</button>
@@ -994,7 +994,7 @@ function vChat(c) {
   const rec = S.rec;
   const th = thm;
   return `<section class="chat glass card fs-${S.prefs.textSize}${A('chat' + c.id)}" style="${th ? `--ac:${th.c3};--ac2:color-mix(in oklab,${th.c3} 70%,#fff)` : ''}">
-    <div class="chatbg ${bgCls}" style="background:${proPlain ? 'transparent' : bgCss}"></div>
+    <div class="chatbg ${bgCls} ${proPlain ? '' : 'chosen'}" style="background:${proPlain ? 'transparent' : bgCss};${proPlain ? '' : `--cbg:${bgCss.replace(/"/g, "'")}`}"></div>
     <header class="chathead" data-key="chathead">
       <button class="ibtn back" aria-label="Back to chats" data-a="closeConv">${ic('back')}</button>
       <button class="row grow" style="gap:12px;text-align:left;min-width:0" data-a="${cm ? 'commOpen' : c.type === 'event' ? 'eventOpen' : isGroup ? 'groupInfo' : 'profile'}" data-v="${cm ? cm.id : c.type === 'event' ? c.eventId : isGroup ? c.id : other}">${convAv(c, 44)}<span class="grow"><b class="ellip" style="display:block;font-size:16px">${streakBadge(c)}${esc(convName(c))}${!isGroup && nickOf(other) ? ` <span class="mute small" style="font-weight:600">· ${esc(U(other)?.name || '')}</span>` : ''}</b><span class="small mute row" style="gap:6px">${isMuted(c.id) ? ic('bellOff', 13) : ''}${c.ttl ? ic('timer', 13) : ''}${sub}</span></span></button>
@@ -2296,8 +2296,8 @@ document.addEventListener('submit', async e => {
         if (!/^[a-z0-9_.]{3,24}$/.test(handle)) throw new Error('Usernames are 3–24 letters, numbers, dots or underscores.');
         S.busy = true; render();
         S.pendingOnboard = true;
-        await S.be.auth.signUp(fm.email || '', fm.pw || '');
-      } else { S.busy = true; render(); await S.be.auth.signIn(fm.email || '', fm.pw || ''); }
+        S.freshAuth = now(); await S.be.auth.signUp(fm.email || '', fm.pw || '');
+      } else { S.busy = true; render(); S.freshAuth = now(); await S.be.auth.signIn(fm.email || '', fm.pw || ''); }
     } catch (err) { S.authErr = err.message; S.pendingOnboard = false; }
     S.busy = false; render();
   }
@@ -2386,7 +2386,7 @@ async function checkInvite() {
   S.modal = { type: 'invite', inv }; render();
 }
 async function boot() {
-  try { const q0 = new URLSearchParams(location.search); const ch = q0.get('chat'), pg = q0.get('page'); if (ch && /^[\w-]{3,80}$/.test(ch)) lsSet('nexa.openChat', ch); if (pg && PAGES.includes(pg)) lsSet('nexa.openPage', pg); const hm = location.pathname.match(/\/@([a-z0-9_.]{2,24})\/?$/i) || [null, q0.get('add')]; if (hm[1] && /^[a-z0-9_.]{2,24}$/i.test(hm[1])) { lsSet('nexa.addHandle', hm[1].toLowerCase()); history.replaceState(null, '', location.pathname.replace(/@[^/]*\/?$/, '')); } const rp = q0.get('reply'), cmc = q0.get('community'), ql = q0.get('login'); if (ql && /^[a-z0-9-]{6,12}$/i.test(ql)) { sessionStorage.setItem('nexa.qlogin', ql); history.replaceState(null, '', location.pathname); } if (rp && ch) lsSet('nexa.reply', { chat: ch, text: rp.slice(0, 2000) }); if (cmc && /^[a-z0-9]{4,40}$/i.test(cmc)) lsSet('nexa.community', cmc); if (ch || pg || cmc) history.replaceState(null, '', location.pathname); } catch {}
+  try { const q0 = new URLSearchParams(location.search); const ch = q0.get('chat'), pg = q0.get('page'); if (ch && /^[\w-]{3,80}$/.test(ch)) lsSet('nexa.openChat', ch); if (pg && PAGES.includes(pg)) lsSet('nexa.openPage', pg); const hm = location.pathname.match(/\/@([a-z0-9_.]{2,24})\/?$/i) || [null, q0.get('add')]; if (hm[1] && /^[a-z0-9_.]{2,24}$/i.test(hm[1])) { lsSet('nexa.addHandle', hm[1].toLowerCase()); const ic0 = q0.get('i'); lsSet('nexa.addCode', ic0 && /^[a-z0-9]{6,20}$/i.test(ic0) ? ic0 : null); history.replaceState(null, '', location.pathname.replace(/@[^/]*\/?$/, '')); } const rp = q0.get('reply'), cmc = q0.get('community'), ql = q0.get('login'); if (ql && /^[a-z0-9-]{6,12}$/i.test(ql)) { sessionStorage.setItem('nexa.qlogin', ql); history.replaceState(null, '', location.pathname); } if (rp && ch) lsSet('nexa.reply', { chat: ch, text: rp.slice(0, 2000) }); if (cmc && /^[a-z0-9]{4,40}$/i.test(cmc)) lsSet('nexa.community', cmc); if (ch || pg || cmc) history.replaceState(null, '', location.pathname); } catch {}
   navigator.serviceWorker?.addEventListener?.('message', e => { const d = e.data || {}; if (d.type === 'open' && S.view === 'app') { if (d.chat) openConv(d.chat); else if (d.page) go(d.page); } if (d.type === 'reply' && d.chat && d.text) quickReply(d.chat, d.text); });
   try { const q = new URLSearchParams(location.search); const code = q.get('invite'), jc = q.get('join'); if (code && /^[a-z0-9]{4,40}$/i.test(code)) lsSet('nexa.invite', code); if (jc && /^[a-z0-9]{4,40}$/i.test(jc)) lsSet('nexa.join', jc); if (code || jc) history.replaceState(null, '', location.pathname); } catch {}
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; render(); });
@@ -4331,7 +4331,7 @@ async function redeemCode(code) {
   if (c.length !== 8) { S.authErr = 'Codes are 8 letters and numbers, like ABCD-EFGH.'; return render(); }
   if (S.be.kind === 'local' || !S.be.auth.signInWithToken) { S.authErr = 'Quick login works on the live version of Nexa.'; return render(); }
   S.busy = true; S.authErr = ''; render();
-  try { const { token } = await qlCall({ action: 'redeem', code: c }); await S.be.auth.signInWithToken(token); }
+  try { const { token } = await qlCall({ action: 'redeem', code: c }); S.freshAuth = now(); await S.be.auth.signInWithToken(token); }
   catch (e) { S.authErr = e.message; }
   S.busy = false; render();
 }
@@ -5626,7 +5626,7 @@ vOverlays = function () {
 };
 const _vModal5V161 = vModal5;
 vModal5 = function (m, f, head) {
-  if (m.type === 'updNotes') { const n = S.updateInfo?.notes || []; return head('What\'s new in Nexa', S.updateInfo?.version ? 'Version ' + esc(S.updateInfo.version) : '') + `<ul class="updlist">${n.map(x => `<li>${ic('check', 15, 2.4)}<span>${esc(x)}</span></li>`).join('')}</ul><div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Later</button><button class="btn pri" data-a="updNow">Update now</button></div>`; }
+  if (m.type === 'updNotes') { const n = S.updateInfo?.notes || []; return head('What\'s new in Nexa', S.updateInfo?.version ? 'Version ' + esc(dispVer(S.updateInfo.version)) : '') + `<ul class="updlist">${n.map(x => `<li>${ic('check', 15, 2.4)}<span>${esc(x)}</span></li>`).join('')}</ul><div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" data-a="closeModal">Later</button><button class="btn pri" data-a="updNow">Update now</button></div>`; }
   if (m.type === 'alertPick') {
     const k = m.k, cur = alertPref(k);
     return head(ALERT_KINDS[k][0], ALERT_KINDS[k][1]) + `<div class="col" style="gap:4px;max-height:60vh;overflow:auto">${Object.entries(TONE_NAMES).map(([t, l]) => `<button class="item ${cur === t ? 'on' : ''}" data-a="alertSet" data-k="${k}" data-v="${t}">${ic(t === 'silent' ? 'bellOff' : 'volume', 18)}<b class="grow">${esc(l)}</b>${cur === t ? ic('check', 16, 2.4) : `<span class="mute small">Tap to hear</span>`}</button>`).join('')}</div><div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="closeModal">Done</button></div>`;
@@ -5687,7 +5687,7 @@ vSettings = function () {
     const i = h.indexOf('<div class="mute small">Muted chats never notify.'); if (i > 0) h = h.slice(0, i) + block + h.slice(i);
   }
   if (S.setSec === 'shortcuts') {
-    const row = `<div class="setrow"><span><b>Nexa version${S.appVersion ? ' ' + esc(S.appVersion) : ''}</b><div class="mute small">${S.updateReady ? 'An update is ready — tap Update to switch.' : 'Updates download in the background and wait until you tap Update.'}</div></span>${S.updateReady ? '<button class="btn sm pri" data-a="updNow">Update</button>' : '<button class="btn sm" data-a="updCheck">Check for updates</button>'}</div>`;
+    const row = `<div class="setrow"><span><b>Nexa version${S.appVersion ? ' ' + esc(dispVer(S.appVersion)) : ''}</b><div class="mute small">${S.updateReady ? 'An update is ready — tap Update to switch.' : 'Updates download in the background and wait until you tap Update.'}</div></span>${S.updateReady ? '<button class="btn sm pri" data-a="updNow">Update</button>' : '<button class="btn sm" data-a="updCheck">Check for updates</button>'}</div>`;
     const i = h.indexOf('<b>How to use Nexa</b>'); if (i > 0) { const s0 = h.lastIndexOf('<div class="setrow">', i); if (s0 > 0) h = h.slice(0, s0) + row + h.slice(s0); }
   }
   return h;
@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '19.1';
+const APP_VERSION = '21.0';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -5860,7 +5860,7 @@ const SUPPORT_AGENTS = [['shiv', 'Shiv'], ['arrick', 'Arrick'], ['yaseen', 'Yase
 const verNum = v => String(v || '0').split('.').map(n => +n || 0).reduce((a, n, i) => a + n / Math.pow(1000, i), 0);
 async function checkRemote() {
   try {
-    const r = await fetch('/support/version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const r = await fetch('support/version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
     const v = await r.json(); if (!v || !v.version) return;
     let running = APP_VERSION;
     try { const ctl = navigator.serviceWorker?.controller; if (ctl) { const sv = (await swAsk(ctl)).version; if (sv && verNum(sv) > verNum(running)) running = sv; } } catch {}
@@ -5878,7 +5878,7 @@ setInterval(checkRemote, 10 * 60e3);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkRemote(); });
 async function hardRefresh() {
   if (S.mustUpdate?.version) lsSet('nexa.forcedTo', S.mustUpdate.version);
-  try { const ks = await caches.keys(); await Promise.all(ks.filter(k => /^nexa-shell/.test(k)).map(k => caches.delete(k))); } catch {}
+  try { const ks = await caches.keys(); await Promise.all(ks.filter(k => (location.pathname.startsWith('/test/') ? /^nexa-test/ : /^nexa-shell/).test(k)).map(k => caches.delete(k))); } catch {}
   try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) await reg.unregister(); } catch {}
   location.reload();
 }
@@ -7565,7 +7565,7 @@ Object.assign(actions, { wnStart: () => wnStart(APP_VERSION) || toast('Nothing n
   vSettings = function () {
     const h = _vSettingsV180();
     if (S.setSec !== 'shortcuts') return h;
-    const row = `<div class="setrow"><span><b>What's new in ${esc(APP_VERSION)}</b><div class="mute small">A quick walk-through of the newest features.</div></span><button class="btn sm pri" data-a="wnStart">${ic('spark', 14)} Show me</button></div>`;
+    const row = `<div class="setrow"><span><b>What's new in ${esc(dispVer(APP_VERSION))}</b><div class="mute small">A quick walk-through of the newest features.</div></span><button class="btn sm pri" data-a="wnStart">${ic('spark', 14)} Show me</button></div>`;
     return h.replace('<div class="setrow"><span><b>How to use Nexa</b>', row + '<div class="setrow"><span><b>How to use Nexa</b>');
   };
 }
@@ -7642,10 +7642,10 @@ async function newestWorker(reg, want) {
 doUpdate = async function () {
   if (S.updating) return; S.updating = true; S.modal = null; lsSet('nexa.justUpdated', '1'); render();
   let want = S.mustUpdate?.version || S.updateInfo?.version || '';
-  try { const r = await fetch('/support/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json(); if (j?.version && (!want || verNum(j.version) > verNum(want))) want = j.version; } catch {}
+  try { const r = await fetch('support/version.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json(); if (j?.version && (!want || verNum(j.version) > verNum(want))) want = j.version; } catch {}
   const ui = upScreen(want);
   watchUpdates.reloaded = true; // we reload ourselves after the "ready" moment
-  const finishHard = async () => { ui.set(96, 'Unlocking…'); await ui.done(want); if (want) lsSet('nexa.forcedTo', want); try { const ks = await caches.keys(); await Promise.all(ks.filter(k => /^nexa-shell/.test(k)).map(k => caches.delete(k))); } catch {} try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) await reg.unregister(); } catch {} location.reload(); };
+  const finishHard = async () => { ui.set(96, 'Unlocking…'); await ui.done(want); if (want) lsSet('nexa.forcedTo', want); try { const ks = await caches.keys(); await Promise.all(ks.filter(k => (location.pathname.startsWith('/test/') ? /^nexa-test/ : /^nexa-shell/).test(k)).map(k => caches.delete(k))); } catch {} try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) await reg.unregister(); } catch {} location.reload(); };
   try {
     ui.set(4, 'Checking what\'s new…');
     await upDownload(ui, 5, 72);
@@ -7680,7 +7680,9 @@ if (location.hostname === 'localhost') Object.assign(window, { upScreen, doUpdat
 const bioKey = () => 'nexa.bio.' + S.me;
 const hasBio = () => !!lsGet(bioKey(), null);
 // which kind of unlock this device has (websites can't ask the phone directly, so we tell by the device)
+const BIO_KINDS = { face: { name: 'Face ID', kind: 'face' }, touch: { name: 'Touch ID', kind: 'finger' }, finger: { name: 'fingerprint', kind: 'finger' }, hello: { name: 'Windows Hello', kind: 'face' } };
 const devBio = () => {
+  const pick = BIO_KINDS[lsGet('nexa.bioKind', '')]; if (pick) return pick; // the person told us what their phone uses
   const ua = navigator.userAgent, tp = navigator.maxTouchPoints > 1;
   if (/iPhone|iPod/.test(ua)) return Math.max(screen.width, screen.height) >= 812 ? { name: 'Face ID', kind: 'face' } : { name: 'Touch ID', kind: 'finger' };
   if (/iPad/.test(ua) || (/Macintosh/.test(ua) && tp)) return { name: 'Face ID or Touch ID', kind: 'face' };
@@ -7702,7 +7704,7 @@ async function bioEnable() {
       rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
       user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none',
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none',
     } });
     if (!cred) throw new Error('cancelled');
     lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); render(); toast(`${bioTitle()} lock is on 🔒`);
@@ -7726,7 +7728,7 @@ Object.assign(actions, {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') away = now(); else if (S.me && hasBio() && !hasPin() && away && now() - away > 5 * 60e3) { S.locked = true; render(); } });
   // lock before the first chat is ever drawn
   const _vShellV180 = vShell;
-  vShell = function () { if (!S.lockedOnce && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; return vLock(); } return _vShellV180(); };
+  vShell = function () { if (!S.lockedOnce && !lockSkip() && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; return vLock(); } return _vShellV180(); };
 }
 {
   const _vLockV180 = vLock;
@@ -7922,7 +7924,7 @@ function paintBioSetup() {
   const t = { intro: [`Set up ${name}`, face ? 'Hold your phone in front of your face, like when you unlock it. Then Nexa opens with just a look.' : `Use ${name} to open Nexa — quicker than a PIN.`],
     scan: [face ? 'Scanning…' : 'Checking…', face ? 'Look at your phone' : `Use ${name} now`],
     ok: [`${bioTitle()} saved`, `Next time you open Nexa, ${face ? 'just look at your phone' : 'just use ' + name} to unlock it.`],
-    fail: ['Didn\'t finish', st.why && st.why !== 'NotAllowedError' ? `This phone wouldn't start ${name} (${st.why}). Make sure ${name} is set up in your phone's Settings, then try again.` : `${bioTitle()} was cancelled or didn't recognise you. Tap Try again — when the phone asks to save a passkey for Nexa, tap Continue.`] }[st.st];
+    fail: ['Didn\'t finish', st.why && st.why !== 'NotAllowedError' ? `This phone wouldn't start ${name} (${st.why}). Make sure ${name} is set up in your phone's Settings, then try again.` : `${bioTitle()} was cancelled or didn't recognise you. Tap Try again — if your phone asks to save a sign-in for Nexa, tap Continue.`] }[st.st];
   L.className = 'bf-' + st.st;
   L.innerHTML = `<div class="bf-card">
     <button class="bf-x" data-bf="close" aria-label="Close">${ic('x', 18, 2)}</button>
@@ -7939,12 +7941,12 @@ function bioScan() {
     rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
     user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none' } });
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
   S.bioSetup = { st: 'scan', t0: now() }; paintBioSetup();
   p.then(async cred => {
     if (!cred) throw new Error('cancelled');
     await new Promise(r => setTimeout(r, Math.max(0, 1600 - (now() - S.bioSetup.t0)))); // let the scan finish nicely
-    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); S.lockedOnce = true; // don't ask again straight away
+    lsSet(bioKey(), { id: b64(cred.rawId), ids: [b64(cred.rawId), ...((lsGet(bioKey(), null) || {}).ids || [])].slice(0, 5), at: now() }); S.lockedOnce = true; // don't ask again straight away
     S.bioSetup = { st: 'ok' }; paintBioSetup(); render();
     try { navigator.vibrate?.([20, 50, 30]); } catch {} if (S.prefs.sounds !== false) upChime();
   }).catch(e => { if (S.bioSetup) { S.bioSetup = { st: 'fail', why: (e && e.name) || '' }; paintBioSetup(); } });
@@ -8321,7 +8323,7 @@ bioScan = function () {
     rp: { name: 'Nexa', id: location.hostname }, challenge: reg ? unb64u(reg.challenge) : rnd(32),
     user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required', requireResidentKey: true }, timeout: 60000, attestation: 'none' } });
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required', requireResidentKey: true }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
   S.bioSetup = { st: 'scan', t0: now() }; paintBioSetup();
   p.then(async cred => {
     if (!cred) throw new Error('cancelled');
@@ -8343,7 +8345,7 @@ Object.assign(actions, {
       .then(async a => {
         const r = a.response;
         const { token } = await pkCall({ action: 'loginFinish', id: ch.id, credId: b64u(a.rawId), clientData: b64u(r.clientDataJSON), authData: b64u(r.authenticatorData), sig: b64u(r.signature) });
-        await S.be.auth.signInWithToken(token); S.lockedOnce = true; // you just used Face ID — no second check
+        S.freshAuth = now(); await S.be.auth.signInWithToken(token); S.lockedOnce = true; // you just used Face ID — no second check
       })
       .catch(e => { S.authErr = e?.name === 'NotAllowedError' ? `${bioTitle()} was cancelled. Tap Sign in with ${bioName()} to try again.` : (e?.message || `${bioTitle()} log-in didn't work. Use your password.`); })
       .finally(() => { S.busy = false; pkPrefetch(); render(); });
@@ -8725,7 +8727,7 @@ const WS_FEATURES = [
   ['user', 'Made to be yours', 'Profiles, themes, statuses and local time — so friends know you, wherever you are.'],
 ];
 const WS_SAFETY = [
-  ['lock', 'Face ID & passkeys', 'Sign in with your face or fingerprint. No password to steal.'],
+  ['lock', 'Face ID & fingerprint log-in', 'Sign in with just a look or a touch. No password to steal.'],
   ['shield', 'Two-step verification', 'A code from your phone on every new log-in.'],
   ['block', 'You decide who reaches you', 'Message requests, blocking and reporting built in.'],
   ['eye', 'Private by default', 'Your local time, status and photos are only shown to who you choose.'],
@@ -8749,8 +8751,8 @@ function vLandingMock() {
     return `<div class="ws${A('ws')}">
       <header class="ws-nav"><a class="ws-brand" href="#top">${logo(30)}<b>nexa</b></a><nav><a href="#features">Features</a><a href="#safety">Safety</a><a href="privacy.html">Privacy</a></nav><span class="grow"></span><button class="btn sm" data-a="wsGo" data-v="login">Log in</button><button class="btn sm pri" data-a="wsGo" data-v="signup">Get Nexa</button></header>
       <section class="ws-hero" id="top">
-        <div class="ws-copy"><span class="ws-eyebrow">Early access · Free</span>
-          <h1>Where your people talk.</h1>
+        <div class="ws-copy"><span class="ws-eyebrow">Nexa 1.0 · Free</span>
+          <h1>Where your <i class="ws-pt">people talk.</i></h1>
           <p>Messages, voice and video calls, group chats and communities — in one fast, private app that works on every device.</p>
           <div class="ws-ctas"><button class="btn pri lg" data-a="wsGo" data-v="signup">Create your account</button><button class="btn lg" data-a="wsGo" data-v="login">Log in</button></div>
           <div class="ws-plat">Works on iPhone, Android, Windows and Mac — right in your browser. Add it to your Home Screen for the full app.</div></div>
@@ -8916,3 +8918,650 @@ document.addEventListener('keydown', e => {
 if (location.hostname === 'localhost') Object.assign(window, { devBio, hasPin, hasBio, render, paintBioSetup, vLockV19: () => vLock(), __setBioOk: v => { bioOk = v; } });
 
 WN_STEPS['19.1'] = WN_STEPS['19.0']; UP_HL['19.1'] = UP_HL['19.0'];
+WN_STEPS['19.2'] = [...WN_STEPS['19.0'].slice(0, -1),
+  { page: 'people', sel: '.invstrip', emoji: '💌', title: 'Invite your friends', text: 'Send your link. When a friend signs up with it, you\'re friends straight away and your chat opens — no searching, no requests.' },
+  WN_STEPS['19.0'][WN_STEPS['19.0'].length - 1]];
+UP_HL['19.2'] = ['New look & website', 'Face ID, fingerprint or PIN', 'Invite friends in one tap', 'Send later', 'Soundboard'];
+
+/* ================= v19.2: test site, quiet updates, invites that make you friends, Face ID picker ================= */
+// ---- the test site: www.nexaconnect.qd.je/test/ — a copy of the next version for trying things out first.
+// Same accounts and chats as the real Nexa (so calls, Face ID and notifications really work), but only people
+// who open /test/ get it. Real users stay on the normal site until it's copied there.
+const IS_TEST = /^\/test(\/|$)/.test(location.pathname);
+if (IS_TEST) {
+  document.documentElement.dataset.test = '1';
+  document.title = 'TEST · ' + document.title;
+  const bar = document.createElement('div'); bar.id = 'testBar';
+  bar.innerHTML = `<b>TEST</b><span>v${dispVer(APP_VERSION)} · only on /test</span>`;
+  document.body.appendChild(bar);
+}
+// ---- quiet updates: small fixes install by themselves while Nexa is in the background — no pop-ups, no tour.
+// Big updates still get the update screen and the walk-through.
+{
+  let quietW = null;
+  const applyQuiet = () => {
+    if (!quietW || S.call || isTypingNow()) return false;
+    const w = quietW; quietW = null; lsSet('nexa.quietAt', now());
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+    try { w.postMessage({ type: 'skipWaiting' }); } catch {}
+    return true;
+  };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') applyQuiet(); });
+  // a waiting quiet version: hold it (no "Update" screen) and switch the next time Nexa goes to the background,
+  // or straight away if Nexa was only just opened and nothing's going on yet
+  const _ov = vOverlays;
+  vOverlays = function () {
+    if (S.updateReady && S.updateInfo?.quiet && !S.updating) {
+      quietW = S.updateReady; S.updateReady = null; S.mustUpdate = null;
+      if (S.modal?.type === 'updAvail') S.modal = null;
+      if (document.visibilityState === 'hidden' || performance.now() < 15000) setTimeout(applyQuiet, 50);
+    }
+    return _ov();
+  };
+  const _cr = checkRemote;
+  checkRemote = async function () {
+    try {
+      const v = await (await fetch('support/version.json?t=' + Date.now(), { cache: 'no-store' })).json();
+      if (v?.quiet && verNum(v.version) > verNum(APP_VERSION)) { const reg = await navigator.serviceWorker?.getRegistration(); reg && reg.update().catch(() => {}); return; }
+    } catch {}
+    return _cr();
+  };
+}
+// ---- invites: a friend's link → sign up → you're friends straight away and your chat with them opens
+{
+  // each person's link has a private code, so only links you really shared make people your friends automatically
+  const inviteCode = async () => {
+    let c = lsGet('nexa.invCode.' + S.me, null); if (c) return c;
+    const d = await db().get(`users/${S.me}/private/invite`).catch(() => null);
+    c = d?.code || Array.from(crypto.getRandomValues(new Uint8Array(8)), x => 'abcdefghjkmnpqrstuvwxyz23456789'[x % 31]).join('');
+    if (!d?.code) await db().set(`users/${S.me}/private/invite`, { code: c, at: now() }).catch(() => {});
+    lsSet('nexa.invCode.' + S.me, c); return c;
+  };
+  const inviteUrl = async () => location.origin + '/@' + (S.profile?.handle || '') + '?i=' + (await inviteCode());
+  actions.inviteShare = async () => {
+    const url = await inviteUrl(), first = (S.profile?.name || '').split(' ')[0];
+    const text = `${first ? first + ' invited you to Nexa' : 'Join me on Nexa'} — sign up with this link and we'll be friends straight away 💙`;
+    try { if (navigator.share) { await navigator.share({ title: 'Nexa', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(text + ' ' + url); toast('Invite link copied — paste it to your friends'); } catch { toast(esc(url)); }
+  };
+  const openWith = uid => { let n = 0; const t = setInterval(() => { if (isFriend(uid) || ++n > 20) { clearInterval(t); if (isFriend(uid)) { actions.dm({ v: uid }); toast(`You and ${esc(dname(uid))} are friends now — say hi 👋`, null, uid); } } }, 500); };
+  const _ci = claimInvite;
+  claimInvite = async function () {
+    const h = lsGet('nexa.addHandle', null); if (!h || !S.me) return;
+    if (S.be.kind === 'local') return _ci();
+    const code = lsGet('nexa.addCode', null); if (!code) return _ci();
+    const r = await apiNotify({ kind: 'inviteJoin', handle: h, code }).catch(() => null);
+    if (r?.ok && r.friend) { lsSet('nexa.addHandle', null); lsSet('nexa.addCode', null); watchUser(r.friend); openWith(r.friend); return; }
+    return _ci(); // fall back: send them a friend request
+  };
+  // the website: "@maya invited you"
+  const _va = vAuth;
+  vAuth = function () {
+    const h = lsGet('nexa.addHandle', null);
+    if (h && !S.inviteSeen) { S.inviteSeen = true; if (!S.authMode || S.authMode === 'login') S.authMode = 'signup'; }
+    let out = _va();
+    if (h && S.authMode !== 'code') out = out.replace(/(<form class="auth-card)/, `<div class="invbanner">${ic('userplus', 18)}<span><b>@${esc(h)} invited you to Nexa</b><br><span class="mute small">Sign up and you'll be friends straight away.</span></span></div>$1`);
+    if (h) out = out.replace('<span class="ws-eyebrow">Nexa 1.0 · Free</span>', `<button class="invbanner top" data-a="wsGo" data-v="signup">${ic('userplus', 18)}<span><b>@${esc(h)} invited you to Nexa</b><br><span class="mute small">Tap to sign up — you'll be friends straight away.</span></span></button>`);
+    return out;
+  };
+  // People: invite strip under the search
+  const _vp = vPeople;
+  vPeople = function () {
+    const h = _vp(); if (!S.profile?.handle) return h;
+    const strip = `<button class="invstrip" data-a="inviteShare">${ic('userplus', 18)}<span class="grow"><b>Invite friends to Nexa</b><span class="mute small">They sign up with your link and you're friends straight away</span></span>${ic('send', 16)}</button>`;
+    const i = h.indexOf('id="peopleQ"'); if (i < 0) return h; const j = h.indexOf('</label>', i); if (j < 0) return h;
+    return h.slice(0, j + 8) + strip + h.slice(j + 8);
+  };
+}
+// empty chat list: invite as well as find
+{
+  const _vm = typeof vMessages === 'function' ? vMessages : null;
+  if (_vm) vMessages = function () { return _vm().replace(/(data-v="people">Find people<\/button>)/, '$1<button class="btn sm" data-a="inviteShare">Invite friends</button>'); };
+}
+// ---- Face ID / Touch ID / fingerprint: if Nexa guessed wrong, tell it once
+{
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (S.setSec !== 'privacy') return h;
+    const cur = lsGet('nexa.bioKind', ''), list = [['face', 'Face ID'], ['touch', 'Touch ID'], ['finger', 'Fingerprint']];
+    const pick = `<div class="biopick"><span class="mute small">My phone uses</span>${list.map(([k, n]) => `<button class="pill sm ${(cur || '') === k || (!cur && devBio().name.toLowerCase() === n.toLowerCase()) ? 'on' : ''}" data-a="bioKindPick" data-v="${k}">${n}</button>`).join('')}</div>`;
+    return h.includes('id="lockCard"') && !h.includes('lo-ic">' + FACE_SVG + '</span><span class="grow"><b>Face ID / fingerprint</b>') ? h.replace('</div><div class="mute small" style="font-weight:500">Nexa locks', pick + '</div><div class="mute small" style="font-weight:500">Nexa locks') : h;
+  };
+  actions.bioKindPick = d => { lsSet('nexa.bioKind', d.v); render(); toast(`Got it — Nexa will say ${esc(bioName())} on this ${devWord()}`); };
+}
+if (location.hostname === 'localhost') Object.assign(window, { IS_TEST, claimInvite });
+
+/* ================= v19.3: Face ID / fingerprint log-in that knows who you are ================= */
+// Your phone remembers which Nexa account you set Face ID up for. So:
+// • this phone has logged in with Face ID before → Nexa opens on "Welcome back, <name>" — one look and you're in
+//   (Android and computers don't even need the tap; iPhone needs one tap, Apple's rule);
+// • tap the email box → the phone itself suggests your account above the keyboard; pick it and you're in.
+// No passwords, nothing to type. (Websites can only reach Face ID this way — Apple and Google call it a
+// "passkey", but you never have to think about it.)
+const pkKnown = () => lsGet('nexa.pkLogin', null);
+const pkApple = () => /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+async function pkFinish(ch, a) {
+  const r = a.response;
+  const { token } = await pkCall({ action: 'loginFinish', id: ch.id, credId: b64u(a.rawId), clientData: b64u(r.clientDataJSON), authData: b64u(r.authenticatorData), sig: b64u(r.signature) });
+  lsSet('nexa.2fa.skip', now());
+  S.freshAuth = now(); await S.be.auth.signInWithToken(token); S.lockedOnce = true;
+  lsSet('nexa.pkLogin', { ...(pkKnown() || {}), at: now() });
+}
+// the email box offers your account (conditional mediation) — waits quietly until you pick it
+let pkCond = null, pkCondT = 0;
+async function pkConditional() {
+  if (S.be.kind === 'local' || pkCond || S.view !== 'auth' || S.authMode === 'signup') return;
+  try { if (!window.PublicKeyCredential?.isConditionalMediationAvailable || !(await PublicKeyCredential.isConditionalMediationAvailable())) return; } catch { return; }
+  const ch = await pkCall({ action: 'loginBegin' }).catch(() => null); if (!ch || pkCond || S.view !== 'auth') return;
+  const ctl = new AbortController(); pkCond = ctl;
+  clearTimeout(pkCondT); pkCondT = setTimeout(() => { if (pkCond === ctl) { ctl.abort(); pkCond = null; pkConditional(); } }, 150000); // fresh code before it expires
+  try {
+    const a = await navigator.credentials.get({ mediation: 'conditional', signal: ctl.signal, publicKey: { challenge: unb64u(ch.challenge), rpId: location.hostname, userVerification: 'required', timeout: 170000 } });
+    if (pkCond === ctl) pkCond = null; clearTimeout(pkCondT);
+    if (a) { S.busy = true; S.authErr = ''; render(); await pkFinish(ch, a); }
+  } catch (e) {
+    if (pkCond === ctl) pkCond = null;
+    if (e?.name !== 'AbortError' && S.view === 'auth') { S.busy = false; if (e?.message && !/NotAllowed|cancel/i.test(e.name + e.message)) { S.authErr = e.message; render(); } setTimeout(pkConditional, 2000); }
+  } finally { S.busy = false; }
+}
+const pkStopCond = () => { if (pkCond) { try { pkCond.abort(); } catch {} pkCond = null; } clearTimeout(pkCondT); };
+{
+  // the big button stops the quiet one first (a phone only does one Face ID request at a time)
+  const _pk = actions.pkSignIn;
+  actions.pkSignIn = function (...a) { pkStopCond(); return _pk(...a); };
+  // remember the name to greet you with
+  setInterval(() => { const k = pkKnown(); if (k && S.view === 'app' && S.profile?.name && (k.name !== S.profile.name || k.handle !== S.profile.handle)) lsSet('nexa.pkLogin', { ...k, name: S.profile.name, handle: S.profile.handle || '', av: (S.profile.avatar || '').length < 60000 ? S.profile.avatar || '' : '' }); }, 5000);
+  Object.assign(actions, {
+    pkOther: () => { pkStopCond(); S.pkOther = true; S.authErr = ''; render(); setTimeout(pkConditional, 300); },
+    pkBack: () => { S.pkOther = false; S.authErr = ''; render(); },
+  });
+  // "Welcome back" screen for a phone that has used Face ID log-in before
+  const _va = vAuth;
+  vAuth = function () {
+    const k = pkKnown();
+    if (k && !S.pkOther && (S.be.kind !== 'local' || (location.hostname === 'localhost' && window.__pkForce)) && window.PublicKeyCredential && (!S.authMode || S.authMode === 'login') && !lsGet('nexa.addHandle', null)) {
+      const name = k.name || 'there', first = name.split(' ')[0];
+      const face = k.av ? `<img class="wb-av" src="${esc(k.av)}" alt="">` : `<span class="wb-av wb-ini">${esc(name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase())}</span>`;
+      setTimeout(pkPrefetch, 0);
+      if (!pkApple() && !S.pkAutoTried) { S.pkAutoTried = true; setTimeout(() => { if (S.view === 'auth' && !S.pkOther && !S.busy) actions.pkSignIn(); }, 900); }
+      return `<div class="wb-wrap"><div class="wb-glow"></div><div class="card wb-card${A('wb')}">
+        ${logo(44)}${face}
+        <h1 class="disp">Welcome back, ${esc(first)}</h1>
+        ${k.handle ? `<span class="mute">@${esc(k.handle)}</span>` : ''}
+        <button class="wb-go" data-a="pkSignIn" ${S.busy ? 'disabled' : ''}>${bioIcon()}<span>${S.busy ? (devBio().kind === 'finger' ? 'Touch the sensor…' : 'Look at your phone…') : `Continue with ${esc(bioName())}`}</span></button>
+        ${S.authErr ? `<div class="err" role="alert">${esc(S.authErr)}</div>` : ''}
+        <button class="wb-alt" data-a="pkOther">Use another account or a password</button></div></div>`;
+    }
+    const h = _va();
+    if (S.authMode !== 'signup') setTimeout(pkConditional, 400);
+    return k && S.pkOther && (!S.authMode || S.authMode === 'login') ? h.replace(/(<form class="auth-card[^>]*>)/, `$1<button type="button" class="wb-back" data-a="pkBack">${bioIcon()} Back to ${esc((k.name || '').split(' ')[0] || 'your account')}</button>`) : h;
+  };
+}
+WN_STEPS['19.3'] = WN_STEPS['19.2']; UP_HL['19.3'] = ['New look & website', 'Face ID log-in that knows you', 'Invite friends in one tap', 'Send later', 'Soundboard'];
+if (location.hostname === 'localhost') Object.assign(window, { pkConditional, pkKnown });
+
+/* ================= v19.4: Face ID / fingerprint log-in that always gets saved properly ================= */
+// The bug: if you tapped "Start scan" before Nexa had fetched its one-time code from the server (or that
+// failed), your phone saved a Face ID key but Nexa's server never learned about it — so log-in later said
+// "isn't set up". Now: the button waits until Nexa is ready, a failed save is shown (not hidden), a phone
+// with an old broken key gets fixed automatically, and after a password log-in Nexa offers to turn it on.
+const pkLive = () => S.be.kind !== 'local' && !!S.be.auth?.idToken;
+const pkFetchReg = async () => {
+  if (!pkLive()) return;
+  S.pkRegWait = true; S.pkRegErr = ''; paintBioSetup();
+  try { const t = await S.be.auth.idToken(); S.pkReg = await pkCall({ action: 'regBegin' }, t); S.pkRegAt = now(); }
+  catch (e) { S.pkReg = null; S.pkRegErr = e?.message || 'Can\'t reach Nexa right now.'; }
+  S.pkRegWait = false; paintBioSetup();
+};
+{
+  const _on = actions.bioOn;
+  actions.bioOn = function () {
+    const r = _on(); // opens the set-up screen
+    if (pkLive()) { S.pkReg = null; pkFetchReg(); }
+    clearInterval(S.pkRegIv); S.pkRegIv = setInterval(() => { if (!S.bioSetup) return clearInterval(S.pkRegIv); if (S.bioSetup.st !== 'scan' && pkLive() && now() - (S.pkRegAt || 0) > 140000 && !S.pkRegWait) pkFetchReg(); }, 10000);
+    return r;
+  };
+  // "Start scan" only once Nexa is ready (the phone's check has to start straight from your tap)
+  const _paint = paintBioSetup;
+  paintBioSetup = function () {
+    _paint();
+    const L = document.getElementById('bioLayer'), st = S.bioSetup?.st;
+    if (L && st === 'fail' && S.bioSetup.why === 'Error') { const p = L.querySelector('.bf-card p'); if (p) p.textContent = `Your phone said yes, but Nexa couldn't save it. Check your internet and tap Try again.`; }
+    if (!L || !pkLive() || (st !== 'intro' && st !== 'fail')) return;
+    const go = L.querySelector('.bf-go[data-bf="scan"]'); if (!go) return;
+    if (S.pkRegWait || !S.pkReg) {
+      go.disabled = true; go.innerHTML = S.pkRegErr ? 'Can\'t reach Nexa — tap to retry' : '<span class="bf-spin"></span> Getting ready…';
+      if (S.pkRegErr) { go.disabled = false; go.dataset.bf = 'retry'; go.onclick = e => { e.stopPropagation(); pkFetchReg(); }; }
+    }
+  };
+  const _scan = bioScan;
+  bioScan = function () {
+    if (pkLive() && !S.pkReg) { pkFetchReg(); return; } // never save a key the server doesn't know about
+    const r = _scan(); S.pkReg = null; return r; // each code works once
+  };
+  // a failed save is a failure — show it instead of saying "saved"
+  const _reg = pkRegister;
+  pkRegister = async function (cred, reg) {
+    if (!reg || !S.be.auth?.idToken) { if (pkLive()) throw new Error('not ready'); return; }
+    const res = cred.response; let alg = res.getPublicKeyAlgorithm?.(), spki = null, jwk = null;
+    try { const k = res.getPublicKey?.(); if (k) spki = b64u(k); } catch {}
+    if (!spki) { const c = coseToJwk(res.attestationObject); alg = c.alg; jwk = c.jwk; }
+    await pkCall({ action: 'regFinish', id: reg.id, credId: b64u(cred.rawId), clientData: b64u(res.clientDataJSON), alg, spki, jwk }, await S.be.auth.idToken());
+    lsSet('nexa.pkLogin', { ...(pkKnown() || {}), at: now(), name: S.profile?.name || '', handle: S.profile?.handle || '' });
+    lsSet('nexa.pkRepair', null); lsSet('nexa.pkOfferNo', null);
+  };
+}
+// log-in found a key the server doesn't know (an old, broken one): explain, clean it up, and fix it after the password log-in
+const PK_STALE = /isn't set up for Nexa on this phone/i;
+const devWord = () => { const ua = navigator.userAgent; return /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Mobi|iPhone|Android/.test(ua) ? 'phone' : 'computer'; };
+// remember which key the phone/computer just used, so a broken one can be cleaned up
+let pkLastId = '';
+try { const _g = navigator.credentials?.get?.bind(navigator.credentials); if (_g) navigator.credentials.get = async o => { const a = await _g(o); try { if (a?.rawId) pkLastId = b64u(a.rawId); } catch {} return a; }; } catch {}
+const pkStale = credIdB64 => {
+  lsSet('nexa.pkRepair', 1); lsSet('nexa.pkLogin', null);
+  try { if (credIdB64) PublicKeyCredential.signalUnknownCredential?.({ rpId: location.hostname, credentialId: credIdB64 })?.catch?.(() => {}); } catch {}
+  return `This ${devWord()} has an old ${bioName()} key for Nexa that no longer works (it was saved by an older version of Nexa). Log in with your password once — Nexa will then set ${bioName()} up again in one tap, and it'll work from then on.`;
+};
+{
+  const _pf = pkFinish;
+  pkFinish = async function (ch, a) { try { const r = await _pf(ch, a); S.pkTry = now(); return r; } catch (e) { if (PK_STALE.test(e?.message || '')) throw new Error(pkStale(b64u(a.rawId))); throw e; } };
+  // the older "Sign in with Face ID" button path: same friendly message
+  setInterval(() => { if (S.view === 'auth' && PK_STALE.test(S.authErr || '')) { S.authErr = pkStale(pkLastId); render(); } }, 400);
+  const _pk = actions.pkSignIn;
+  actions.pkSignIn = function (...a) {
+    const au = S.be.auth; // remember a log-in that really happened by face/finger (not just a try)
+    if (au && au.signInWithToken && !au.signInWithToken.__pk) { const f = au.signInWithToken; au.signInWithToken = Object.assign(async t => { S.pkTry = now(); return f.call(au, t); }, { __pk: 1 }); }
+    return _pk(...a);
+  };
+}
+// after logging in with a password: "Log in with Face ID next time?"
+{
+  let was = S.view;
+  setInterval(() => {
+    const v = S.view; if (v === was) return; const from = was; was = v;
+    if (from !== 'auth' || v !== 'app') return;
+    if (now() - (S.pkTry || 0) < 120000) { if (!pkKnown()) lsSet('nexa.pkLogin', { at: now() }); return; } // just used Face ID
+    setTimeout(() => {
+      if (!pkLive() || bioOk === false || !window.PublicKeyCredential || S.view !== 'app' || S.locked) return;
+      const repair = !!lsGet('nexa.pkRepair', null);
+      if (!repair && (pkKnown() || now() - (lsGet('nexa.pkOfferNo', 0) || 0) < 14 * 864e5)) return;
+      if (S.modal || S.wn || document.getElementById('tourLayer')) return;
+      S.modal = { type: 'pkOffer', repair }; render();
+    }, 2500);
+  }, 500);
+  const _m4 = vModal4;
+  vModal4 = function (m, f, head) {
+    if (m.type !== 'pkOffer') return _m4(m, f, head);
+    const n = bioName();
+    return `<div class="col pkoffer" style="align-items:center;text-align:center;gap:12px">
+      <span class="pko-ic">${bioIcon()}</span>
+      <h2 class="disp" style="margin:0;font-size:22px">${m.repair ? `Fix ${esc(n)} log-in` : `Log in with ${esc(n)} next time?`}</h2>
+      <p class="mute" style="margin:0;line-height:1.5">${m.repair ? `This ${devWord()}'s old ${esc(n)} key for Nexa stopped working. One tap sets it up again.` : `No password next time — Nexa will know it's you${devBio().kind === 'face' ? ' with just a look' : ' with just a touch'}.`}</p>
+      <button class="btn pri" style="width:100%;height:48px" data-a="pkOfferYes">${bioIcon()} Turn on ${esc(n)}</button>
+      <button class="btn" style="width:100%" data-a="pkOfferNo">Not now</button></div>`;
+  };
+  Object.assign(actions, {
+    pkOfferYes: () => { S.modal = null; render(); actions.bioOn(); },
+    pkOfferNo: () => { lsSet('nexa.pkOfferNo', now()); S.modal = null; render(); },
+  });
+}
+WN_STEPS['19.4'] = WN_STEPS['19.3']; UP_HL['19.4'] = UP_HL['19.3'];
+if (location.hostname === 'localhost') Object.assign(window, { pkRegister: (...a) => pkRegister(...a), pkFetchReg, bioScan: () => bioScan() });
+
+/* ================= v19.5: a fresh glass look for the whole app — and you choose how much glass ================= */
+// Settings › Appearance › Glass: Off (solid), Light, Medium (default) or Strong. Phones get a lighter blur so
+// scrolling stays smooth. Any of the other looks (Liquid Glass, Aurora, Classic) still work as before.
+const GLASS = [['0', 'Off'], ['1', 'Light'], ['2', 'Medium'], ['3', 'Strong']];
+const glassOf = p => { const g = String(p?.glassLvl ?? '2'); return ['0', '1', '2', '3'].includes(g) ? g : '2'; };
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) { const r = _at(...a); try { const root = document.documentElement; root.dataset.glass = root.dataset.look === 'pro' ? glassOf(S.prefs) : ''; } catch {} return r; };
+  try { applyTheme(); } catch {}
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (S.setSec !== 'appearance' || lookOf(S.prefs) !== 'pro') return h;
+    const cur = glassOf(S.prefs);
+    const row = `<div class="field" id="glassPick">Glass<div class="seg glassseg">${GLASS.map(([v, n]) => `<button class="${cur === v ? 'on' : ''}" data-a="glassPick" data-v="${v}">${n}</button>`).join('')}</div><span class="mute small" style="font-weight:500">${cur === '0' ? 'Solid panels — the calmest look.' : cur === '1' ? 'A hint of glass.' : cur === '2' ? 'Clear glass over soft colour — the default.' : 'Full liquid glass, like the website.'}</span></div>`;
+    return h.replace(/(<div class="field">Look<div class="looks">[\s\S]*?<\/button><\/div><\/div>)/, `$1${row}`)
+      .replace('Clean and calm — the new default', 'Fresh glass — the new default');
+  };
+  actions.glassPick = d => { savePrefs({ glassLvl: d.v }); applyTheme(); render(); };
+}
+WN_STEPS['19.5'] = [...WN_STEPS['19.4'].slice(0, 1),
+  { page: 'settings', sec: 'appearance', sel: '#glassPick', emoji: '🫧', title: 'Fresh glass, your way', text: 'Nexa is now made of clear glass over soft colour. Too much or too little? Pick Off, Light, Medium or Strong right here.' },
+  ...WN_STEPS['19.4'].slice(1)];
+UP_HL['19.5'] = ['Fresh glass look', 'Face ID log-in that knows you', 'Invite friends in one tap', 'Send later', 'Soundboard'];
+
+/* ================= v19.5: the new Home dashboard ================= */
+// A calmer, smarter Home: what's happening today at a glance, an "Ask Nexa AI" bar, the chats that need you
+// (with Reply right there), and your day. Every card can still be moved, resized or hidden with Customise.
+{
+  const fmtDay = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeOf = t => { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString([], { day: 'numeric', month: 'short' }); };
+  const needs = () => sortedConvs().filter(c => unread(c) && !isMuted(c.id) && !isRequestForMe(c)).slice(0, 4);
+  function vNeedsCard() {
+    if (!S.ready?.convs) return '';
+    const list = needs(), onl = friendIds().filter(u => presence(u) !== 'offline');
+    if (!list.length && innerWidth <= 700) return '';
+    const body = list.length ? `<div class="list nd-list">${list.map(c => `<div class="nd-row">${convAv(c, 44)}<button class="grow nd-txt" data-a="openConv" data-v="${c.id}"><span class="row spread"><b class="ellip">${esc(convName(c))}</b><span class="small mute">${c.last?.at ? timeOf(c.last.at) : ''}</span></span><span class="small ellip" style="display:block">${esc(lastLine(c))}</span></button><button class="btn sm pri" data-a="openConv" data-v="${c.id}">Reply</button></div>`).join('')}</div>`
+      : `<div class="nd-zero"><span class="nd-ok">${ic('check', 22, 2.4)}</span><span class="grow"><b>You're all caught up</b><span class="small mute" style="display:block">${onl.length ? `${esc(dname(onl[0]).split(' ')[0])} is online — say hi?` : 'New messages that need a reply show up here.'}</span></span>${onl.length ? `<button class="btn sm" data-a="dm" data-v="${onl[0]}">${ic('msg', 14)} Message</button>` : `<button class="btn sm" data-a="inviteShare">${ic('userplus', 14)} Invite</button>`}</div>`;
+    return `<section class="panel glass card needs"><div class="row spread"><h2 class="h2">Needs you</h2>${list.length ? `<span class="nd-count">${list.length}</span>` : ''}</div>${body}</section>`;
+  }
+  function vTodayCard() {
+    const evs = upcoming().slice(0, 3), sch = (S.scheduled || []).filter(x => x.at > now()).sort((a, b) => a.at - b.at);
+    const live = (S.rooms || []).filter(r => (roomLive(r.id) || []).length);
+    const rows = [
+      ...evs.map(e => `<button class="td-row" data-a="eventOpen" data-v="${e.id}"><span class="td-ic ev">${ic('cal', 16)}</span><span class="grow"><b class="ellip" style="display:block">${esc(e.title)}</b><span class="small mute">${e.date === todayStr() ? 'Today' : esc(e.date)}${e.time ? ' · ' + esc(e.time) : ''}</span></span></button>`),
+      ...live.slice(0, 2).map(r => `<div class="td-row"><span class="td-ic live">${ic('volume', 16)}</span><span class="grow"><b class="ellip" style="display:block">${esc(r.name || 'Hangout')}</b><span class="small mute">${roomLive(r.id).length} in the room now</span></span></div>`),
+      sch.length ? `<div class="td-row"><span class="td-ic sch">${ic('clock', 16)}</span><span class="grow"><b style="display:block">${sch.length} message${sch.length > 1 ? 's' : ''} sending later</b><span class="small mute">Next at ${new Date(sch[0].at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></span></div>` : '',
+    ].filter(Boolean);
+    if (!rows.length && innerWidth <= 700) return '';
+    return `<section class="panel glass card todaycard"><div class="row spread"><h2 class="h2">Your day</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="newEvent">+ Plan</button></div>${rows.length ? `<div class="list">${rows.join('')}</div>` : `<div class="mute small" style="line-height:1.5">Nothing planned yet. Plan something with friends — they'll get an invite.</div>`}</section>`;
+  }
+  // the new cards sit right under the welcome card (and work with Customise)
+  const _pf = vPinnedFriends;
+  vPinnedFriends = function () { return vNeedsCard() + vTodayCard() + _pf(); };
+  Object.assign(HOME_CARDS, { needs: 'Needs you', today: 'Your day' });
+  if (!HOME_DEFAULT.main.includes('needs')) HOME_DEFAULT.main.splice(HOME_DEFAULT.main.indexOf('hero') + 1, 0, 'needs');
+  if (!HOME_DEFAULT.side.includes('today')) HOME_DEFAULT.side.unshift('today');
+  const _key = homeCardKey;
+  homeCardKey = function (sec) { const c = sec.classList; if (c.contains('needs')) return 'needs'; if (c.contains('todaycard')) return 'today'; return _key(sec); };
+  // the new welcome card
+  const _vh = vHome;
+  vHome = function () {
+    const h = _vh();
+    const first = esc((S.profile?.name || '').split(' ')[0]);
+    const hr = new Date().getHours(), greet = hr < 5 ? 'Good night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+    const c = counts(), onl = friendIds().filter(u => presence(u) !== 'offline').length, ev = upcoming()[0];
+    const chip = (icon, txt, a, v, hot) => `<button class="dh-chip ${hot ? 'hot' : ''}" data-a="${a}" ${v ? `data-v="${v}"` : ''}>${ic(icon, 15)}<span>${txt}</span></button>`;
+    const chips = [
+      chip('msg', c.msg ? `${c.msg} unread` : 'No unread', 'go', 'messages', c.msg),
+      chip('people', `${onl} online`, 'go', 'people'),
+      chip('cal', ev ? (ev.date === todayStr() ? `${esc(ev.title)} today` : `Next: ${esc(ev.title)}`) : 'No plans', ev ? 'eventOpen' : 'newEvent', ev ? ev.id : '', ev && ev.date === todayStr()),
+      c.notif ? chip('bell', `${c.notif} new`, 'go', 'notifications', 1) : '',
+    ].join('');
+    const hero = `<div class="dh-top"><div class="grow"><span class="dh-date">${esc(fmtDay())}</span><h1 class="disp hello">${greet}, <i class="hn">${first}</i></h1></div></div>
+      <div class="dh-chips">${chips}</div>
+      <div class="dh-ask">${ic('spark', 18)}<input id="dhQ" placeholder="${innerWidth <= 700 ? 'Ask Nexa AI anything…' : 'Ask Nexa AI — plan a weekend, write a message, translate…'}" autocomplete="off" aria-label="Ask Nexa AI"><button class="btn sm pri" data-a="dhAsk">Ask</button></div>
+      <div class="dh-qa">
+        <button class="dh-q" data-a="newChat">${ic('pen', 18)}<span>Message</span></button>
+        <button class="dh-q" data-a="newGroup">${ic('group', 18)}<span>Group</span></button>
+        <button class="dh-q" data-a="newEvent">${ic('cal', 18)}<span>Event</span></button>
+        <button class="dh-q" data-a="go" data-v="people">${ic('userplus', 18)}<span>Add friend</span></button>
+        <button class="dh-q" data-a="inviteShare">${ic('send', 18)}<span>Invite</span></button>
+      </div>`;
+    return h.replace(/(<section class="hero glass card)([^"]*)("[^>]*>)(<button class="hc-open"[\s\S]*?<\/button>)?[\s\S]*?(<\/section>)/, (m, a, cls, b, btn, end) => `${a}${cls} dash-hero${b}${btn || ''}${hero}${end}`);
+  };
+  Object.assign(actions, {
+    dhAsk: () => { const q = (document.getElementById('dhQ')?.value || '').trim(); if (!q) return actions.aiOpen(); S.ai.open = true; render(); askAi(q); },
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target?.id === 'dhQ') { e.preventDefault(); actions.dhAsk(); } });
+}
+if (location.hostname === 'localhost') Object.assign(window, { HOME_DEFAULT });
+// phones: leave out cards that repeat something or have nothing in them, so Home isn't crowded
+{
+  const tpl = document.createElement('template');
+  const _vh = vHome;
+  vHome = function () {
+    const h = _vh(); if (innerWidth > 700 || S.homeEdit) return h;
+    tpl.innerHTML = h;
+    const title = s => (s.querySelector('h2')?.textContent || '').trim();
+    tpl.content.querySelectorAll('section').forEach(s => {
+      const t = title(s), empty = !s.querySelector('.item, .list > *, .td-row, .nd-row, .ev, .evcard, img');
+      const drop = t === 'Recent conversations' || (t === 'Upcoming events' && empty) || (t === 'Friend requests' && empty) || (t === 'Notifications' && empty);
+      if (!drop) return;
+      const hc = s.closest('.hc'); (hc || s).remove();
+    });
+    return tpl.innerHTML;
+  };
+}
+
+/* ================= v19.6: softer colours — a quiet update for anyone who already has 19.5 ================= */
+WN_STEPS['19.6'] = WN_STEPS['19.5']; UP_HL['19.6'] = UP_HL['19.5'];
+// already saw 19.5's walk-through? then 19.6 just slips in (no update screen, no tour). Older versions get the full tour.
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '19.6' && seen && verNum(seen) >= verNum('19.5') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* ================= v20.0: Nexa Signature styles — Prism (new default), Halo, Onyx ================= */
+// Settings › Appearance › Style. Prism: ink black, serif headings and the prism edge from the logo's glass N.
+// Halo: richer liquid glass. Onyx: pure black & white. "Glass" keeps the 19.x look exactly as it was.
+const SIGS = [['prism', 'Prism', 'Liquid glass with a prism edge — made for Nexa'], ['halo', 'Halo', 'Rich liquid glass and colour'], ['onyx', 'Onyx', 'Pure black & white, saves battery'], ['glass', 'Glass', 'The 19.x glass look']];
+const sigOf = p => { const v = p?.sig || 'prism'; return SIGS.some(x => x[0] === v) ? v : 'prism'; };
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const root = document.documentElement, sg = root.dataset.look === 'pro' ? sigOf(S.prefs) : 'glass';
+      root.dataset.sig = sg === 'glass' ? '' : sg;
+      if (sg === 'onyx') root.dataset.glass = '';
+      if (sg === 'prism') root.dataset.glass = glassOf(S.prefs);
+      if (sg === 'halo') root.dataset.glass = glassOf(S.prefs) === '0' ? '2' : glassOf(S.prefs);
+      const m = document.querySelector('meta[name="theme-color"]'); if (m && sg !== 'glass') m.content = sg === 'onyx' ? (S.prefs.theme === 'light' ? '#ffffff' : '#000000') : sg === 'prism' ? (S.prefs.theme === 'light' ? '#F5F3EE' : '#09090F') : '#0E0F1A';
+      lsSet('nexa.sig', root.dataset.sig);
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const _s = vSettings;
+  vSettings = function () {
+    let h = _s(); if (S.setSec !== 'appearance') return h;
+    const cur = lookOf(S.prefs) === 'pro' ? sigOf(S.prefs) : '';
+    const row = `<div class="field" id="sigPick">Style<div class="sigrow">${SIGS.map(([k, n, d]) => `<button class="sigcard ${cur === k ? 'on' : ''}" data-a="sigPick" data-v="${k}" aria-pressed="${cur === k}"><span class="sigsw sw-${k}"><i></i></span><b>${n}</b><span class="mute small">${d}</span></button>`).join('')}</div></div>`;
+    if (cur === 'onyx') h = h.replace(/<div class="field" id="glassPick">[\s\S]*?<\/span><\/div>/, '');
+    h = h.replace(/<button class="lookcard[^"]*" data-a="lookPick" data-v="pro">[\s\S]*?<\/button>/, '').replace('<div class="field">Look<div class="looks">', '<div class="field">Classic looks<div class="looks">');
+    return h.replace(/<div class="field">Classic looks<div class="looks">/, `${row}$&`);
+  };
+  Object.assign(actions, { sigPick: d => savePrefs({ sig: d.v, look: 'pro', lookV19: false }) });
+}
+WN_STEPS['20.0'] = [
+  { emoji: '✨', title: 'Welcome to Nexa 20', text: 'A look made only for Nexa. Meet Prism: ink black, beautiful headings and a rainbow edge from the Nexa logo. Tap Next — or Skip anytime.' },
+  { emoji: '🎨', title: 'Pick your style', text: 'Prefer something else? Settings › Appearance › Style: Prism, Halo (rich glass), Onyx (pure black & white) or the Glass look you had before.' },
+  ...(WN_STEPS['19.5'] || []).slice(1)
+];
+UP_HL['20.0'] = ['Prism — a look made only for Nexa', 'Halo and Onyx styles', 'New fonts and a glowing send button', 'Brand-new Home', 'Face ID log-in that knows you'];
+
+/* v20.0: choose the edge colour — keep the rainbow, or one colour you like (Settings › Appearance and Profile) */
+const SIGCOLS = [['rainbow', 'Rainbow', ''], ['indigo', 'Indigo', '#8C97FF'], ['blue', 'Blue', '#4DA3FF'], ['teal', 'Teal', '#2FD3C1'], ['green', 'Green', '#5BD68A'], ['gold', 'Gold', '#F4C25B'], ['pink', 'Pink', '#FF7FB0'], ['red', 'Red', '#FF6B6B'], ['purple', 'Purple', '#B07CFF'], ['white', 'Silver', '#D9D9E3']];
+const sigColOf = p => SIGCOLS.find(x => x[0] === p?.sigCol) || SIGCOLS[0];
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const st = document.documentElement.style, [k, , c] = sigColOf(S.prefs);
+      const props = ['--prism', '--prismL', '--prismEdge', '--prismCard', '--glowA', '--glowB', '--prismText'];
+      if (k === 'rainbow') props.forEach(x => st.removeProperty(x));
+      else {
+        const m = (pct) => `color-mix(in oklab, ${c} ${pct}%, transparent)`;
+        st.setProperty('--prism', `conic-gradient(${c},${c})`); st.setProperty('--prismL', `linear-gradient(90deg,${c},color-mix(in oklab, ${c} 75%, #fff))`);
+        st.setProperty('--prismEdge', `linear-gradient(120deg,${m(95)},${m(55)})`); st.setProperty('--prismCard', `linear-gradient(120deg,${m(55)},rgba(255,255,255,.04) 45%,${m(35)})`);
+        st.setProperty('--glowA', m(70)); st.setProperty('--glowB', m(45)); st.setProperty('--prismText', `linear-gradient(90deg,color-mix(in oklab, ${c} 80%, #000),color-mix(in oklab, ${c} 60%, #000))`);
+      }
+      lsSet('nexa.sigCol', k === 'rainbow' ? null : c);
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const pickRow = () => { const cur = sigColOf(S.prefs)[0]; return `<div class="field" id="sigColPick">Edge colour<div class="sigcols">${SIGCOLS.map(([k, n, c]) => `<button class="sigcol ${k === 'rainbow' ? 'rb' : ''} ${cur === k ? 'on' : ''}" ${c ? `style="background:${c}"` : ''} data-a="sigColPick" data-v="${k}" title="${n}" aria-label="${n}" aria-pressed="${cur === k}"></button>`).join('')}</div><span class="mute small" style="font-weight:500">${cur === 'rainbow' ? 'The rainbow prism from the Nexa logo.' : 'One colour for edges, rings and the send button — no rainbow.'}</span></div>`; };
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s();
+    if (lookOf(S.prefs) !== 'pro' || !['prism', 'onyx'].includes(sigOf(S.prefs))) return h;
+    if (S.setSec === 'appearance') return h.replace(/(<div class="field" id="sigPick">[\s\S]*?<\/button><\/div><\/div>)/, `$1${pickRow()}`);
+    if (S.setSec === 'profile' || !S.setSec) { const i = h.lastIndexOf('</section>'); return i > 0 ? h.slice(0, i) + `<div class="sigprof" style="margin-top:18px">${pickRow()}</div>` + h.slice(i) : h; }
+    return h;
+  };
+  Object.assign(actions, { sigColPick: d => savePrefs({ sigCol: d.v }) });
+}
+
+/* ================= v20.1: Prism is liquid glass, your own background works in every style, easier to read ================= */
+WN_STEPS['20.1'] = WN_STEPS['20.0']; UP_HL['20.1'] = UP_HL['20.0'];
+// already saw the 20.0 tour? then 20.1 just installs (no tour again)
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '20.1' && seen && verNum(seen) >= verNum('20.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* ================= v20.2: unlock once, not twice — and fingerprint that really uses THIS device ================= */
+// After you unlock (PIN or fingerprint) or have just logged in, Nexa never asks again until you've been away 5 minutes.
+function lockSkip() { return !!(S.unlockedAt || (S.freshAuth && now() - S.freshAuth < 120e3)); }
+{
+  let _l = !!S.locked;
+  Object.defineProperty(S, 'locked', { configurable: true, enumerable: true, get() { return _l; }, set(v) { v = !!v; if (_l && !v) { S.unlockedAt = now(); S.lockedOnce = true; } _l = v; } });
+}
+// fingerprint / face check: only this device's own sensor (Windows Hello, Touch ID, Android fingerprint) — no phone/QR or security-key list
+bioCheck = async function () {
+  const k = lsGet(bioKey(), null); if (!k) return false; S.bioErr = '';
+  const ids = [...new Set([...(k.ids || []), k.id].filter(Boolean))];
+  try {
+    const a = await navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: ids.map(id => ({ type: 'public-key', id: unb64(id), transports: ['internal'] })), userVerification: 'required', timeout: 60000, rpId: location.hostname, hints: ['client-device'] } });
+    return !!a;
+  } catch (e) { S.bioErr = (e && e.name) || 'Error'; S.bioMiss = true; return false; }
+};
+const devWordLk = () => /Windows|Macintosh|CrOS|Linux x86/.test(navigator.userAgent) && !/Android|iPhone|iPad/.test(navigator.userAgent) ? 'computer' : /iPad/.test(navigator.userAgent) ? 'iPad' : 'phone';
+// one tap fixes it: save a fresh key in THIS device's fingerprint/face sensor — the scan itself unlocks Nexa
+async function bioRepair() {
+  if (S.bioBusy) return; S.bioBusy = true; S.authErr = ''; render();
+  try {
+    const cred = await navigator.credentials.create({ publicKey: {
+      rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
+      user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
+    if (!cred) throw new Error('cancelled');
+    const old = lsGet(bioKey(), null) || {};
+    lsSet(bioKey(), { id: b64(cred.rawId), ids: [b64(cred.rawId), ...(old.ids || []), old.id].filter(Boolean).slice(0, 5), at: now() });
+    S.bioBusy = false; S.bioMiss = false; S.locked = false; S.lockPad = false; S.form.pinIn = '';
+    toast(`${esc(bioName())} is set up on this ${devWordLk()} ✓`); try { navigator.vibrate?.(15); } catch {}
+  } catch (e) {
+    S.bioBusy = false;
+    S.authErr = e?.name === 'NotAllowedError' ? `Cancelled. ${hasPin() ? 'Use your PIN, or try again.' : 'Try again.'}` : `This ${devWordLk()} has no fingerprint or face sensor set up. ${/Windows/.test(navigator.userAgent) ? 'Set it up in Windows Settings › Accounts › Sign-in options, then try again.' : 'Turn it on in your device settings, then try again.'}`;
+  }
+  render();
+}
+Object.assign(actions, { bioRepair: () => bioRepair() });
+{
+  const _vl = vLock;
+  vLock = function () {
+    const h = _vl();
+    if (!S.bioMiss || !hasBio()) return h;
+    const row = `<div class="lk-fix"><span class="mute small">Did ${devWordLk() === 'computer' ? 'Windows' : 'it'} ask for a phone or security key instead? Your ${esc(bioName())} isn't saved on this ${devWordLk()} yet.</span><button type="button" class="btn sm pri" data-a="bioRepair">${bioIcon()} Set up ${esc(bioName())} on this ${devWordLk()}</button></div>`;
+    return h.replace('<div class="lk-foot">', row + '<div class="lk-foot">');
+  };
+}
+WN_STEPS['20.2'] = WN_STEPS['20.1']; UP_HL['20.2'] = UP_HL['20.1'];
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '20.2' && seen && verNum(seen) >= verNum('20.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* v20.2: panel colour — pick the colour of the sidebar, panels, cards and bars (Settings › Appearance and Profile) */
+const TINTS = [['', 'Clear', ''], ['black', 'Black', '10 10 14'], ['navy', 'Navy', '16 26 64'], ['blue', 'Blue', '30 79 216'], ['sky', 'Sky', '56 140 230'], ['purple', 'Purple', '91 46 166'], ['pink', 'Pink', '194 56 122'], ['red', 'Red', '190 44 56'], ['orange', 'Orange', '214 108 30'], ['teal', 'Teal', '15 124 124'], ['green', 'Green', '31 122 69'], ['grey', 'Grey', '70 72 84'], ['white', 'White', '255 255 255']];
+const tintOf = p => TINTS.find(x => x[0] === (p?.panelTint || '')) || TINTS[0];
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const root = document.documentElement, [k, , rgb] = tintOf(S.prefs);
+      if (k && root.dataset.look === 'pro') { root.dataset.tint = k; root.style.setProperty('--tint', rgb); if (k === 'white' && S.prefs.theme !== 'light') root.style.setProperty('--tint', '120 124 140'); } else { root.dataset.tint = ''; root.style.removeProperty('--tint'); }
+      lsSet('nexa.tint', k ? [k, root.style.getPropertyValue('--tint')] : null);
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const tintRow = () => { const cur = tintOf(S.prefs)[0]; return `<div class="field" id="tintPick">Panel colour<div class="tintrow">${TINTS.map(([k, n, c]) => `<button class="tintsw ${k ? '' : 'clear'} ${cur === k ? 'on' : ''}" ${c ? `style="background:rgb(${c})"` : ''} data-a="tintPick" data-v="${k}" title="${n}" aria-label="${n}" aria-pressed="${cur === k}"></button>`).join('')}</div><span class="mute small" style="font-weight:500">${cur ? 'The sidebar, panels, cards and bars get this colour — still see-through.' : 'Clear glass — your style decides the colour.'}</span></div>`; };
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (lookOf(S.prefs) !== 'pro') return h;
+    if (S.setSec === 'appearance') return h.replace(/(<div class="field" id="sigPick">[\s\S]*?<\/button><\/div><\/div>)/, `$1${tintRow()}`);
+    if (S.setSec === 'profile' || !S.setSec) { if (h.includes('class="sigprof"')) return h.replace('<div class="sigprof" style="margin-top:18px">', `<div class="sigprof" style="margin-top:18px">${tintRow()}`); const i = h.lastIndexOf('</section>'); return i > 0 ? h.slice(0, i) + `<div class="sigprof" style="margin-top:18px">${tintRow()}</div>` + h.slice(i) : h; }
+    return h;
+  };
+  Object.assign(actions, { tintPick: d => savePrefs({ panelTint: d.v || '' }) });
+}
+
+/* ================= v20.3: updates look like a normal app, not a show ================= */
+// No particles, rings, sparkles or fake "polishing" steps. A plain update sheet, a quiet progress bar,
+// then one short "What's new" card written like a person would write it. The walk-through is optional.
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const WN_HUMAN = {
+  '20.3': [
+    ['lock', 'Unlock once', 'Your PIN or fingerprint works the first time. No more doing it twice.'],
+    ['shield', 'Fingerprint on Windows', 'Nexa now uses your computer’s own sensor. If it asks for a phone, tap “Set up fingerprint” once and you’re done.'],
+    ['palette', 'Your colours', 'Pick a panel colour and an edge colour in Settings › Appearance.'],
+    ['photo', 'Chat backgrounds', 'Choosing a background for a chat works again.'],
+    ['brush', 'New styles', 'Prism, Halo and Onyx, with proper glass. Switch any time in Settings › Appearance.'],
+  ],
+};
+WN_HUMAN['20.4'] = WN_HUMAN['20.3'];
+const humanNotes = v => WN_HUMAN[v] || (S.updateInfo?.notes || S.mustUpdate?.notes || []).map(n => ['check', '', n]);
+// 1) the update sheet
+{
+  const _vm = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type === 'updAvail') {
+      const info = S.updateInfo?.version ? S.updateInfo : (S.mustUpdate || {}), v = info.version || '';
+      const list = (WN_HUMAN[v] || []).length ? WN_HUMAN[v].slice(0, 4).map(([i, t]) => `<li class="hu-short"><span class="hu-ic">${ic(i, 16)}</span><span><b>${esc(t)}</b></span></li>`).join('')
+        : (info.notes || []).slice(0, 5).map(x => `<li><span class="hu-dot"></span><span>${esc(x)}</span></li>`).join('');
+      return `<div class="hu-sheet"><div class="hu-head"><img src="${festIcon()}" alt="" class="hu-icon"><div><b class="hu-t">Update ready</b><span class="mute small">Nexa ${esc(dispVer(v))} · takes a few seconds</span></div></div><p class="mute" style="margin:0;font-size:14.5px;line-height:1.45">A few fixes and some things you asked for. Your chats and settings stay as they are.</p>
+        ${list ? `<ul class="hu-list">${list}</ul>` : ''}
+        <button class="btn pri hu-btn" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update'}</button></div>`;
+    }
+    if (m.type === 'wnSheet') {
+      const d = new Date();
+      return `<div class="hu-sheet"><div class="hu-head"><img src="${festIcon()}" alt="" class="hu-icon"><div><b class="hu-t">${esc(WN_TITLE[m.v] || 'What’s new')}</b><span class="mute small">Nexa ${esc(dispVer(m.v))} · ${MONTHS[d.getMonth()]} ${d.getFullYear()}</span></div></div>${WN_INTRO[m.v] ? `<p class="mute" style="margin:0;font-size:14.5px;line-height:1.5">${esc(WN_INTRO[m.v])}</p>` : ''}
+        <ul class="hu-list">${humanNotes(m.v).map(([i, t, dd]) => `<li><span class="hu-ic">${ic(i, 18)}</span><span>${t ? `<b>${esc(t)}</b>` : ''}<span class="mute">${esc(dd)}</span></span></li>`).join('')}</ul>
+        <button class="btn pri hu-btn" data-a="wnSheetOk">Continue</button>${m.tour ? `<button class="hu-link" data-a="wnSheetTour">Show me around</button>` : ''}</div>`;
+    }
+    return _vm(m, f, head);
+  };
+}
+// 2) the screen while it updates: logo, one line, a thin bar
+upScreen = function (ver, opts = {}) {
+  document.getElementById('upLayer')?.remove();
+  const L = document.createElement('div'); L.id = 'upLayer'; L.className = 'hu'; L.setAttribute('role', 'status');
+  L.innerHTML = `<div class="hu-up"><img src="${festIcon(512)}" alt="" class="hu-upicon"><b class="hu-upt">Updating Nexa</b><span class="hu-ups mute">Getting the new version…</span><div class="hu-bar"><i></i></div><button class="btn pri hu-btn" hidden>${esc(opts.button || 'Continue')}</button></div>`;
+  document.body.appendChild(L);
+  const bar = L.querySelector('.hu-bar i'), st = L.querySelector('.hu-ups');
+  let pct = 0;
+  return {
+    el: L,
+    set(p, stage) { pct = Math.max(pct, Math.min(100, p)); bar.style.width = pct + '%'; if (stage) st.textContent = stage.replace(/Unlocking your new Nexa|Polishing every screen…|Adding the new features…/, 'Installing…'); },
+    async done(ver2, wait) {
+      bar.style.width = '100%'; await new Promise(r => setTimeout(r, 350));
+      L.classList.add('done'); L.querySelector('.hu-upt').textContent = 'Nexa is up to date'; st.textContent = 'Version ' + dispVer(ver2 || ver || '');
+      if (wait) { const b = L.querySelector('.hu-btn'); b.hidden = false; b.focus({ preventScroll: true }); await new Promise(r => { b.onclick = r; setTimeout(r, 12000); }); }
+      else await new Promise(r => setTimeout(r, 900));
+    },
+    close() { L.classList.add('out'); setTimeout(() => L.remove(), 250); },
+  };
+};
+// 3) after updating: no fake "unlocking" show — straight to a short What's new card
+upReveal = async function (ver) { lsSet('nexa.upShown', ver); };
+{
+  const _tour = wnStart;
+  wnStart = function (v) {
+    if (!WN_HUMAN[v]) return _tour(v);
+    S.modal = { type: 'wnSheet', v, tour: !!WN_STEPS[v] }; S.menu = null; render(); return true;
+  };
+  Object.assign(actions, {
+    wnSheetOk: () => { S.modal = null; render(); },
+    wnSheetTour: () => { const v = S.modal?.v; S.modal = null; render(); setTimeout(() => _tour(v), 120); },
+    whatsNewAgain: () => wnStart(APP_VERSION),
+  });
+}
+// the walk-through, if someone asks for it: plain card, no emoji
+{
+  const _p = paintWn;
+  paintWn = async function () { await _p(); const L = document.getElementById('wnLayer'); if (!L) return; L.querySelectorAll('.wn-emoji').forEach(e => e.remove()); L.querySelectorAll('.wn-count').forEach(e => { const m = e.textContent.match(/(\d+)\s*\/\s*(\d+)/); if (m) e.textContent = `${m[1]} of ${m[2]}`; }); };
+}
+WN_STEPS['20.3'] = (WN_STEPS['20.2'] || []).map((x, i) => i === 0 ? { ...x, emoji: '', title: 'Here’s what changed', text: 'Nexa has new styles and you can now pick your own colours. This takes about a minute. You can skip it.' } : { ...x, emoji: '' });
+UP_HL['20.3'] = UP_HL['20.2'];
+
+/* ================= v21.0 = Nexa 1.0: the first official version ================= */
+// People see "Nexa 1.0" (then 1.1, 1.2…). The update number underneath keeps counting up (21.0, 21.1…) so every phone keeps updating.
+function dispVer(v) { const m = String(v || '').match(/^(\d+)\.(\d+)/); if (!m) return String(v || ''); const a = +m[1], b = +m[2]; return a >= 21 ? `${a - 20}.${b}` : `${a}.${b}`; }
+const WN_TITLE = { '21.0': 'Nexa 1.0 is here' };
+const WN_INTRO = { '21.0': 'Thanks for being here early. This is the first official version of Nexa: everything you’ve been testing, finished.' };
+WN_HUMAN['21.0'] = [
+  ['brush', 'Your style', 'Prism, Halo or Onyx. Pick your own edge and panel colours in Settings › Appearance.'],
+  ['lock', 'Quick, safe unlock', 'PIN, Face ID or fingerprint. One unlock and you’re in.'],
+  ['msg', 'Chats your way', 'Backgrounds, reactions, polls and plans in any chat.'],
+  ['userplus', 'Bring your friends', 'Share your invite link. They join and you’re friends straight away.'],
+];
+WN_STEPS['21.0'] = WN_STEPS['20.3']; UP_HL['21.0'] = UP_HL['20.3'];

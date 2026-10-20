@@ -21,6 +21,9 @@
 <script>try{var k=JSON.parse(localStorage.getItem('nexa.festIconK')||'""');if(/^(halloween|diwali|christmas)$/.test(k)){document.querySelector('link[rel="icon"]').href='favicon-'+k+'.png';document.querySelector('link[rel="apple-touch-icon"]').href='apple-touch-icon-'+k+'.png';}}catch(e){}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preload" href="nexa-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="nexa-serif.woff2" as="font" type="font/woff2" crossorigin>
+<script>try{var g=JSON.parse(localStorage.getItem('nexa.sig')||'null');if(g)document.documentElement.dataset.sig=g;var t=JSON.parse(localStorage.getItem('nexa.tint')||'null');if(t){document.documentElement.dataset.tint=t[0];document.documentElement.style.setProperty('--tint',t[1]);}var c=JSON.parse(localStorage.getItem('nexa.sigCol')||'null');if(c){var r=document.documentElement.style;r.setProperty('--prism','conic-gradient('+c+','+c+')');r.setProperty('--prismL','linear-gradient(90deg,'+c+','+c+')');r.setProperty('--prismEdge','linear-gradient('+c+','+c+')');r.setProperty('--glowA',c);r.setProperty('--glowB',c);}}catch(e){}</script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>

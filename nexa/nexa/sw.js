@@ -1,22 +1,30 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '19.1';
-const NOTES = ["A whole new Nexa: a clean, professional dark look and a new website", "Lock and log in with Face ID, Touch ID, fingerprint or a PIN — your choice (Settings › Privacy)", "Two-step verification with an authenticator app", "Scheduled messages send even if your phone is off; export any chat", "Slow mode & auto-mod for groups, community emojis and a soundboard", "Prefer the old style? Settings › Appearance › Look lets you switch back"];
-const CACHE = 'nexa-shell-v57';
+const VERSION = '21.0';
+// QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
+const QUIET = false;
+const NOTES = ["Nexa 1.0 is here: the first official version.", "Your style: Prism, Halo or Onyx, with your own colours.", "One unlock with PIN, Face ID or fingerprint.", "Chat backgrounds, reactions, polls and plans.", "Invite friends with your link."];
+// The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
+const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
+const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
+const CACHE = PREFIX + '67';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
-const LIVE = /^\/(\.netlify|api|owner|support|__seen)(\/|$)|^\/manifest\.webmanifest$/; // always straight from the server
+const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
+const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
+  await Promise.all(FONTS.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})));
   // Moving from the old "update straight away" versions: switch once now; from here on, updates wait for a tap.
-  const olds = (await caches.keys()).filter(k => /^nexa-shell-v\d+$/.test(k) && k !== CACHE);
+  const olds = (await caches.keys()).filter(k => k.startsWith(PREFIX) && /v\d+$/.test(k) && k !== CACHE);
   if (!olds.length || olds.every(k => +k.split('-v')[1] < 29)) self.skipWaiting();
 })()));
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'nexa-seen').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'nexa-seen' && (TEST ? k.startsWith('nexa-test') : !k.startsWith('nexa-test'))).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  if (e.request.method !== 'GET' || u.origin !== location.origin || LIVE.test(u.pathname)) return; // Firebase, fonts, server, staff apps: network
+  if (e.request.method !== 'GET' || u.origin !== location.origin || LIVE.test(u.pathname)) return;
+  if (!TEST && u.pathname.startsWith('/test/')) return; // the test site looks after itself // Firebase, fonts, server, staff apps: network
   const nav = e.request.mode === 'navigate';
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
@@ -30,7 +38,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('message', e => {
   const d = e.data || {};
   if (d.type === 'clear' && d.tag) e.waitUntil(self.registration.getNotifications({ tag: d.tag }).then(ns => ns.forEach(n => n.close())));
-  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: NOTES });
+  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: NOTES, quiet: QUIET, test: TEST });
   if (d.type === 'skipWaiting') self.skipWaiting();
   if (d.type === 'fest') festOff = !d.k;
 });
