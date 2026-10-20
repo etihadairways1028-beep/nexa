@@ -1,14 +1,14 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '20.1';
+const VERSION = '20.2';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
 const QUIET = false;
-const NOTES = ["Prism is now real liquid glass — choose Light, Medium or Strong in Settings › Appearance › Glass", "Your own app background (photo, Aurora, Still night or Seasonal) works in every style", "Easier to read: brighter small text and solid bars at the top and bottom", "Prism — a brand-new look made only for Nexa: ink black, beautiful headings and a rainbow edge from the Nexa logo", "Pick your style in Settings › Appearance: Prism, Halo (rich glass), Onyx (pure black & white) or the Glass look you had before", "New Nexa fonts and a glowing send button", "Everything from 19.6: new Home, glass levels, Face ID log-in that knows you, invites"];
+const NOTES = ["Unlock once: after your PIN or fingerprint, Nexa doesn't ask again", "Fingerprint uses this device's own sensor (Windows Hello too) — one tap sets it up", "Pick a panel colour for the sidebar, panels and bars", "Chat backgrounds work again", "Onyx is now smoked glass", "Prism is now real liquid glass — choose Light, Medium or Strong in Settings › Appearance › Glass", "Your own app background (photo, Aurora, Still night or Seasonal) works in every style", "Easier to read: brighter small text and solid bars at the top and bottom"];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '64';
+const CACHE = PREFIX + '65';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server

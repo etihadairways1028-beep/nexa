@@ -451,7 +451,7 @@ function startData() {
   unsubs.base.push(db().listenDoc(`users/${me}/private/pics`, d => { S.pics = d || {}; render(); }));
   S.ready = {}; S.myStickers = []; S.scheduled = [];
   watchStickers(); watchScheduled(); watchDrafts(); watchCommunities(); watchRooms(); watchCards();
-  if (hasPin()) S.locked = true;
+  if (hasPin() && !lockSkip()) S.locked = true;
   unsubs.base.push(db().listenDoc('admins/' + me, a => { const was = S.isAdmin; S.isAdmin = !!a; if (S.isAdmin && !was) watchAdmin(); render(); }));
   unsubs.base.push(db().listenDoc('bans/' + me, b => { S.banned = b; render(); }));
   unsubs.base.push(db().listen('calls', [['to', '==', me], ['status', '==', 'ringing']], r => onIncomingCalls(r)));
@@ -994,7 +994,7 @@ function vChat(c) {
   const rec = S.rec;
   const th = thm;
   return `<section class="chat glass card fs-${S.prefs.textSize}${A('chat' + c.id)}" style="${th ? `--ac:${th.c3};--ac2:color-mix(in oklab,${th.c3} 70%,#fff)` : ''}">
-    <div class="chatbg ${bgCls}" style="background:${proPlain ? 'transparent' : bgCss}"></div>
+    <div class="chatbg ${bgCls} ${proPlain ? '' : 'chosen'}" style="background:${proPlain ? 'transparent' : bgCss};${proPlain ? '' : `--cbg:${bgCss.replace(/"/g, "'")}`}"></div>
     <header class="chathead" data-key="chathead">
       <button class="ibtn back" aria-label="Back to chats" data-a="closeConv">${ic('back')}</button>
       <button class="row grow" style="gap:12px;text-align:left;min-width:0" data-a="${cm ? 'commOpen' : c.type === 'event' ? 'eventOpen' : isGroup ? 'groupInfo' : 'profile'}" data-v="${cm ? cm.id : c.type === 'event' ? c.eventId : isGroup ? c.id : other}">${convAv(c, 44)}<span class="grow"><b class="ellip" style="display:block;font-size:16px">${streakBadge(c)}${esc(convName(c))}${!isGroup && nickOf(other) ? ` <span class="mute small" style="font-weight:600">· ${esc(U(other)?.name || '')}</span>` : ''}</b><span class="small mute row" style="gap:6px">${isMuted(c.id) ? ic('bellOff', 13) : ''}${c.ttl ? ic('timer', 13) : ''}${sub}</span></span></button>
@@ -2296,8 +2296,8 @@ document.addEventListener('submit', async e => {
         if (!/^[a-z0-9_.]{3,24}$/.test(handle)) throw new Error('Usernames are 3–24 letters, numbers, dots or underscores.');
         S.busy = true; render();
         S.pendingOnboard = true;
-        await S.be.auth.signUp(fm.email || '', fm.pw || '');
-      } else { S.busy = true; render(); await S.be.auth.signIn(fm.email || '', fm.pw || ''); }
+        S.freshAuth = now(); await S.be.auth.signUp(fm.email || '', fm.pw || '');
+      } else { S.busy = true; render(); S.freshAuth = now(); await S.be.auth.signIn(fm.email || '', fm.pw || ''); }
     } catch (err) { S.authErr = err.message; S.pendingOnboard = false; }
     S.busy = false; render();
   }
@@ -4331,7 +4331,7 @@ async function redeemCode(code) {
   if (c.length !== 8) { S.authErr = 'Codes are 8 letters and numbers, like ABCD-EFGH.'; return render(); }
   if (S.be.kind === 'local' || !S.be.auth.signInWithToken) { S.authErr = 'Quick login works on the live version of Nexa.'; return render(); }
   S.busy = true; S.authErr = ''; render();
-  try { const { token } = await qlCall({ action: 'redeem', code: c }); await S.be.auth.signInWithToken(token); }
+  try { const { token } = await qlCall({ action: 'redeem', code: c }); S.freshAuth = now(); await S.be.auth.signInWithToken(token); }
   catch (e) { S.authErr = e.message; }
   S.busy = false; render();
 }
@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '20.1';
+const APP_VERSION = '20.2';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -7704,7 +7704,7 @@ async function bioEnable() {
       rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
       user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none',
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none',
     } });
     if (!cred) throw new Error('cancelled');
     lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); render(); toast(`${bioTitle()} lock is on 🔒`);
@@ -7728,7 +7728,7 @@ Object.assign(actions, {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') away = now(); else if (S.me && hasBio() && !hasPin() && away && now() - away > 5 * 60e3) { S.locked = true; render(); } });
   // lock before the first chat is ever drawn
   const _vShellV180 = vShell;
-  vShell = function () { if (!S.lockedOnce && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; return vLock(); } return _vShellV180(); };
+  vShell = function () { if (!S.lockedOnce && !lockSkip() && S.me && hasBio()) { S.lockedOnce = true; S.locked = true; return vLock(); } return _vShellV180(); };
 }
 {
   const _vLockV180 = vLock;
@@ -7941,12 +7941,12 @@ function bioScan() {
     rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
     user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none' } });
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
   S.bioSetup = { st: 'scan', t0: now() }; paintBioSetup();
   p.then(async cred => {
     if (!cred) throw new Error('cancelled');
     await new Promise(r => setTimeout(r, Math.max(0, 1600 - (now() - S.bioSetup.t0)))); // let the scan finish nicely
-    lsSet(bioKey(), { id: b64(cred.rawId), at: now() }); S.lockedOnce = true; // don't ask again straight away
+    lsSet(bioKey(), { id: b64(cred.rawId), ids: [b64(cred.rawId), ...((lsGet(bioKey(), null) || {}).ids || [])].slice(0, 5), at: now() }); S.lockedOnce = true; // don't ask again straight away
     S.bioSetup = { st: 'ok' }; paintBioSetup(); render();
     try { navigator.vibrate?.([20, 50, 30]); } catch {} if (S.prefs.sounds !== false) upChime();
   }).catch(e => { if (S.bioSetup) { S.bioSetup = { st: 'fail', why: (e && e.name) || '' }; paintBioSetup(); } });
@@ -8323,7 +8323,7 @@ bioScan = function () {
     rp: { name: 'Nexa', id: location.hostname }, challenge: reg ? unb64u(reg.challenge) : rnd(32),
     user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required', requireResidentKey: true }, timeout: 60000, attestation: 'none' } });
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required', requireResidentKey: true }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
   S.bioSetup = { st: 'scan', t0: now() }; paintBioSetup();
   p.then(async cred => {
     if (!cred) throw new Error('cancelled');
@@ -8345,7 +8345,7 @@ Object.assign(actions, {
       .then(async a => {
         const r = a.response;
         const { token } = await pkCall({ action: 'loginFinish', id: ch.id, credId: b64u(a.rawId), clientData: b64u(r.clientDataJSON), authData: b64u(r.authenticatorData), sig: b64u(r.signature) });
-        await S.be.auth.signInWithToken(token); S.lockedOnce = true; // you just used Face ID — no second check
+        S.freshAuth = now(); await S.be.auth.signInWithToken(token); S.lockedOnce = true; // you just used Face ID — no second check
       })
       .catch(e => { S.authErr = e?.name === 'NotAllowedError' ? `${bioTitle()} was cancelled. Tap Sign in with ${bioName()} to try again.` : (e?.message || `${bioTitle()} log-in didn't work. Use your password.`); })
       .finally(() => { S.busy = false; pkPrefetch(); render(); });
@@ -9044,7 +9044,7 @@ async function pkFinish(ch, a) {
   const r = a.response;
   const { token } = await pkCall({ action: 'loginFinish', id: ch.id, credId: b64u(a.rawId), clientData: b64u(r.clientDataJSON), authData: b64u(r.authenticatorData), sig: b64u(r.signature) });
   lsSet('nexa.2fa.skip', now());
-  await S.be.auth.signInWithToken(token); S.lockedOnce = true;
+  S.freshAuth = now(); await S.be.auth.signInWithToken(token); S.lockedOnce = true;
   lsSet('nexa.pkLogin', { ...(pkKnown() || {}), at: now() });
 }
 // the email box offers your account (conditional mediation) — waits quietly until you pick it
@@ -9398,3 +9398,79 @@ const sigColOf = p => SIGCOLS.find(x => x[0] === p?.sigCol) || SIGCOLS[0];
 WN_STEPS['20.1'] = WN_STEPS['20.0']; UP_HL['20.1'] = UP_HL['20.0'];
 // already saw the 20.0 tour? then 20.1 just installs (no tour again)
 try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '20.1' && seen && verNum(seen) >= verNum('20.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* ================= v20.2: unlock once, not twice — and fingerprint that really uses THIS device ================= */
+// After you unlock (PIN or fingerprint) or have just logged in, Nexa never asks again until you've been away 5 minutes.
+function lockSkip() { return !!(S.unlockedAt || (S.freshAuth && now() - S.freshAuth < 120e3)); }
+{
+  let _l = !!S.locked;
+  Object.defineProperty(S, 'locked', { configurable: true, enumerable: true, get() { return _l; }, set(v) { v = !!v; if (_l && !v) { S.unlockedAt = now(); S.lockedOnce = true; } _l = v; } });
+}
+// fingerprint / face check: only this device's own sensor (Windows Hello, Touch ID, Android fingerprint) — no phone/QR or security-key list
+bioCheck = async function () {
+  const k = lsGet(bioKey(), null); if (!k) return false; S.bioErr = '';
+  const ids = [...new Set([...(k.ids || []), k.id].filter(Boolean))];
+  try {
+    const a = await navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: ids.map(id => ({ type: 'public-key', id: unb64(id), transports: ['internal'] })), userVerification: 'required', timeout: 60000, rpId: location.hostname, hints: ['client-device'] } });
+    return !!a;
+  } catch (e) { S.bioErr = (e && e.name) || 'Error'; S.bioMiss = true; return false; }
+};
+const devWordLk = () => /Windows|Macintosh|CrOS|Linux x86/.test(navigator.userAgent) && !/Android|iPhone|iPad/.test(navigator.userAgent) ? 'computer' : /iPad/.test(navigator.userAgent) ? 'iPad' : 'phone';
+// one tap fixes it: save a fresh key in THIS device's fingerprint/face sensor — the scan itself unlocks Nexa
+async function bioRepair() {
+  if (S.bioBusy) return; S.bioBusy = true; S.authErr = ''; render();
+  try {
+    const cred = await navigator.credentials.create({ publicKey: {
+      rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
+      user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
+    if (!cred) throw new Error('cancelled');
+    const old = lsGet(bioKey(), null) || {};
+    lsSet(bioKey(), { id: b64(cred.rawId), ids: [b64(cred.rawId), ...(old.ids || []), old.id].filter(Boolean).slice(0, 5), at: now() });
+    S.bioBusy = false; S.bioMiss = false; S.locked = false; S.lockPad = false; S.form.pinIn = '';
+    toast(`${esc(bioName())} is set up on this ${devWordLk()} ✓`); try { navigator.vibrate?.(15); } catch {}
+  } catch (e) {
+    S.bioBusy = false;
+    S.authErr = e?.name === 'NotAllowedError' ? `Cancelled. ${hasPin() ? 'Use your PIN, or try again.' : 'Try again.'}` : `This ${devWordLk()} has no fingerprint or face sensor set up. ${/Windows/.test(navigator.userAgent) ? 'Set it up in Windows Settings › Accounts › Sign-in options, then try again.' : 'Turn it on in your device settings, then try again.'}`;
+  }
+  render();
+}
+Object.assign(actions, { bioRepair: () => bioRepair() });
+{
+  const _vl = vLock;
+  vLock = function () {
+    const h = _vl();
+    if (!S.bioMiss || !hasBio()) return h;
+    const row = `<div class="lk-fix"><span class="mute small">Did ${devWordLk() === 'computer' ? 'Windows' : 'it'} ask for a phone or security key instead? Your ${esc(bioName())} isn't saved on this ${devWordLk()} yet.</span><button type="button" class="btn sm pri" data-a="bioRepair">${bioIcon()} Set up ${esc(bioName())} on this ${devWordLk()}</button></div>`;
+    return h.replace('<div class="lk-foot">', row + '<div class="lk-foot">');
+  };
+}
+WN_STEPS['20.2'] = WN_STEPS['20.1']; UP_HL['20.2'] = UP_HL['20.1'];
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '20.2' && seen && verNum(seen) >= verNum('20.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* v20.2: panel colour — pick the colour of the sidebar, panels, cards and bars (Settings › Appearance and Profile) */
+const TINTS = [['', 'Clear', ''], ['black', 'Black', '10 10 14'], ['navy', 'Navy', '16 26 64'], ['blue', 'Blue', '30 79 216'], ['sky', 'Sky', '56 140 230'], ['purple', 'Purple', '91 46 166'], ['pink', 'Pink', '194 56 122'], ['red', 'Red', '190 44 56'], ['orange', 'Orange', '214 108 30'], ['teal', 'Teal', '15 124 124'], ['green', 'Green', '31 122 69'], ['grey', 'Grey', '70 72 84'], ['white', 'White', '255 255 255']];
+const tintOf = p => TINTS.find(x => x[0] === (p?.panelTint || '')) || TINTS[0];
+{
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const root = document.documentElement, [k, , rgb] = tintOf(S.prefs);
+      if (k && root.dataset.look === 'pro') { root.dataset.tint = k; root.style.setProperty('--tint', rgb); if (k === 'white' && S.prefs.theme !== 'light') root.style.setProperty('--tint', '120 124 140'); } else { root.dataset.tint = ''; root.style.removeProperty('--tint'); }
+      lsSet('nexa.tint', k ? [k, root.style.getPropertyValue('--tint')] : null);
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const tintRow = () => { const cur = tintOf(S.prefs)[0]; return `<div class="field" id="tintPick">Panel colour<div class="tintrow">${TINTS.map(([k, n, c]) => `<button class="tintsw ${k ? '' : 'clear'} ${cur === k ? 'on' : ''}" ${c ? `style="background:rgb(${c})"` : ''} data-a="tintPick" data-v="${k}" title="${n}" aria-label="${n}" aria-pressed="${cur === k}"></button>`).join('')}</div><span class="mute small" style="font-weight:500">${cur ? 'The sidebar, panels, cards and bars get this colour — still see-through.' : 'Clear glass — your style decides the colour.'}</span></div>`; };
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (lookOf(S.prefs) !== 'pro') return h;
+    if (S.setSec === 'appearance') return h.replace(/(<div class="field" id="sigPick">[\s\S]*?<\/button><\/div><\/div>)/, `$1${tintRow()}`);
+    if (S.setSec === 'profile' || !S.setSec) { if (h.includes('class="sigprof"')) return h.replace('<div class="sigprof" style="margin-top:18px">', `<div class="sigprof" style="margin-top:18px">${tintRow()}`); const i = h.lastIndexOf('</section>'); return i > 0 ? h.slice(0, i) + `<div class="sigprof" style="margin-top:18px">${tintRow()}</div>` + h.slice(i) : h; }
+    return h;
+  };
+  Object.assign(actions, { tintPick: d => savePrefs({ panelTint: d.v || '' }) });
+}

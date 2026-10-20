@@ -1,13 +1,14 @@
 {
- "version": "20.1",
+ "version": "20.2",
  "notes": [
+  "Unlock once: after your PIN or fingerprint, Nexa doesn't ask again",
+  "Fingerprint uses this device's own sensor (Windows Hello too) — one tap sets it up",
+  "Pick a panel colour for the sidebar, panels and bars",
+  "Chat backgrounds work again",
+  "Onyx is now smoked glass",
   "Prism is now real liquid glass — choose Light, Medium or Strong in Settings › Appearance › Glass",
   "Your own app background (photo, Aurora, Still night or Seasonal) works in every style",
-  "Easier to read: brighter small text and solid bars at the top and bottom",
-  "Prism — a brand-new look made only for Nexa: ink black, beautiful headings and a rainbow edge from the Nexa logo",
-  "Pick your style in Settings › Appearance: Prism, Halo (rich glass), Onyx (pure black & white) or the Glass look you had before",
-  "New Nexa fonts and a glowing send button",
-  "Everything from 19.6: new Home, glass levels, Face ID log-in that knows you, invites"
+  "Easier to read: brighter small text and solid bars at the top and bottom"
  ],
  "quiet": false
 }
