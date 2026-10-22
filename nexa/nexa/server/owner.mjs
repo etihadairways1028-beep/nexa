@@ -125,11 +125,11 @@ export async function ensureStaffHandle(db, uid, handle, name, bio) {
   }
   return { handle, fixed, name: (prof && prof.name) || name };
 }
-// Push to everyone signed in on the support app (Shiv, Arrick, Yaseen…)
+// Push to everyone signed in on the support app (Shiv, Arrick…)
 export async function pushAgents(db, data, onlyAgent) {
   const sec = (await db.doc('supportSecrets/main').get()).data() || {};
   let tokens = Object.keys(sec.devices || {}).filter(Boolean);
-  // a person can ask for one agent (Shiv, Arrick or Yaseen) — then only that agent's devices buzz (everyone, if they have none)
+  // a person can ask for one agent (Shiv or Arrick) — then only that agent's devices buzz (everyone, if they have none)
   if (onlyAgent) { const mine = tokens.filter(t => ((sec.devices[t] || {}).agent || '') === onlyAgent); if (mine.length) tokens = mine; }
   tokens = tokens.slice(-10); // newest devices; keeps each request inside Cloudflare's limit
   if (!tokens.length) return 0;

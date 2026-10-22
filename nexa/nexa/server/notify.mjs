@@ -80,7 +80,7 @@ async function supportForward(db, uid, name, cid, conv, msg) {
   const sec = (await db.doc('supportSecrets/main').get()).data() || {};
   const sup = (process.env.SUPPORT_UID || '').trim() || sec.uid;
   if (!sup || uid === sup || !(conv.members || []).includes(sup)) return;
-  const asked = ['shiv', 'arrick', 'yaseen'].includes(conv.askedFor) ? conv.askedFor : '';
+  const asked = ['shiv', 'arrick'].includes(conv.askedFor) ? conv.askedFor : '';
   const askedName = asked ? asked[0].toUpperCase() + asked.slice(1) : '';
   await pushAgents(db, { title: asked ? `💬 ${name} asked for ${askedName}` : `💬 ${name} needs help`, body: label(msg).slice(0, 140), url: '/support/#inbox', tag: 'sup_' + cid }, asked);
   const autoReply = sec.autoReply ?? DEFAULT_AUTO_REPLY;

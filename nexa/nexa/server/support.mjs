@@ -1,5 +1,5 @@
 // Nexa Support — the server side of /support (the Nexa Support app for the support team).
-// No email sign-in: people pick their own name (Shiv, Arrick, Yaseen)
+// No email sign-in: people pick their own name (Shiv or Arrick)
 // and type their own password (starts as "nexaofficial" — change it in Settings).
 // Agents can read & answer help chats as @support, see flagged (offensive) messages and reports,
 // warn, ban/unban, and message anyone (with or without letting them reply).
@@ -7,10 +7,13 @@ import admin from './fbadmin.js';
 import { sendMail, smtpSettings, emailHtml } from './mail.mjs';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
-import { deliver, sendAs, warnUser, setReply, startStaffChat, ensureStaffHandle } from './owner.mjs';
+import { deliver, sendAs, warnUser, setReply, startStaffChat, ensureStaffHandle, startPushJob, runPushJob } from './owner.mjs';
 
 const SUPPORT_EMAIL = (process.env.SUPPORT_EMAIL || 'nexaconnectofficial@gmail.com').toLowerCase();
-const AGENTS = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }, { id: 'yaseen', name: 'Yaseen' }];
+const AGENTS = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }];
+// one-time team change (Oct 2026): Yaseen removed; Shiv and Arrick get the password the owner chose.
+// Only a salted hash is stored here — never the password itself. Everyone is signed out once.
+const PW_RESET = { id: 'team-2026-10', salt: '0bd61fdd805f17ac6e53fa16f11b5f56', hash: 'dd96e64bd6868b0ea77e2c668628f61a7660f0a9fd4319dbc87fad78a2015c23' };
 const DEFAULT_PASSWORD = 'nexaofficial';
 const DEFAULT_AUTO_REPLY = 'Thank you for reaching out to Nexa Support. The next Nexa Support agent will get back to you soon! Thank you for choosing Nexa 💙';
 const DOC = 'supportSecrets/main'; // no Firestore rule lets app users read this
@@ -62,6 +65,11 @@ export default async (req) => {
     await ref.set(sec);
   }
   if (sec.uid !== me) await ref.update({ uid: me });
+  if (sec.pwReset !== PW_RESET.id) {
+    const upd = { pwReset: PW_RESET.id, sessionsFrom: now, 'agents.yaseen': admin.firestore.FieldValue.delete() };
+    AGENTS.forEach(a => { upd['agents.' + a.id] = { salt: PW_RESET.salt, hash: PW_RESET.hash, changed: now, v: 2, fails: 0, lockUntil: 0 }; });
+    await ref.update(upd); sec = (await ref.get()).data();
+  }
 
   if (body.action === 'status') {
     const link = await ensureStaffHandle(db, me, 'support', 'Nexa Support', 'Official Nexa Support — message us any time.');
@@ -87,6 +95,8 @@ export default async (req) => {
   const s = unsign(body.session, sec.sessionKey);
   if (!s || s.uid !== me || s.exp < now || (sec.sessionsFrom || 0) > (s.iat || 0)) return json({ error: 'session', message: 'Please sign in again.' }, 401);
   const agent = AGENTS.find(x => x.id === s.agent); if (!agent) return json({ error: 'session' }, 401);
+  // until an agent has set their own password, the starting password only lets them change it (it's public in the code)
+  if (!((sec.agents || {})[agent.id] || {}).changed && body.action !== 'changePassword' && body.action !== 'logout') return json({ error: 'mustChange', message: 'Set your own password first (Settings).' }, 403);
   const fresh = sign({ ...s, exp: now + 12 * 3600e3 }, sec.sessionKey);
   const ok = o => json({ ...o, session: fresh, agent });
   const myConv = async cid => { if (!ID.test(String(cid || ''))) return null; const c = (await db.doc('conversations/' + cid).get()).data(); return c && (c.members || []).includes(me) ? c : null; };
@@ -111,7 +121,7 @@ export default async (req) => {
     const convs = qs.docs.map(x => ({ id: x.id, ...x.data() })).filter(c => c.type === 'dm' && (c.last || c.help));
     const info = await userInfo(db, convs.map(c => (c.members || []).find(u => u !== me)));
     const bans = new Set((await db.collection('bans').get()).docs.map(b => b.id));
-    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = info[u] || {}, last = c.last || {}; return { id: c.id, uid: u, name: p.name, handle: p.handle, avatar: p.avatar, online: p.online, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: !!last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u), claimed: c.claimedBy || '', asked: ['shiv', 'arrick', 'yaseen'].includes(c.askedFor) ? c.askedFor : '' }; }).sort((a, b) => b.last.at - a.last.at);
+    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = info[u] || {}, last = c.last || {}; return { id: c.id, uid: u, name: p.name, handle: p.handle, avatar: p.avatar, online: p.online, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: !!last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u), claimed: c.claimedBy || '', asked: ['shiv', 'arrick'].includes(c.askedFor) ? c.askedFor : '' }; }).sort((a, b) => b.last.at - a.last.at);
     return ok({ list, unread: list.filter(c => c.unread).length });
   }
   if (body.action === 'thread') {
@@ -224,20 +234,24 @@ export default async (req) => {
   }
   // nudge people to update: a notification + a push to their phone/computer
   if (body.action === 'askUpdate') {
-    const ids = [...new Set((Array.isArray(body.uids) ? body.uids : []).filter(uidOk))].slice(0, 400);
+    const many = Array.isArray(body.uids) && body.uids.length > 1;
+    if (many && now - (sec.lastUpdAsk || 0) < 60e3) return json({ error: 'Wait a minute between update requests to everyone.' }, 429);
+    if (many) await ref.update({ lastUpdAsk: now }).catch(() => {});
+    let ids = [...new Set((Array.isArray(body.uids) ? body.uids : []).filter(uidOk))].slice(0, 400);
+    // only real accounts
+    try { const snaps = await db.getAll(...ids.map(u => db.doc('users/' + u))); ids = ids.filter((u, i) => snaps[i].exists); } catch {}
     const v = String(body.version || '').slice(0, 12);
-    let n = 0, emailed = 0;
-    for (const u of ids) {
-      try {
-        const nd = await db.collection('notifications').add({ to: u, from: me, type: 'update_ask', title: '🚀 Update Nexa', body: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready — open Nexa and tap Update now.`, at: now, read: false });
-        await db.doc('users/' + u).update({ updateAskedAt: now }).catch(() => {});
-        await deliver(db, u, { kind: 'notification', title: '🚀 Update Nexa', body: 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd_' + nd.id }, 86400).catch(() => 0);
-        if (body.email && n < 100) { try { const au = await admin.auth().getUser(u); if (au.email) await sendMail(db, { to: au.email, subject: '🚀 A new Nexa update is ready', text: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready. Open Nexa and tap "Update now". ${new URL(req.url).origin}`, html: emailHtml('A new Nexa update is ready 🚀', `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready with new features and fixes.<br><br>Open Nexa and tap <b style="color:#fff">Update now</b>.`, { url: new URL(req.url).origin, label: 'Open Nexa' }) }); emailed++; } catch {} }
-        n++;
-      } catch {}
-    }
-    return ok({ asked: n, emailed });
+    // all the in-app requests in one write, the phone pushes in rounds (see pushJob), emails capped per request
+    const b = db.batch();
+    for (const u of ids) b.set(db.collection('notifications').doc(), { to: u, from: me, type: 'update_ask', title: '🚀 Update Nexa', body: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready — open Nexa and tap Update now.`, at: now, read: false });
+    await b.commit();
+    for (let i = 0; i < ids.length; i += 400) { const b2 = db.batch(); ids.slice(i, i + 400).forEach(u => b2.set(db.doc('users/' + u), { updateAskedAt: now }, { merge: true })); await b2.commit().catch(() => {}); }
+    let emailed = 0;
+    if (body.email) for (const u of ids.slice(0, 8)) { try { const au = await admin.auth().getUser(u); if (au.email) await sendMail(db, { to: au.email, subject: '🚀 A new Nexa update is ready', text: `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready. Open Nexa and tap "Update now". ${new URL(req.url).origin}`, html: emailHtml('A new Nexa update is ready 🚀', `A new version of Nexa${v ? ' (v' + v + ')' : ''} is ready with new features and fixes.<br><br>Open Nexa and tap <b style="color:#fff">Update now</b>.`, { url: new URL(req.url).origin, label: 'Open Nexa' }) }); emailed++; } catch {} }
+    const job = ids.length ? await startPushJob(db, ids, { kind: 'notification', title: '🚀 Update Nexa', body: 'A new version of Nexa is ready — open Nexa and tap Update now.', page: 'notifications', tag: 'upd' }, me) : '';
+    return ok({ asked: ids.length, emailed, job });
   }
+  if (body.action === 'pushJob') { const r = await runPushJob(db, body.job, body.from, me); return r.error ? json({ error: r.error }, 404) : ok(r); }
   // ---------- email (SMTP) settings for every email Nexa sends — changeable here
   if (body.action === 'smtpGet') {
     const s = sec.smtp || {}, srv = await smtpSettings(db).catch(() => null);
