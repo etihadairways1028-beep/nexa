@@ -1,14 +1,14 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '21.0';
+const VERSION = '21.1';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
 const QUIET = false;
 const NOTES = ["Nexa 1.0 is here: the first official version.", "Your style: Prism, Halo or Onyx, with your own colours.", "One unlock with PIN, Face ID or fingerprint.", "Chat backgrounds, reactions, polls and plans.", "Invite friends with your link."];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '67';
+const CACHE = PREFIX + '68';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server

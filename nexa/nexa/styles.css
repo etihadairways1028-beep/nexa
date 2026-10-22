@@ -2927,3 +2927,16 @@ button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
 .wn-tip .wn-count{font-size:12px;letter-spacing:0;opacity:.75}
 .hu-list li.hu-short{align-items:center;gap:10px}
 .hu-list li.hu-short .hu-ic{width:28px;height:28px;border-radius:8px}
+/* Nexa 1.0: notifications / get-the-app question */
+#askLayer{position:fixed;inset:0;z-index:9000;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.35);animation:huIn .2s ease}
+#askLayer.out{opacity:0;transition:opacity .2s}
+.ask-card{width:min(420px,100%);display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:color-mix(in oklab,var(--ground,#0b0b10) 88%,#fff 6%);border:1px solid var(--line);box-shadow:0 24px 60px -20px rgba(0,0,0,.6);color:var(--text);margin-bottom:max(8px,env(safe-area-inset-bottom))}
+@media (min-width:700px){#askLayer{align-items:center}}
+.ask-btns{display:flex;flex-direction:column;gap:8px}
+.ask-btns .btn{width:100%;height:46px;font-size:15.5px}
+.ask-never{align-self:center;font-size:14px;color:var(--mute);padding:6px 8px}
+.ask-how ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px;line-height:1.45}
+.ask-how svg{vertical-align:-2px}
+.ask-card{background:#17171F!important;backdrop-filter:blur(20px)}
+:root[data-theme="light"] .ask-card{background:#FFFFFF!important}
+#askLayer{background:rgba(0,0,0,.5)}

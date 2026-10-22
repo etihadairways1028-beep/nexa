@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.0';
+const APP_VERSION = '21.1';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9160,7 +9160,7 @@ try { const _g = navigator.credentials?.get?.bind(navigator.credentials); if (_g
 const pkStale = credIdB64 => {
   lsSet('nexa.pkRepair', 1); lsSet('nexa.pkLogin', null);
   try { if (credIdB64) PublicKeyCredential.signalUnknownCredential?.({ rpId: location.hostname, credentialId: credIdB64 })?.catch?.(() => {}); } catch {}
-  return `This ${devWord()} has an old ${bioName()} key for Nexa that no longer works (it was saved by an older version of Nexa). Log in with your password once — Nexa will then set ${bioName()} up again in one tap, and it'll work from then on.`;
+  return `${bioName()} needs to be set up again on this ${devWord()}. Log in with your password below, then tap “Turn on ${bioName()}” when Nexa asks. After that it works every time.`;
 };
 {
   const _pf = pkFinish;
@@ -9420,12 +9420,17 @@ const devWordLk = () => /Windows|Macintosh|CrOS|Linux x86/.test(navigator.userAg
 async function bioRepair() {
   if (S.bioBusy) return; S.bioBusy = true; S.authErr = ''; render();
   try {
+    // the new key also becomes this device's log-in key on the server — otherwise it would replace the
+    // working log-in key in Windows Hello / the phone's passkeys and log-in would stop working
+    let reg = S.lkReg && now() - (S.lkRegAt || 0) < 120000 ? S.lkReg : null; S.lkReg = null;
+    if (!reg && pkLive()) { try { reg = await pkCall({ action: 'regBegin' }, await S.be.auth.idToken()); } catch {} }
     const cred = await navigator.credentials.create({ publicKey: {
-      rp: { name: 'Nexa', id: location.hostname }, challenge: rnd(32),
+      rp: { name: 'Nexa', id: location.hostname }, challenge: reg ? unb64u(reg.challenge) : rnd(32),
       user: { id: new TextEncoder().encode(String(S.me).slice(0, 60)), name: '@' + (S.profile?.handle || 'nexa'), displayName: S.profile?.name || 'Nexa' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required', requireResidentKey: true }, hints: ['client-device'], timeout: 60000, attestation: 'none' } });
     if (!cred) throw new Error('cancelled');
+    if (reg) { try { await pkRegister(cred, reg); } catch (e) { console.warn('log-in key not saved', e); } }
     const old = lsGet(bioKey(), null) || {};
     lsSet(bioKey(), { id: b64(cred.rawId), ids: [b64(cred.rawId), ...(old.ids || []), old.id].filter(Boolean).slice(0, 5), at: now() });
     S.bioBusy = false; S.bioMiss = false; S.locked = false; S.lockPad = false; S.form.pinIn = '';
@@ -9555,7 +9560,7 @@ UP_HL['20.3'] = UP_HL['20.2'];
 
 /* ================= v21.0 = Nexa 1.0: the first official version ================= */
 // People see "Nexa 1.0" (then 1.1, 1.2…). The update number underneath keeps counting up (21.0, 21.1…) so every phone keeps updating.
-function dispVer(v) { const m = String(v || '').match(/^(\d+)\.(\d+)/); if (!m) return String(v || ''); const a = +m[1], b = +m[2]; return a >= 21 ? `${a - 20}.${b}` : `${a}.${b}`; }
+function dispVer(v) { if (DISP_FIX[String(v)]) return DISP_FIX[String(v)]; const m = String(v || '').match(/^(\d+)\.(\d+)/); if (!m) return String(v || ''); const a = +m[1], b = +m[2]; return a >= 21 ? `${a - 20}.${b}` : `${a}.${b}`; }
 const WN_TITLE = { '21.0': 'Nexa 1.0 is here' };
 const WN_INTRO = { '21.0': 'Thanks for being here early. This is the first official version of Nexa: everything you’ve been testing, finished.' };
 WN_HUMAN['21.0'] = [
@@ -9565,3 +9570,68 @@ WN_HUMAN['21.0'] = [
   ['userplus', 'Bring your friends', 'Share your invite link. They join and you’re friends straight away.'],
 ];
 WN_STEPS['21.0'] = WN_STEPS['20.3']; UP_HL['21.0'] = UP_HL['20.3'];
+
+/* ================= v21.1 (still Nexa 1.0): fingerprint fix keeps log-in working ================= */
+// The lock screen's "Set up fingerprint" used to save a key only Nexa-on-this-device knew about. Windows Hello
+// keeps one key per account, so it replaced the working log-in key and log-in then said "old key". Now that
+// one tap saves a key the server knows too: unlock AND log-in both work with it.
+setInterval(() => {
+  if (S.view === 'app' && S.locked && S.bioMiss && pkLive() && !S.bioBusy && (!S.lkReg || now() - (S.lkRegAt || 0) > 100000) && !S.lkRegBusy) {
+    S.lkRegBusy = true; S.be.auth.idToken().then(t => pkCall({ action: 'regBegin' }, t)).then(r => { S.lkReg = r; S.lkRegAt = now(); }).catch(() => {}).finally(() => { S.lkRegBusy = false; });
+  }
+}, 1500);
+
+// still called Nexa 1.0 (fixes on top of the launch)
+var DISP_FIX = { '21.1': '1.0' };
+WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
+// already saw the 1.0 card? then this just installs quietly
+try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '21.1' && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+
+/* ================= Nexa 1.0: ask once about notifications and about getting the app ================= */
+// Three answers each: Yes · Not right now (asks again in a day) · No, don't ask again.
+{
+  const ios = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const snoozed = k => { const v = lsGet('nexa.ask.' + k, null); return v === 'never' || (typeof v === 'number' && now() - v < 864e5); };
+  const wantNotif = () => S.view === 'app' && S.me && typeof Notification !== 'undefined' && Notification.permission === 'default' && !snoozed('notif');
+  const wantInstall = () => !installed() && !snoozed('install') && (S.view === 'app' || S.view === 'auth');
+  let shownThisVisit = {}, openSince = 0;
+  const close = () => { document.getElementById('askLayer')?.classList.add('out'); setTimeout(() => document.getElementById('askLayer')?.remove(), 220); };
+  function show(kind) {
+    shownThisVisit[kind] = true;
+    const n = kind === 'notif';
+    const t = n ? 'Turn on notifications?' : (ios() ? 'Add Nexa to your Home Screen?' : 'Get the Nexa app?');
+    const d = n ? 'Get a message when friends text you or invite you to something, even when Nexa is closed.'
+      : ios() ? 'Nexa opens like a real app, full screen, and you can get notifications.' : 'Nexa opens in its own window, starts faster and can send you notifications.';
+    const L = document.createElement('div'); L.id = 'askLayer'; L.setAttribute('role', 'dialog'); L.setAttribute('aria-label', t);
+    L.innerHTML = `<div class="ask-card"><div class="hu-head"><img src="${festIcon()}" alt="" class="hu-icon"><div><b class="hu-t">${t}</b><span class="mute small">${n ? 'You can change this later in Settings' : 'Free · takes a few seconds'}</span></div></div>
+      <p class="mute" style="margin:0;font-size:14.5px;line-height:1.5">${d}</p><div class="ask-how" hidden></div>
+      <div class="ask-btns"><button class="btn pri" data-ask="yes">Yes</button><button class="btn" data-ask="later">Not right now</button><button class="ask-never" data-ask="never">No, don't ask again</button></div></div>`;
+    document.body.appendChild(L); openSince = now();
+    L.addEventListener('click', async e => {
+      const b = e.target.closest('[data-ask]'); if (!b) { if (e.target === L) { lsSet('nexa.ask.' + kind, now()); close(); } return; }
+      const a = b.dataset.ask;
+      if (a === 'later') { lsSet('nexa.ask.' + kind, now()); return close(); }
+      if (a === 'never') { lsSet('nexa.ask.' + kind, 'never'); return close(); }
+      if (n) { close(); lsSet('nexa.ask.notif', 'never'); try { await actions.deviceNotifs(); } catch {} return; }
+      // install
+      if (S.installEvt) { close(); const ev = S.installEvt; ev.prompt(); const r = await ev.userChoice.catch(() => ({})); S.installEvt = null; lsSet('nexa.ask.install', r?.outcome === 'accepted' ? 'never' : now()); return; }
+      const how = L.querySelector('.ask-how');
+      how.innerHTML = ios() ? `<ol><li>Tap the <b>Share</b> button ${ic('share', 14)} at the bottom of Safari.</li><li>Tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. Then open Nexa from your Home Screen.</li></ol>`
+        : /Firefox/.test(navigator.userAgent) ? `<ol><li>Open Nexa in <b>Chrome</b> or <b>Edge</b>.</li><li>Tap the install icon in the address bar.</li></ol>`
+        : `<ol><li>Open your browser menu <b>⋮</b>.</li><li>Tap <b>Install Nexa</b> (or <b>Add to Home screen</b>).</li></ol>`;
+      how.hidden = false; b.textContent = 'Done'; b.dataset.ask = 'later';
+      lsSet('nexa.ask.install', now());
+    });
+  }
+  setInterval(() => {
+    if (document.getElementById('askLayer') || document.visibilityState !== 'visible') return;
+    if (S.locked || S.modal || S.wn || S.bioSetup || document.getElementById('upLayer') || document.getElementById('wnLayer') || document.getElementById('tourLayer') || document.getElementById('bioLayer')) { openSince = 0; return; }
+    if (typeof isTypingNow === 'function' && isTypingNow()) return;
+    if (!openSince) { openSince = now(); return; }
+    if (now() - openSince < 3000) return; // let people see the app first
+    if (!shownThisVisit.notif && wantNotif()) return show('notif');
+    if (!shownThisVisit.install && wantInstall() && (S.view === 'app' || now() - openSince > 6000)) return show('install');
+  }, 1000);
+  if (location.hostname === 'localhost') window.__ask = { show };
+}
