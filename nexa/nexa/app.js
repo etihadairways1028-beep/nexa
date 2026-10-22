@@ -5831,7 +5831,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.1';
+const APP_VERSION = '21.2';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -5840,8 +5840,8 @@ function ownerLocked(uid) { const h = (U(uid)?.handle || S.peopleRes.find(x => x
   const _add = actions.addFriend;
   actions.addFriend = async d => { if (ownerLocked(d.v)) return toast((U(d.v)?.handle || '') === 'support' ? 'Nexa Support can\'t be added as a friend — tap Help to message them.' : 'The owner account can\'t be added as a friend. Tap Help to contact Nexa Support.'); return _add(d); };
 }
-// ---- Help → choose who helps you: 1 Shiv, 2 Arrick, 3 Yaseen
-const SUPPORT_AGENTS = [['shiv', 'Shiv'], ['arrick', 'Arrick'], ['yaseen', 'Yaseen']];
+// ---- Help → choose who helps you: 1 Shiv, 2 Arrick
+const SUPPORT_AGENTS = [['shiv', 'Shiv'], ['arrick', 'Arrick']];
 {
   const _dmOwner = actions.dmOwner;
   Object.assign(actions, {
@@ -9582,10 +9582,10 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
-try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '21.1' && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
+try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
 
 /* ================= Nexa 1.0: ask once about notifications and about getting the app ================= */
 // Three answers each: Yes · Not right now (asks again in a day) · No, don't ask again.
@@ -9635,3 +9635,5 @@ try { const seen = lsGet('nexa.seenVersion', null); if (APP_VERSION === '21.1' &
   }, 1000);
   if (location.hostname === 'localhost') window.__ask = { show };
 }
+
+WN_HUMAN['21.2'] = WN_HUMAN['21.0']; WN_TITLE['21.2'] = WN_TITLE['21.0']; WN_INTRO['21.2'] = WN_INTRO['21.0']; WN_STEPS['21.2'] = WN_STEPS['21.0']; UP_HL['21.2'] = UP_HL['21.0'];
