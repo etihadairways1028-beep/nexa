@@ -1,14 +1,14 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '21.2';
+const VERSION = '21.3';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
 const QUIET = false;
-const NOTES = ["Nexa 1.0 is here: the first official version.", "Your style: Prism, Halo or Onyx, with your own colours.", "One unlock with PIN, Face ID or fingerprint.", "Chat backgrounds, reactions, polls and plans.", "Invite friends with your link."];
+const NOTES = ["Encrypted chats: only the two of you can read them.", "Never miss a message: a notification check, and an email if alerts can't reach you.", "Voice messages as text, automatically.", "Install Nexa on Mac and PC."];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '69';
+const CACHE = PREFIX + '70';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server
@@ -131,7 +131,7 @@ self.addEventListener('push', e => {
     if (diskId) { try { const sc = await caches.open('nexa-seen'); const key = new Request('/__seen/' + encodeURIComponent(diskId)); if (await sc.match(key)) { if (ios) await showNothing(); return; } await sc.put(key, new Response(String(Date.now()))); if (Math.random() < .05) { const ks = await sc.keys(); for (const k of ks.slice(0, Math.max(0, ks.length - 300))) await sc.delete(k); } } catch {} }
     // Nexa is open on screen → no system pop-up; the app shows its own from the top.
     // (calls: only when Nexa is really in front — iPhone sometimes says a closed app is "visible", so there a call always alerts)
-    if (x.kind === 'call' ? (!ios && cs.some(c => c.focused)) : cs.some(c => c.visibilityState === 'visible')) {
+    if (x.tag !== 'selftest' && (x.kind === 'call' ? (!ios && cs.some(c => c.focused)) : cs.some(c => c.visibilityState === 'visible'))) {
       if (ios) await showNothing();
       return;
     }

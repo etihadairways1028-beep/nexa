@@ -2940,3 +2940,14 @@ button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
 .ask-card{background:#17171F!important;backdrop-filter:blur(20px)}
 :root[data-theme="light"] .ask-card{background:#FFFFFF!important}
 #askLayer{background:rgba(0,0,0,.5)}
+/* end-to-end encryption */
+.e2e-badge{display:inline-flex;vertical-align:-1px;color:#5BD68A;margin-left:4px}
+.e2e-note{align-self:center;display:flex;align-items:center;gap:6px;max-width:320px;text-align:center;font-size:12px;line-height:1.4;padding:7px 12px;margin:6px auto 10px;border-radius:12px;background:rgba(91,214,138,.12);color:var(--text);border:1px solid rgba(91,214,138,.25)}
+.e2e-note svg{flex:none;color:#5BD68A}
+/* Nexa 1.1: notification check */
+.nk-steps{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.nk-steps li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}
+.nk-steps li>span:last-child{display:flex;flex-direction:column;gap:2px}
+.nk-ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:none;background:rgba(91,214,138,.18);color:#5BD68A}
+.nk-steps li.bad .nk-ic{background:rgba(255,180,71,.18);color:#FFB547}
+.ws-inst{color:var(--text);text-decoration:underline;font-weight:600;padding:0;margin-bottom:6px;font-size:inherit}

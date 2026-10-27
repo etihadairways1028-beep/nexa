@@ -1339,6 +1339,7 @@ function vMenu() {
       c.type === 'dm' ? ['toneOpen', 'volume', 'Notification sound', o] : null,
       ['folderAdd', 'folder', 'Add to folder'],
       ['chatInfo', 'info', 'Chat info, photos & links'],
+      c.type === 'dm' ? ['e2eToggle', 'lock', c.e2e?.on ? 'End-to-end encryption: on' : 'Turn on end-to-end encryption'] : null,
       innerWidth > 1100 ? ['floatOpen', 'expand', 'Open in a small window', c.id] : null,
       ['lockChat', 'lock', isLockedChat(c.id) ? 'Unlock this chat' : 'Lock this chat', c.id],
       ['summarize', 'spark', 'Summarize with Nexa AI'],
@@ -5255,7 +5256,7 @@ const isStaffUid = uid => !!(U(uid)?.staff || STAFF.has((U(uid)?.handle || '').t
 const _vMsgBodyV16 = vMsgBody;
 vMsgBody = function (m, q, quote) {
   const h = _vMsgBodyV16(m, q, quote);
-  if (m.agent && m.from !== S.me && !m.deleted) return `<div class="agentlbl">${ic('check', 11, 3)} ${esc(m.agent === 'Nexa Support' ? 'Nexa Support' : m.agent + ' · Nexa Support')}</div>` + h;
+  if (m.agent && m.from !== S.me && !m.deleted) return `<div class="agentlbl">${ic('check', 11, 3)} ${esc(m.agent === 'Nexa Support' || !SUPPORT_AGENTS.some(x => x[1] === m.agent) ? 'Nexa Support' : m.agent + ' · Nexa Support')}</div>` + h;
   return h;
 };
 const _vChatV16 = vChat;
@@ -5831,7 +5832,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.2';
+const APP_VERSION = '21.3';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -8751,7 +8752,7 @@ function vLandingMock() {
     return `<div class="ws${A('ws')}">
       <header class="ws-nav"><a class="ws-brand" href="#top">${logo(30)}<b>nexa</b></a><nav><a href="#features">Features</a><a href="#safety">Safety</a><a href="privacy.html">Privacy</a></nav><span class="grow"></span><button class="btn sm" data-a="wsGo" data-v="login">Log in</button><button class="btn sm pri" data-a="wsGo" data-v="signup">Get Nexa</button></header>
       <section class="ws-hero" id="top">
-        <div class="ws-copy"><span class="ws-eyebrow">Nexa 1.0 · Free</span>
+        <div class="ws-copy"><span class="ws-eyebrow">Nexa ${dispVer(APP_VERSION)} · Free</span>
           <h1>Where your <i class="ws-pt">people talk.</i></h1>
           <p>Messages, voice and video calls, group chats and communities — in one fast, private app that works on every device.</p>
           <div class="ws-ctas"><button class="btn pri lg" data-a="wsGo" data-v="signup">Create your account</button><button class="btn lg" data-a="wsGo" data-v="login">Log in</button></div>
@@ -9001,7 +9002,7 @@ if (IS_TEST) {
     if (h && !S.inviteSeen) { S.inviteSeen = true; if (!S.authMode || S.authMode === 'login') S.authMode = 'signup'; }
     let out = _va();
     if (h && S.authMode !== 'code') out = out.replace(/(<form class="auth-card)/, `<div class="invbanner">${ic('userplus', 18)}<span><b>@${esc(h)} invited you to Nexa</b><br><span class="mute small">Sign up and you'll be friends straight away.</span></span></div>$1`);
-    if (h) out = out.replace('<span class="ws-eyebrow">Nexa 1.0 · Free</span>', `<button class="invbanner top" data-a="wsGo" data-v="signup">${ic('userplus', 18)}<span><b>@${esc(h)} invited you to Nexa</b><br><span class="mute small">Tap to sign up — you'll be friends straight away.</span></span></button>`);
+    if (h) out = out.replace(`<span class="ws-eyebrow">Nexa ${dispVer(APP_VERSION)} · Free</span>`, `<button class="invbanner top" data-a="wsGo" data-v="signup">${ic('userplus', 18)}<span><b>@${esc(h)} invited you to Nexa</b><br><span class="mute small">Tap to sign up — you'll be friends straight away.</span></span></button>`);
     return out;
   };
   // People: invite strip under the search
@@ -9582,7 +9583,7 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0', '21.2': '1.0' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
 try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
@@ -9617,8 +9618,11 @@ try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' 
       // install
       if (S.installEvt) { close(); const ev = S.installEvt; ev.prompt(); const r = await ev.userChoice.catch(() => ({})); S.installEvt = null; lsSet('nexa.ask.install', r?.outcome === 'accepted' ? 'never' : now()); return; }
       const how = L.querySelector('.ask-how');
+      const ua = navigator.userAgent, mac = /Macintosh/.test(ua) && !ios(), safari = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua);
       how.innerHTML = ios() ? `<ol><li>Tap the <b>Share</b> button ${ic('share', 14)} at the bottom of Safari.</li><li>Tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. Then open Nexa from your Home Screen.</li></ol>`
-        : /Firefox/.test(navigator.userAgent) ? `<ol><li>Open Nexa in <b>Chrome</b> or <b>Edge</b>.</li><li>Tap the install icon in the address bar.</li></ol>`
+        : mac && safari ? `<ol><li>In the menu bar at the top of your Mac, click <b>File</b>.</li><li>Click <b>Add to Dock…</b>, then <b>Add</b>.</li><li>Nexa is now in your Dock and Launchpad, like any Mac app.</li></ol><p class="mute small" style="margin:8px 0 0">Needs macOS Sonoma or newer. On an older Mac, open Nexa in Chrome or Edge instead.</p>`
+        : /Firefox/.test(ua) ? `<ol><li>Open Nexa in <b>Chrome</b>, <b>Edge</b>${mac ? ' or <b>Safari</b>' : ''}.</li><li>Click the install icon at the right of the address bar.</li></ol>`
+        : mac || /Windows|CrOS|Linux/.test(ua) && !/Android/.test(ua) ? `<ol><li>Click the install icon ${ic('download', 14)} at the right of the address bar.</li><li>Or open the menu <b>⋮</b> › <b>Cast, save and share</b> › <b>Install page as app</b>.</li><li>Nexa opens in its own window${mac ? ' and appears in your Dock and Launchpad' : ' and on your Start menu'}.</li></ol>`
         : `<ol><li>Open your browser menu <b>⋮</b>.</li><li>Tap <b>Install Nexa</b> (or <b>Add to Home screen</b>).</li></ol>`;
       how.hidden = false; b.textContent = 'Done'; b.dataset.ask = 'later';
       lsSet('nexa.ask.install', now());
@@ -9633,7 +9637,269 @@ try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' 
     if (!shownThisVisit.notif && wantNotif()) return show('notif');
     if (!shownThisVisit.install && wantInstall() && (S.view === 'app' || now() - openSince > 6000)) return show('install');
   }, 1000);
-  if (location.hostname === 'localhost') window.__ask = { show };
+  window.nexaInstall = () => show('install'); if (location.hostname === 'localhost') window.__ask = { show };
 }
 
 WN_HUMAN['21.2'] = WN_HUMAN['21.0']; WN_TITLE['21.2'] = WN_TITLE['21.0']; WN_INTRO['21.2'] = WN_INTRO['21.0']; WN_STEPS['21.2'] = WN_STEPS['21.0']; UP_HL['21.2'] = UP_HL['21.0'];
+
+/* ================= Nexa 1.1: END-TO-END ENCRYPTION for private chats ================= */
+// Turn it on in a chat (••• › Turn on end-to-end encryption). From then on, text messages are locked on
+// your device and can only be unlocked on your devices and the other person's — not by Nexa, not by anyone else.
+// How: every device has its own key pair (P-256). The private key never leaves the device (kept in IndexedDB,
+// can't be exported). Each message gets a fresh AES-256-GCM key, which is wrapped separately for every device
+// of both people (ECDH + HKDF). The server only ever stores scrambled text.
+const E2E = { db: null, me: null, pending: new Set(), plain: {}, pubCache: {} };
+const e2eIdb = () => E2E.db || (E2E.db = new Promise((ok, no) => { const r = indexedDB.open('nexa-e2e', 1); r.onupgradeneeded = () => r.result.createObjectStore('keys'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }));
+const idbGet = async k => { const d = await e2eIdb(); return new Promise(ok => { const t = d.transaction('keys').objectStore('keys').get(k); t.onsuccess = () => ok(t.result || null); t.onerror = () => ok(null); }); };
+const idbPut = async (k, v) => { const d = await e2eIdb(); return new Promise((ok, no) => { const t = d.transaction('keys', 'readwrite'); t.objectStore('keys').put(v, k); t.oncomplete = ok; t.onerror = () => no(t.error); }); };
+const e2eB64 = buf => { let s = ''; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s); };
+const e2eUnB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function e2eMyKey() {
+  if (!S.me || !window.crypto?.subtle || !window.indexedDB) return null;
+  if (E2E.me && E2E.me.uid === S.me) return E2E.me;
+  let rec = await idbGet('dev:' + S.me).catch(() => null);
+  if (!rec) {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']);
+    const pub = await crypto.subtle.exportKey('jwk', kp.publicKey);
+    rec = { priv: kp.privateKey, pub: { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y }, at: now() };
+    await idbPut('dev:' + S.me, rec);
+  }
+  E2E.me = { uid: S.me, ...rec };
+  return E2E.me;
+}
+// publish this device's public key so people can send it encrypted messages
+async function e2ePublish() {
+  try {
+    const k = await e2eMyKey(); if (!k) return;
+    const mine = (S.profile?.e2e || {})[deviceId];
+    if (!mine || mine.k?.x !== k.pub.x) await db().update('users/' + S.me, { ['e2e.' + deviceId]: { k: k.pub, at: now() } });
+  } catch (e) { console.warn('e2e publish', e); }
+}
+async function e2eKeysOf(uid) {
+  const u = uid === S.me ? S.profile : (S.users[uid] || await db().get('users/' + uid).catch(() => null));
+  const all = (u && u.e2e) || {}, out = {};
+  const cut = now() - 400 * 864e5; // devices not seen for over a year drop off
+  for (const [dev, v] of Object.entries(all)) if (v?.k?.x && v.k.y && (v.at || 0) > cut) out[dev] = v.k;
+  return out;
+}
+const e2eImportPub = async jwk => { const key = jwk.x + jwk.y; return E2E.pubCache[key] || (E2E.pubCache[key] = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, ext: true }, { name: 'ECDH', namedCurve: 'P-256' }, false, [])); };
+async function e2eWrapKey(myPriv, theirPub, salt) {
+  const bits = await crypto.subtle.deriveBits({ name: 'ECDH', public: theirPub }, myPriv, 256);
+  const hk = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt, info: new TextEncoder().encode('nexa-e2e-v1') }, hk, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function e2eEncrypt(c, text) {
+  const me = await e2eMyKey(); if (!me) throw new Error('This browser can\'t encrypt messages.');
+  const other = (c.members || []).find(x => x !== S.me);
+  const targets = { ...Object.fromEntries(Object.entries(await e2eKeysOf(other)).map(([d, k]) => [other + ':' + d, k])), ...Object.fromEntries(Object.entries(await e2eKeysOf(S.me)).map(([d, k]) => [S.me + ':' + d, k])) };
+  targets[S.me + ':' + deviceId] = me.pub;
+  if (!Object.keys(targets).some(k => k.startsWith(other + ':'))) throw new Error('nokeys');
+  const mk = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const raw = await crypto.subtle.exportKey('raw', mk), iv = crypto.getRandomValues(new Uint8Array(12)), salt = crypto.getRandomValues(new Uint8Array(16));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, mk, new TextEncoder().encode(text));
+  const keys = {};
+  for (const [id, jwk] of Object.entries(targets)) {
+    try { const wk = await e2eWrapKey(me.priv, await e2eImportPub(jwk), salt); const wiv = crypto.getRandomValues(new Uint8Array(12)); keys[id] = { i: e2eB64(wiv), w: e2eB64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: wiv }, wk, raw)) }; } catch {}
+  }
+  return { v: 1, d: S.me + ':' + deviceId, iv: e2eB64(iv), s: e2eB64(salt), ct: e2eB64(ct), keys };
+}
+async function e2eDecrypt(m) {
+  const me = await e2eMyKey(); if (!me) return null;
+  const e = m.enc, mine = e.keys?.[S.me + ':' + deviceId]; if (!mine) return null;
+  const [fromUid, fromDev] = e.d.split(':');
+  const pub = fromUid === S.me && fromDev === deviceId ? me.pub : (await e2eKeysOf(fromUid))[fromDev];
+  if (!pub) return null;
+  const wk = await e2eWrapKey(me.priv, await e2eImportPub(pub), e2eUnB64(e.s));
+  const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: e2eUnB64(mine.i) }, wk, e2eUnB64(mine.w));
+  const mk = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+  return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: e2eUnB64(e.iv) }, mk, e2eUnB64(e.ct)));
+}
+const E2E_LOCKED = '🔒 Encrypted message';
+const E2E_NOKEY = '🔒 This message can\'t be opened on this device (it was sent before this device was set up for encryption).';
+// before each screen update: show the unlocked text for encrypted messages (unlocking runs in the background)
+function e2eApply() {
+  for (const [cid, arr] of Object.entries(S.msgs || {})) {
+    if (!Array.isArray(arr)) continue;
+    for (const m of arr) {
+      if (!m || !m.enc || !m.id) continue;
+      const k = cid + '/' + m.id, p = E2E.plain[k];
+      if (p !== undefined) { if (m.text !== p) { m.text = p; m._e2e = true; } continue; }
+      m._e2e = true;
+      if (E2E.pending.has(k)) continue;
+      E2E.pending.add(k);
+      e2eDecrypt(m).then(t => { E2E.plain[k] = t == null ? E2E_NOKEY : t; }).catch(() => { E2E.plain[k] = E2E_NOKEY; }).finally(() => { E2E.pending.delete(k); render(); });
+    }
+  }
+}
+{
+  const _dr = doRender;
+  doRender = function (...a) { try { e2eApply(); } catch {} return _dr.apply(this, a); };
+  // sending: in an encrypted chat the text is locked before it leaves the device
+  const _send = sendMessage;
+  sendMessage = async function (payload, cid) {
+    const c = convOf(cid || S.conv);
+    if (c && c.type === 'dm' && c.e2e?.on && payload && typeof payload.text === 'string' && payload.text && !payload.system && !payload.bot && !payload.enc) {
+      let enc;
+      try { enc = await e2eEncrypt(c, payload.text); }
+      catch (e) { toast(e.message === 'nokeys' ? `${esc(dname(others(c)[0]).split(' ')[0])} needs to open the newest Nexa once before you can send encrypted messages.` : 'Couldn\'t encrypt this message, so it wasn\'t sent.'); S.draft[c.id] = payload.text; render(); return; }
+      if (S.replyTo && !cid) S.replyTo = { ...S.replyTo, text: '🔒' };
+      const plain = payload.text, id = await _send({ ...payload, text: E2E_LOCKED, enc }, cid);
+      if (id) { E2E.plain[c.id + '/' + id] = plain; render(); }
+      return id;
+    }
+    return _send(payload, cid);
+  };
+  const _edit = actions.edit;
+  actions.edit = d => { const c = convOf(S.conv); if (c?.e2e?.on) { const m = (S.msgs[S.conv] || []).find(x => x.id === d.v); if (m?.enc) return toast('Encrypted messages can\'t be edited yet — delete it and send a new one.'); } return _edit(d); };
+  Object.assign(actions, {
+    e2eToggle: async () => {
+      S.menu = null; const c = convOf(S.conv); if (!c || c.type !== 'dm') return;
+      const o = others(c)[0], first = esc(dname(o).split(' ')[0]);
+      if (c.e2e?.on) {
+        return confirmModal('Turn off end-to-end encryption?', `New messages in this chat won't be encrypted any more. ${first} will see that you turned it off.`, 'Turn off', async () => {
+          await db().update('conversations/' + c.id, { e2e: { on: false, by: S.me, at: now() } });
+          sendMessage({ text: `🔓 ${dname(S.me).split(' ')[0]} turned off end-to-end encryption.`, system: true }, c.id);
+        });
+      }
+      await e2ePublish();
+      const theirs = await e2eKeysOf(o);
+      if (!Object.keys(theirs).length) return toast(`${first} needs to open the newest Nexa once first — then you can turn this on.`);
+      S.modal = { type: 'e2eOn', conv: c.id }; render();
+    },
+    e2eConfirm: async () => {
+      const c = convOf(S.modal?.conv); S.modal = null; render(); if (!c) return;
+      await db().update('conversations/' + c.id, { e2e: { on: true, by: S.me, at: now() } });
+      sendMessage({ text: `🔒 ${dname(S.me).split(' ')[0]} turned on end-to-end encryption. New messages can only be read by the two of you.`, system: true }, c.id);
+      toast('🔒 End-to-end encryption is on');
+    },
+  });
+  const _m5 = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type !== 'e2eOn') return _m5(m, f, head);
+    const c = convOf(m.conv), first = esc(dname(others(c || {})[0] || '').split(' ')[0] || 'they');
+    return `<div class="hu-sheet"><div class="hu-head"><span class="hu-ic" style="width:56px;height:56px;border-radius:16px">${ic('lock', 26)}</span><div><b class="hu-t">End-to-end encryption</b><span class="mute small">Only you and ${first} can read new messages</span></div></div>
+      <ul class="hu-list">
+        <li><span class="hu-ic">${ic('lock', 16)}</span><span><b>Locked on your device</b><span class="mute">Messages are scrambled before they leave your phone. Nexa can't read them, and neither can anyone else.</span></span></li>
+        <li><span class="hu-ic">${ic('phone', 16)}</span><span><b>Works on your devices</b><span class="mute">Each of your phones and computers that has opened Nexa can read them. A brand-new device can't read older ones.</span></span></li>
+        <li><span class="hu-ic">${ic('photo', 16)}</span><span><b>Text messages</b><span class="mute">Photos, voice notes and files aren't encrypted yet. That's coming next.</span></span></li>
+      </ul>
+      <button class="btn pri hu-btn" data-a="e2eConfirm">${ic('lock', 16)} Turn on encryption</button><button class="hu-link" data-a="closeModal">Not now</button></div>`;
+  };
+  // the lock in the chat header and a short note at the top of the chat
+  const _vc = typeof vChat === 'function' ? vChat : null;
+  if (_vc) vChat = function (...a) {
+    let h = _vc.apply(this, a); const c = convOf(S.conv);
+    if (!c || !c.e2e?.on) return h;
+    h = h.replace(/(<header class="chathead"[\s\S]*?<b class="ellip"[^>]*>)([\s\S]*?)(<\/b>)/, (x, p1, p2, p3) => `${p1}${p2} <span class="e2e-badge" title="End-to-end encrypted">${ic('lock', 12, 2.4)}</span>${p3}`);
+    return h.replace(/(<div class="stream"[^>]*id="stream"[^>]*>)/, `$1<div class="e2e-note">${ic('lock', 13, 2.2)} Messages are end-to-end encrypted. Only you and ${esc(dname(others(c)[0]).split(' ')[0])} can read them.</div>`);
+  };
+  // publish this device's key soon after signing in (and keep it fresh)
+  setInterval(() => { if (S.view === 'app' && S.me && S.profile && !E2E.published) { E2E.published = S.me; e2ePublish(); } if (E2E.published && E2E.published !== S.me) E2E.published = null; }, 3000);
+}
+if (location.hostname === 'localhost') Object.assign(window, { e2eEncrypt, e2eDecrypt, e2eKeysOf, E2E });
+
+const togN = (on, a, k, label) => `<button class="tog ${on ? 'on' : ''}" role="switch" aria-checked="${!!on}" aria-label="${label}" data-a="${a}" data-k="${k}"></button>`;
+/* ================= Nexa 1.1: never miss a message ================= */
+// 1) Settings › Notifications › "Check my notifications": finds what's blocking alerts on THIS device, fixes what it can,
+//    then sends a real test alert. 2) If an alert reaches none of your devices, Nexa emails you (at most every 6 hours).
+// 3) Voice messages get their text automatically.
+async function notifyApi(body) {
+  const tok = await S.be.auth.idToken();
+  const r = await fetch(CONFIG.pushEndpoint || '/api/notify', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Nexa\'s server didn\'t answer.'); return j;
+}
+const nkWhere = () => { const ua = navigator.userAgent; return /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : /Macintosh/.test(ua) ? 'mac' : /Windows/.test(ua) ? 'win' : 'other'; };
+const nkBrowser = () => { const ua = navigator.userAgent; return /Edg\//.test(ua) ? 'Edge' : /Chrome|Chromium/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'your browser'; };
+async function notifCheck() {
+  const steps = []; const add = (ok, t, d) => { steps.push({ ok, t, d }); S.nk = { busy: true, steps }; render(); };
+  S.nk = { busy: true, steps }; render();
+  const where = nkWhere(), br = nkBrowser(), installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const done = () => { S.nk = { busy: false, steps }; render(); };
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    if (where === 'ios' && !installed) { add(false, 'Add Nexa to your Home Screen first', 'iPhone and iPad only send website notifications to apps on the Home Screen. Tap Share › Add to Home Screen, open Nexa from there, then check again.'); return done(); }
+    add(false, 'This browser can\'t show notifications', `Open Nexa in ${where === 'mac' ? 'Safari, Chrome or Edge' : 'Chrome or Edge'} instead.`); return done();
+  }
+  if (Notification.permission === 'denied') {
+    add(false, `Notifications are blocked for Nexa in ${br}`, br === 'Safari' && where === 'mac' ? 'Safari menu › Settings › Websites › Notifications › set Nexa to Allow. Then check again.'
+      : where === 'ios' ? 'Settings app › Notifications › Nexa › turn on Allow Notifications. Then check again.'
+      : where === 'android' ? 'Long-press the Nexa icon › App info › Notifications › turn them on. Or tap the lock in the address bar › Permissions › Notifications › Allow.'
+      : 'Click the lock icon at the left of the address bar › Notifications › Allow. Then reload Nexa and check again.');
+    return done();
+  }
+  if (Notification.permission !== 'granted') { const r = await Notification.requestPermission().catch(() => 'default'); if (r !== 'granted') { add(false, 'Notifications weren\'t allowed', 'Tap Check again and choose Allow when your browser asks.'); return done(); } }
+  add(true, 'Allowed in this browser', '');
+  if (S.prefs.deviceNotifs === false) await savePrefs({ deviceNotifs: true });
+  if (!S.be.push) { add(false, 'Alerts when Nexa is closed need the live Nexa', 'On this test copy, alerts only show while Nexa is open.'); return done(); }
+  const reg = await registerPush(true);
+  if (!reg) { add(false, 'Couldn\'t sign this device up for alerts', 'Check your internet, reload Nexa and try again. On a work or school computer, alerts may be blocked by your IT team.'); return done(); }
+  add(true, 'This device is signed up for alerts', '');
+  try {
+    const r = await notifyApi({ kind: 'selfTest' });
+    if (!r.sent) { add(false, 'The test alert didn\'t go through', 'Reload Nexa and check again. If it keeps failing, tap Help and tell us.'); return done(); }
+    add(true, `Test alert sent to ${r.sent} ${r.sent === 1 ? 'device' : 'devices'}`, where === 'win' ? 'Didn\'t see it? Windows Settings › System › Notifications: turn on notifications for ' + br + ', and turn off Do not disturb.'
+      : where === 'mac' ? 'Didn\'t see it? System Settings › Notifications › ' + br + ': turn on Allow notifications, and turn off Focus.'
+      : where === 'android' ? 'Didn\'t see it? Phone Settings › Apps › ' + br + ' (or Nexa) › Notifications: turn them on, and check Do not disturb.'
+      : 'Didn\'t see it? Settings › Notifications › Nexa: turn on Allow Notifications, and check Focus.');
+  } catch (e) { add(false, 'Couldn\'t reach Nexa\'s server', esc(e.message)); }
+  done();
+}
+Object.assign(actions, {
+  notifCheck: () => notifCheck(),
+  emailMissedTog: () => savePrefs({ emailMissed: S.prefs.emailMissed === false }),
+  autoTxTog: () => savePrefs({ autoTranscribe: S.prefs.autoTranscribe === false }),
+  installHow: () => { try { window.nexaInstall(); } catch {} },
+});
+{
+  const _s = vSettings;
+  vSettings = function () {
+    let h = _s(); if (S.setSec !== 'notifications') return h;
+    const nk = S.nk, installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const status = typeof Notification === 'undefined' ? 'Not available in this browser' : Notification.permission === 'granted' ? (S.pushOn || S.prefs.deviceNotifs !== false ? 'On for this device' : 'Allowed, not signed up yet') : Notification.permission === 'denied' ? 'Blocked in this browser' : 'Not turned on yet';
+    const card = `<div class="panel nkcard" style="padding:16px;border-radius:18px;border:1px solid var(--line);margin-bottom:14px">
+      <div class="row spread" style="align-items:flex-start;gap:12px"><span><b style="font-size:16px">Notifications on this device</b><div class="mute small">${esc(status)}</div></span>
+      <button class="btn sm pri" data-a="notifCheck" ${nk?.busy ? 'disabled' : ''}>${nk?.busy ? 'Checking…' : nk ? 'Check again' : 'Check my notifications'}</button></div>
+      ${nk ? `<ul class="nk-steps">${nk.steps.map(x => `<li class="${x.ok ? 'ok' : 'bad'}"><span class="nk-ic">${ic(x.ok ? 'check' : 'info', 14, 2.4)}</span><span><b>${esc(x.t)}</b>${x.d ? `<span class="mute small">${x.d}</span>` : ''}</span></li>`).join('')}</ul>` : ''}
+      <div class="setrow" style="margin-top:10px"><span><b>Email me if I miss messages</b><div class="mute small">If an alert can't reach any of your devices, Nexa sends a short email. At most one every 6 hours.</div></span>${togN(S.prefs.emailMissed !== false, 'emailMissedTog', '', 'Email me if I miss messages')}</div>
+      ${!installed ? `<div class="setrow"><span><b>Install Nexa on this device</b><div class="mute small">Installed apps get notifications more reliably.</div></span><button class="btn sm" data-a="installHow">How</button></div>` : ''}
+    </div>`;
+    const i = h.indexOf('<div class="panel alertpanel"'); return i > 0 ? h.slice(0, i) + card + h.slice(i) : h.replace('</section>', card + '</section>');
+  };
+  // voice messages: text appears by itself (turn off in Settings › Chats)
+  const _send = sendMessage;
+  sendMessage = async function (payload, cid) {
+    const id = await _send(payload, cid);
+    try {
+      const c = convOf(cid || S.conv);
+      if (id && payload?.audio?.src && S.be.ai && S.prefs.autoTranscribe !== false && c && !c.e2e?.on) setTimeout(async () => {
+        try {
+          const m = /^data:([^;,]+)[^,]*,(.*)$/.exec(payload.audio.src); if (!m) return;
+          const out = await S.be.ai.generate([{ text: 'Transcribe this voice message word for word. Reply with only the transcript. If it is silent or unclear, reply with: (no speech)' }, { inlineData: { mimeType: m[1], data: m[2] } }], AI_SYSTEM);
+          await db().update(`conversations/${c.id}/messages/${id}`, { transcript: String(out).trim().slice(0, 2000) });
+        } catch {}
+      }, 400);
+    } catch {}
+    return id;
+  };
+  const _s2 = vSettings;
+  vSettings = function () {
+    let h = _s2(); if (S.setSec !== 'chats') return h;
+    const row = `<div class="setrow"><span><b>Voice messages as text</b><div class="mute small">Your voice messages get a written version underneath, so friends can read them when they can't listen.</div></span>${togN(S.prefs.autoTranscribe !== false, 'autoTxTog', '', 'Voice messages as text')}</div>`;
+    const i = h.lastIndexOf('</section>'); return i > 0 ? h.slice(0, i) + row + h.slice(i) : h;
+  };
+}
+// the website: "How to install" under the buttons (iPhone, Android, Mac, Windows)
+{
+  const _va = vAuth;
+  vAuth = function () { const h = _va(); return h.replace('<div class="ws-plat">', '<div class="ws-plat"><button class="ws-inst" data-a="installHow">How to install Nexa →</button><br>'); };
+}
+
+// Nexa 1.1 (update number 21.3)
+WN_TITLE['21.3'] = 'What’s new in Nexa 1.1';
+WN_INTRO['21.3'] = 'Four things you asked for.';
+WN_HUMAN['21.3'] = [
+  ['lock', 'Encrypted chats', 'In any chat, tap ••• › Turn on end-to-end encryption. Then only the two of you can read it, not even Nexa.'],
+  ['bell', 'Never miss a message', 'Settings › Notifications › Check my notifications finds what’s blocking them. If alerts still can’t reach you, Nexa emails you.'],
+  ['mic', 'Voice messages as text', 'Voice messages now get a written version underneath, automatically.'],
+  ['download', 'Install on Mac and PC', 'Get Nexa in your Dock or Start menu. Settings › Notifications › Install shows you how.'],
+];
+WN_STEPS['21.3'] = WN_STEPS['21.0']; UP_HL['21.3'] = UP_HL['21.0'];
