@@ -24,15 +24,15 @@ function init() {
 }
 
 export default async (req) => {
-  const keyId = process.env.TURN_KEY_ID, token = process.env.TURN_KEY_API_TOKEN;
-  const mApp = process.env.METERED_APP, mKey = process.env.METERED_API_KEY;
-  const mUser = process.env.METERED_USERNAME, mPass = process.env.METERED_PASSWORD;
+  const keyId = (process.env.TURN_KEY_ID || '').trim(), token = (process.env.TURN_KEY_API_TOKEN || '').trim();
+  const mApp = (process.env.METERED_APP || '').trim(), mKey = (process.env.METERED_API_KEY || '').trim();
+  const mUser = (process.env.METERED_USERNAME || '').trim(), mPass = (process.env.METERED_PASSWORD || '').trim();
   if (!(keyId && token) && !(mApp && mKey) && !(mUser && mPass)) return json({ iceServers: [], note: 'No TURN provider set (Cloudflare TURN_KEY_ID/TURN_KEY_API_TOKEN or Metered METERED_APP/METERED_API_KEY)' });
   const m = (req.headers.get('authorization') || '').match(/^Bearer (.+)$/);
   if (!m) return json({ error: 'Not signed in' }, 401);
   try { init(); await admin.auth().verifyIdToken(m[1]); } catch (e) { return json({ error: 'Not signed in' }, 401); }
   // Metered credential copied from the dashboard (username + password)
-  if (!(keyId && token) && mUser && mPass) {
+  if (!(keyId && token) && mUser && mPass && !(mApp && mKey)) {
     const c = { username: mUser, credential: mPass };
     return json({ ttl: 6 * 3600, iceServers: [
       { urls: 'stun:stun.relay.metered.ca:80' },
