@@ -28,7 +28,7 @@ function iconFor(req, uid, user) {
   try { const o = new URL(req.url).origin; return `${o}/api/avatar?u=${encodeURIComponent(uid)}&s=${avatarSig(uid, KEY)}&v=${(user.avatar.length % 99991).toString(36)}`; } catch { return ''; }
 }
 
-const label = m => m.once ? 'View-once photo' : m.meet ? 'Google Meet — tap to join' : m.video ? (m.video.round ? 'Video message' : 'Video') : m.live ? 'Shared live location' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.audio ? 'Voice message' : m.stickerImg || m.sticker ? 'Sticker' : m.gif ? 'GIF'
+const label = m => (m.e2e || m.enc) ? '🔒 Encrypted message' : m.once ? 'View-once photo' : m.meet ? 'Google Meet — tap to join' : m.video ? (m.video.round ? 'Video message' : 'Video') : m.live ? 'Shared live location' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.audio ? 'Voice message' : m.stickerImg || m.sticker ? 'Sticker' : m.gif ? 'GIF'
   : (m.images && m.images.length > 1) ? `${m.images.length} photos` : (m.images || m.image) ? 'Photo' : m.poll ? 'Poll: ' + (m.poll.q || '')
   : m.game ? 'Sent a game' : m.theme ? 'Shared a chat theme' : (m.text || 'New message');
 
@@ -156,6 +156,13 @@ export default async (req, ctx = {}) => {
     if (items.length) await db.doc('schedIndex/' + uid).set({ next: Math.min(...items.map(x => x.at)) }); else await db.doc('schedIndex/' + uid).delete().catch(() => {});
     return json({ ok: true, n: items.length });
   }
+  // ---------- Nexa 1.0: "Check my notifications" — sends a test alert to every device of the caller
+  if (body.kind === 'selfTest') {
+    const pd = (await db.doc(`users/${uid}/private/push`).get()).data() || {};
+    const devices = [...new Set([...(pd.tokens || []), ...Object.values(pd.devices || {})])].filter(t => typeof t === 'string' && t).length;
+    const sent = devices ? await deliver(db, uid, { kind: 'notification', title: 'Nexa notifications work ✓', body: 'This is the test you asked for. You\'ll get alerts like this when friends message you.', page: 'settings', tag: 'selftest' }, 600, null, pd) : 0;
+    return json({ ok: true, devices, sent });
+  }
   // any open Nexa asks about once a minute: due messages (from anyone) go out, even if their sender's phone is off
   if (body.kind === 'schedTick') { if (Date.now() - lastSweep < 15000) return json({ ok: true, skip: 'recent' }); return json({ ok: true, sent: await sweepScheduled(db, req) }); }
 
@@ -215,7 +222,7 @@ export default async (req, ctx = {}) => {
     const isDm = conv.type === 'dm';
     const isReq = isDm && conv.request && conv.request.from === uid;
     const title = isReq ? `Message request from ${name}` : isDm ? name : conv.type === 'channel' ? '#' + (conv.name || 'channel') : (conv.name || 'Group chat');
-    let sent = 0;
+    let sent = 0; const missed = [];
     // everyone's settings and devices in ONE read
     const snaps = await db.getAll(...slice.map(u => db.doc(`users/${u}/private/prefs`)), ...slice.map(u => db.doc(`users/${u}/private/push`)));
     await Promise.all(slice.map(async (u, i) => {
@@ -224,8 +231,11 @@ export default async (req, ctx = {}) => {
       if (prefs.deviceNotifs === false || ((prefs.muted || {})[cid] && !mentioned) || (prefs.blocked || []).includes(uid) || (prefs.notif && prefs.notif.msg === false)) return;
       const text = prefs.pushPreview === false ? 'New message' : label(msg).slice(0, 140);
       const n = await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon, vibe: (prefs.alerts || {}).vibe || '', silent: (prefs.alerts || {}).push === 'silent' ? '1' : '' }, 86400, null, pushDoc, 4);
+      if (!n) missed.push([u, prefs]);
       sent += n;
     }));
+    // nobody's device got it (no notifications turned on, or they're not working) → a short email, at most every 6 hours
+    if (missed.length) { const job = Promise.all(missed.map(([u, prefs]) => emailMissed(db, u, prefs, name, conv, cid, req).catch(() => {}))); if (ctx.waitUntil) ctx.waitUntil(job); else await job; }
     // Someone messaged @owner → tell your everyday @shiv account, and send the auto-reply if you set one.
     // older app versions don't send the separate 'msgside' request, so do the extra jobs here for them
     if (part === 0 && body.side !== false) {
@@ -339,3 +349,23 @@ export default async (req, ctx = {}) => {
 
   return json({ error: 'Unknown kind' }, 400);
 };
+
+
+// ---------- Nexa 1.0 helpers
+async function emailMissed(db, u, prefs, fromName, conv, cid, req) {
+  if (prefs.emailMissed === false) return;
+  const user = (await db.doc('users/' + u).get()).data() || {};
+  if (Date.now() - (user.lastSeen || 0) < 3 * 60e3) return; // they're on Nexa right now
+  const logRef = db.doc('mailLog/' + u), log = (await logRef.get()).data() || {};
+  if (Date.now() - (log.at || 0) < 6 * 3600e3) return;
+  if (!(await mailReady(db))) return;
+  let email = ''; try { email = (await admin.auth().getUser(u)).email || ''; } catch {}
+  if (!email) return;
+  await logRef.set({ at: Date.now() });
+  let origin = 'https://www.nexaconnect.qd.je'; try { origin = new URL(req.url).origin; } catch {}
+  const where = conv.type === 'dm' ? '' : ` in ${esc(conv.name || 'a group chat')}`;
+  await sendMail(db, { to: email, subject: `${fromName} sent you a message on Nexa`,
+    text: `${fromName} sent you a message${where.replace(/<[^>]+>/g, '')} on Nexa. Open Nexa to read it: ${origin}\n\nDon't want these emails? Turn them off in Nexa › Settings › Notifications.`,
+    html: emailHtml(`${esc(fromName)} sent you a message`, `You have a new message${where} on Nexa. Open Nexa to read it and reply.<br><br><span style="font-size:13px;color:#8b93bf">You're getting this because your notifications didn't reach any of your devices. Turn these emails off in Settings › Notifications.</span>`, { url: origin + '/', label: 'Open Nexa' }) });
+}
+function esc(t) { return String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
