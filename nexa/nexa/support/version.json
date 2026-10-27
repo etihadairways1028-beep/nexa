@@ -1,12 +1,11 @@
 {
- "version": "21.2",
+ "version": "21.3",
  "notes": [
-  "Nexa 1.0 is here: the first official version.",
-  "Your style: Prism, Halo or Onyx, with your own colours.",
-  "One unlock with PIN, Face ID or fingerprint.",
-  "Chat backgrounds, reactions, polls and plans.",
-  "Invite friends with your link."
+  "Encrypted chats: only the two of you can read them.",
+  "Never miss a message: a notification check, and an email if alerts can't reach you.",
+  "Voice messages as text, automatically.",
+  "Install Nexa on Mac and PC."
  ],
  "quiet": false,
- "display": "1.0"
+ "display": "1.1"
 }
