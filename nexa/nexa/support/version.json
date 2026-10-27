@@ -1,11 +1,11 @@
 {
- "version": "21.3",
+ "version": "21.4",
  "notes": [
-  "Encrypted chats: only the two of you can read them.",
-  "Never miss a message: a notification check, and an email if alerts can't reach you.",
-  "Voice messages as text, automatically.",
-  "Install Nexa on Mac and PC."
+  "Design your own Nexa avatar, outfit and all.",
+  "Play games as your avatar.",
+  "Pick your own glass colours.",
+  "Encrypted chats, a notification check, voice messages as text and installing on Mac."
  ],
  "quiet": false,
- "display": "1.1"
+ "display": "1.2"
 }
