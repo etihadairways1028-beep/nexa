@@ -2951,3 +2951,49 @@ button.invbanner{font:inherit;cursor:pointer;width:100%;max-width:520px}
 .nk-ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:none;background:rgba(91,214,138,.18);color:#5BD68A}
 .nk-steps li.bad .nk-ic{background:rgba(255,180,71,.18);color:#FFB547}
 .ws-inst{color:var(--text);text-decoration:underline;font-weight:600;padding:0;margin-bottom:6px;font-size:inherit}
+/* ================= Nexa 1.2: your own glass colours ================= */
+:root[data-glow="1"][data-sky="atmosphere"]:not(#_):not(#__):not(#___):not(#____) body{background:
+  radial-gradient(48% 38% at 4% 2%,rgb(var(--glow1)/.45),transparent 72%),
+  radial-gradient(42% 36% at 100% 28%,rgb(var(--glow2)/.38),transparent 72%),
+  radial-gradient(48% 38% at 14% 92%,rgb(var(--glow3)/.32),transparent 72%),
+  radial-gradient(36% 30% at 90% 100%,rgb(var(--glow1)/.18),transparent 72%),
+  #0A0A12 fixed!important}
+:root[data-glow="1"][data-sky="atmosphere"][data-theme="light"]:not(#_):not(#__):not(#___):not(#____) body{background:
+  radial-gradient(48% 38% at 4% 2%,rgb(var(--glow1)/.40),transparent 72%),
+  radial-gradient(42% 36% at 100% 28%,rgb(var(--glow2)/.34),transparent 72%),
+  radial-gradient(48% 38% at 14% 92%,rgb(var(--glow3)/.30),transparent 72%),
+  #F2F1F6 fixed!important}
+.glow-prev{height:96px;border-radius:16px;margin-top:10px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.glow-glass{position:absolute;left:18%;right:18%;top:22%;bottom:22%;border-radius:12px;background:rgba(255,255,255,.08);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px}
+.glow-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.glow-c{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--mute);cursor:pointer}
+.glow-c input{width:44px;height:44px;border:2px solid var(--line);border-radius:50%;padding:0;background:none;cursor:pointer}
+.glow-c input::-webkit-color-swatch-wrapper{padding:0}.glow-c input::-webkit-color-swatch{border:0;border-radius:50%}
+.glow-c input::-moz-color-swatch{border:0;border-radius:50%}
+/* ================= Nexa 1.2: avatars ================= */
+.nm-wrap{display:flex;gap:20px;align-items:stretch}
+.nm-stage{flex:none;width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:20px;padding:16px;background:radial-gradient(70% 60% at 50% 30%,rgba(124,140,255,.30),transparent 70%),rgba(127,127,150,.08);border:1px solid var(--line)}
+.nm-stage .nm-svg{width:170px;height:auto;filter:drop-shadow(0 12px 18px rgba(0,0,0,.35))}
+.nm-side{flex:1;min-width:0;display:flex;flex-direction:column}
+.nm-tabs{margin-bottom:10px}
+.nm-panel{display:flex;flex-direction:column;gap:6px;max-height:min(46vh,420px);overflow:auto;padding-right:4px}
+.nm-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.nm-sw{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.nm-sw button{width:30px;height:30px;border-radius:50%;border:2px solid var(--line)}
+.nm-sw button.on{outline:2px solid var(--text);outline-offset:2px}
+.nm-btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.nm-btns .btn{flex:1}
+@media (max-width:620px){.nm-wrap{flex-direction:column}.nm-stage{width:auto}.nm-stage .nm-svg{width:120px}.nm-panel{max-height:38vh}}
+.nm-svg.cheer{animation:nmHop .6s ease}
+@keyframes nmHop{0%,100%{transform:translateY(0)}40%{transform:translateY(-8px)}}
+.nm-card{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;border:1px solid var(--line);margin:14px 0}
+.nm-mini{width:64px;height:82px;flex:none;display:grid;place-items:center;border-radius:14px;background:rgba(127,127,150,.10)}
+.nm-mini .nm-svg{width:52px}
+.nm-game{display:flex;align-items:flex-end;justify-content:center;gap:12px;margin:2px 0 10px;padding:8px 6px 4px;border-radius:14px;background:radial-gradient(80% 60% at 50% 100%,rgba(124,140,255,.25),transparent 70%)}
+.nm-player{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:700}
+.nm-player .nm-svg{width:62px;height:auto}
+.nm-player.flip .nm-svg{transform:scaleX(-1)}
+.nm-player.flip .nm-svg.cheer{animation:none}
+.nm-player.won .nm-svg{filter:drop-shadow(0 0 10px rgba(255,210,63,.6))}
+.nm-vs{font-size:13px;opacity:.6;align-self:center}
+.nm-tabs{display:flex;flex-wrap:nowrap}.nm-tabs button{flex:1;white-space:nowrap;font-size:13px;padding-left:6px;padding-right:6px}
+@media (max-width:620px){.modal:has(.nm-wrap) .nm-stage{position:sticky;top:0;z-index:2;background:color-mix(in oklab,var(--ground,#0b0b10) 92%,transparent);backdrop-filter:blur(10px)}}

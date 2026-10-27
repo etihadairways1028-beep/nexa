@@ -5832,7 +5832,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.3';
+const APP_VERSION = '21.4';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9583,7 +9583,7 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
 try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
@@ -9903,3 +9903,199 @@ WN_HUMAN['21.3'] = [
   ['download', 'Install on Mac and PC', 'Get Nexa in your Dock or Start menu. Settings › Notifications › Install shows you how.'],
 ];
 WN_STEPS['21.3'] = WN_STEPS['21.0']; UP_HL['21.3'] = UP_HL['21.0'];
+
+/* ================= Nexa 1.2: Nexa avatars — design your own person and play games as them ================= */
+// Saved on your profile (users/{uid}.nexame), so friends see your avatar in games. Drawn as a small SVG, no images.
+const NM = {
+  skin: ['#FFE0C4', '#F6C9A0', '#E3A877', '#C68653', '#8D5A36', '#5B3A22'],
+  hairC: ['#1F1A17', '#4A2E1B', '#8B5A2B', '#D9A45B', '#F0D58A', '#B33A2E', '#E9E4DD', '#6C5CE7', '#FF6FA9', '#2EC4B6'],
+  cloth: ['#F3F1EC', '#1E1E26', '#3D7BFF', '#8C5BFF', '#FF5C8A', '#FF8A3D', '#FFD23F', '#2EC4B6', '#3FA34D', '#C0392B', '#6B7280', '#0F2A5F'],
+  hair: [['short', 'Short'], ['long', 'Long'], ['bun', 'Bun'], ['curly', 'Curly'], ['afro', 'Afro'], ['ponytail', 'Ponytail'], ['buzz', 'Buzz'], ['none', 'None']],
+  eyes: [['round', 'Round'], ['happy', 'Happy'], ['wink', 'Wink'], ['cool', 'Sleepy']],
+  mouth: [['smile', 'Smile'], ['grin', 'Grin'], ['open', 'Wow'], ['flat', 'Calm']],
+  top: [['tee', 'T-shirt'], ['hoodie', 'Hoodie'], ['jacket', 'Jacket'], ['jersey', 'Jersey'], ['tank', 'Tank top'], ['dress', 'Dress']],
+  bottom: [['jeans', 'Jeans'], ['joggers', 'Joggers'], ['shorts', 'Shorts'], ['skirt', 'Skirt']],
+  shoes: [['sneakers', 'Sneakers'], ['boots', 'Boots'], ['slides', 'Slides']],
+  extra: [['none', 'None'], ['glasses', 'Glasses'], ['shades', 'Sunglasses'], ['cap', 'Cap'], ['beanie', 'Beanie'], ['headphones', 'Headphones'], ['crown', 'Crown']],
+};
+const NM_DEF = { skin: 1, hair: 'short', hairC: 0, eyes: 'round', mouth: 'smile', top: 'hoodie', topC: 2, bottom: 'jeans', bottomC: 11, shoes: 'sneakers', shoesC: 0, extra: 'none', num: 7 };
+const nmOf = uid => { const c = (uid === S.me ? (S.profile || U(uid)) : U(uid))?.nexame; return c && typeof c === 'object' ? { ...NM_DEF, ...c } : null; };
+function nmSvg(c0, o = {}) {
+  const c = { ...NM_DEF, ...(c0 || {}) }, sk = NM.skin[c.skin] || NM.skin[1], hc = NM.hairC[c.hairC] || NM.hairC[0];
+  const tc = NM.cloth[c.topC] || NM.cloth[2], bc = NM.cloth[c.bottomC] || NM.cloth[11], sc = NM.cloth[c.shoesC] || NM.cloth[0];
+  const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; const m = x => Math.max(0, Math.min(255, Math.round(x * f))); return `rgb(${m(r)},${m(g)},${m(b)})`; };
+  const cheer = !!o.cheer, sad = !!o.sad;
+  let back = '', front = '', body = '', legs = '', face = '', extra = '';
+  // hair behind the head
+  if (c.hair === 'long') back = `<path d="M33 44 Q31 86 40 96 L80 96 Q89 86 87 44 Z" fill="${hc}"/>`;
+  if (c.hair === 'afro') back = `<circle cx="60" cy="42" r="35" fill="${hc}"/>`;
+  if (c.hair === 'ponytail') back = `<ellipse cx="90" cy="56" rx="8" ry="17" fill="${hc}" transform="rotate(-18 90 56)"/>`;
+  // legs + bottoms
+  const legSkin = `<rect x="45" y="128" width="11" height="48" rx="5" fill="${sk}"/><rect x="64" y="128" width="11" height="48" rx="5" fill="${sk}"/>`;
+  if (c.top === 'dress') legs = legSkin;
+  else if (c.bottom === 'jeans' || c.bottom === 'joggers') legs = `<rect x="42" y="124" width="16" height="52" rx="6" fill="${bc}"/><rect x="62" y="124" width="16" height="52" rx="6" fill="${bc}"/>${c.bottom === 'joggers' ? `<rect x="42" y="170" width="16" height="5" rx="2" fill="${shade(bc, .75)}"/><rect x="62" y="170" width="16" height="5" rx="2" fill="${shade(bc, .75)}"/>` : `<path d="M60 126 V150" stroke="${shade(bc, .8)}" stroke-width="1.5"/>`}`;
+  else if (c.bottom === 'shorts') legs = legSkin + `<rect x="41" y="122" width="38" height="24" rx="7" fill="${bc}"/><path d="M60 128 V146" stroke="${shade(bc, .8)}" stroke-width="1.5"/>`;
+  else legs = legSkin + `<path d="M36 124 L84 124 L90 152 L30 152 Z" fill="${bc}"/>`;
+  // shoes
+  const shoe = x => c.shoes === 'boots' ? `<path d="M${x - 9} 168 h17 v8 q8 1 8 8 h-25 z" fill="${sc}"/>` : c.shoes === 'slides' ? `<rect x="${x - 10}" y="178" width="22" height="6" rx="3" fill="${sc}"/>` : `<path d="M${x - 10} 174 q0 -6 8 -6 h6 q10 2 12 10 v3 h-26 z" fill="${sc}"/><rect x="${x - 10}" y="181" width="26" height="3" rx="1.5" fill="#fff" opacity=".9"/>`;
+  legs += shoe(50) + shoe(68);
+  // arms (cheer = up)
+  const arm = (x0, y0, x1, y1, sleeve) => `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${sk}" stroke-width="10" stroke-linecap="round"/>${sleeve ? `<line x1="${x0}" y1="${y0}" x2="${x0 + (x1 - x0) * .45}" y2="${y0 + (y1 - y0) * .45}" stroke="${tc}" stroke-width="13" stroke-linecap="round"/>` : ''}`;
+  const sleeves = !['tank', 'dress'].includes(c.top), longSl = ['hoodie', 'jacket'].includes(c.top);
+  const armL = cheer ? [37, 86, 20, 54] : sad ? [37, 86, 32, 128] : [37, 86, 27, 124], armR = cheer ? [83, 86, 100, 54] : sad ? [83, 86, 88, 128] : [83, 86, 93, 124];
+  const armsSvg = (sl => arm(...armL, sl) + arm(...armR, sl))(sleeves) + (longSl ? `<line x1="${armL[0]}" y1="${armL[1]}" x2="${armL[2] + (armL[0] - armL[2]) * .12}" y2="${armL[3] + (armL[1] - armL[3]) * .12}" stroke="${tc}" stroke-width="12" stroke-linecap="round"/><line x1="${armR[0]}" y1="${armR[1]}" x2="${armR[2] + (armR[0] - armR[2]) * .12}" y2="${armR[3] + (armR[1] - armR[3]) * .12}" stroke="${tc}" stroke-width="12" stroke-linecap="round"/>` : '');
+  // body / top
+  if (c.top === 'dress') body = `<path d="M40 80 Q60 74 80 80 L92 150 Q60 158 28 150 Z" fill="${tc}"/><path d="M48 80 Q60 90 72 80" fill="none" stroke="${shade(tc, .8)}" stroke-width="2"/>`;
+  else if (c.top === 'tank') body = `<rect x="40" y="78" width="40" height="50" rx="10" fill="${tc}"/><path d="M48 78 Q60 90 72 78" fill="${sk}"/>`;
+  else {
+    body = `<rect x="34" y="78" width="52" height="50" rx="14" fill="${tc}"/>`;
+    if (c.top === 'tee') body += `<path d="M50 78 Q60 88 70 78" fill="${sk}"/>`;
+    if (c.top === 'hoodie') body += `<path d="M44 78 Q60 96 76 78" fill="${shade(tc, .82)}"/><line x1="55" y1="88" x2="55" y2="102" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="65" y1="88" x2="65" y2="102" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="46" y="108" width="28" height="12" rx="5" fill="${shade(tc, .88)}"/>`;
+    if (c.top === 'jacket') body += `<path d="M52 78 L60 92 L68 78 L68 128 L52 128 Z" fill="#F3F1EC"/><line x1="60" y1="92" x2="60" y2="128" stroke="${shade(tc, .7)}" stroke-width="2"/><path d="M52 78 L60 92 L52 100 Z" fill="${shade(tc, .8)}"/><path d="M68 78 L60 92 L68 100 Z" fill="${shade(tc, .8)}"/>`;
+    if (c.top === 'jersey') body += `<path d="M50 78 Q60 86 70 78" fill="none" stroke="#fff" stroke-width="3"/><text x="60" y="114" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="20" fill="#fff">${Math.max(0, Math.min(99, +c.num || 0))}</text>`;
+  }
+  // head
+  const head = `<rect x="55" y="66" width="10" height="14" rx="4" fill="${shade(sk, .9)}"/><ellipse cx="34" cy="50" rx="4" ry="6" fill="${shade(sk, .95)}"/><ellipse cx="86" cy="50" rx="4" ry="6" fill="${shade(sk, .95)}"/><circle cx="60" cy="46" r="26" fill="${sk}"/>`;
+  // front hair
+  const cap = `<path d="M34 46 Q33 18 60 18 Q87 18 86 46 Q80 30 60 30 Q40 30 34 46 Z" fill="${hc}"/>`;
+  if (c.hair === 'short' || c.hair === 'ponytail' || c.hair === 'long') front = cap + (c.hair === 'short' ? `<path d="M40 30 Q52 22 66 28 Q58 32 48 38 Z" fill="${hc}"/>` : '');
+  if (c.hair === 'bun') front = cap + `<circle cx="60" cy="15" r="10" fill="${hc}"/>`;
+  if (c.hair === 'curly') front = [36, 44, 52, 60, 68, 76, 84].map((x, i) => `<circle cx="${x}" cy="${i % 2 ? 22 : 27}" r="9" fill="${hc}"/>`).join('') + `<circle cx="34" cy="38" r="7" fill="${hc}"/><circle cx="86" cy="38" r="7" fill="${hc}"/>`;
+  if (c.hair === 'afro') front = `<path d="M30 44 Q30 14 60 12 Q90 14 90 44 Q82 26 60 26 Q38 26 30 44 Z" fill="${hc}"/>`;
+  if (c.hair === 'buzz') front = `<path d="M35 42 Q36 20 60 20 Q84 20 85 42 Q78 28 60 28 Q42 28 35 42 Z" fill="${hc}" opacity=".85"/>`;
+  // face
+  const ink = '#1F1A17';
+  const eye = x => c.eyes === 'happy' ? `<path d="M${x - 4} 50 Q${x} 45 ${x + 4} 50" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>` : c.eyes === 'cool' ? `<path d="M${x - 4} 49 h8" stroke="${ink}" stroke-width="2.6" stroke-linecap="round"/>` : `<circle cx="${x}" cy="49" r="3.2" fill="${ink}"/><circle cx="${x + 1}" cy="48" r="1" fill="#fff"/>`;
+  face = (c.eyes === 'wink' ? `<path d="M46 50 Q50 46 54 50" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>` : eye(50)) + eye(70);
+  const mouth = sad ? `<path d="M53 63 Q60 58 67 63" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>` : c.mouth === 'grin' || cheer ? `<path d="M51 58 Q60 69 69 58 Z" fill="${ink}"/><path d="M53 59 h14" stroke="#fff" stroke-width="2"/>` : c.mouth === 'open' ? `<ellipse cx="60" cy="61" rx="4" ry="5" fill="${ink}"/>` : c.mouth === 'flat' ? `<path d="M54 61 h12" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>` : `<path d="M52 58 Q60 66 68 58" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>`;
+  face += mouth + `<circle cx="44" cy="58" r="4" fill="#FF7A7A" opacity=".22"/><circle cx="76" cy="58" r="4" fill="#FF7A7A" opacity=".22"/>`;
+  // extras
+  if (c.extra === 'glasses') extra = `<circle cx="50" cy="49" r="7" fill="none" stroke="${ink}" stroke-width="2"/><circle cx="70" cy="49" r="7" fill="none" stroke="${ink}" stroke-width="2"/><path d="M57 49 h6" stroke="${ink}" stroke-width="2"/>`;
+  if (c.extra === 'shades') extra = `<rect x="41" y="44" width="16" height="10" rx="4" fill="${ink}"/><rect x="63" y="44" width="16" height="10" rx="4" fill="${ink}"/><path d="M57 48 h6" stroke="${ink}" stroke-width="2"/>`;
+  if (c.extra === 'cap') extra = `<path d="M33 38 Q34 14 60 14 Q86 14 87 38 Z" fill="${tc}"/><path d="M60 36 Q86 34 98 40 Q84 44 60 40 Z" fill="${shade(tc, .8)}"/>`;
+  if (c.extra === 'beanie') extra = `<path d="M32 40 Q32 10 60 10 Q88 10 88 40 Z" fill="${tc}"/><rect x="31" y="34" width="58" height="9" rx="4" fill="${shade(tc, .8)}"/><circle cx="60" cy="9" r="5" fill="${shade(tc, 1.15)}"/>`;
+  if (c.extra === 'headphones') extra = `<path d="M33 48 Q33 14 60 14 Q87 14 87 48" fill="none" stroke="${ink}" stroke-width="4"/><rect x="27" y="42" width="10" height="16" rx="4" fill="${tc}"/><rect x="83" y="42" width="10" height="16" rx="4" fill="${tc}"/>`;
+  if (c.extra === 'crown') extra = `<path d="M42 22 L46 8 L53 18 L60 4 L67 18 L74 8 L78 22 Z" fill="#FFD23F" stroke="#E0A800" stroke-width="1.5"/>`;
+  const vb = o.head ? '22 4 76 76' : '0 0 120 190';
+  return `<svg viewBox="${vb}" class="nm-svg${cheer ? ' cheer' : ''}" ${o.size ? `width="${o.size}"` : ''} role="img" aria-label="${esc(o.label || 'Nexa avatar')}">${back}${legs}${armsSvg}${body}${head}${front}${face}${extra}</svg>`;
+}
+// the designer
+{
+  const tabs = [['look', 'Face & hair'], ['fit', 'Outfit'], ['extra', 'Extras']];
+  const chips = (k, list) => `<div class="nm-chips">${list.map(([v, n]) => `<button class="pill ${S.nmEdit[k] === v ? 'on' : ''}" data-a="nmSet" data-k="${k}" data-v="${v}">${n}</button>`).join('')}</div>`;
+  const sw = (k, list) => `<div class="nm-sw">${list.map((col, i) => `<button class="${+S.nmEdit[k] === i ? 'on' : ''}" style="background:${col}" data-a="nmSet" data-k="${k}" data-v="${i}" aria-label="Colour ${i + 1}"></button>`).join('')}</div>`;
+  const _m = vModal5;
+  vModal5 = function (m, f, head) {
+    if (m.type !== 'nexame') return _m(m, f, head);
+    const t = S.nmTab || 'look', e = S.nmEdit;
+    const panel = t === 'look' ? `<div class="field">Skin${sw('skin', NM.skin)}</div><div class="field">Hair${chips('hair', NM.hair)}</div><div class="field">Hair colour${sw('hairC', NM.hairC)}</div><div class="field">Eyes${chips('eyes', NM.eyes)}</div><div class="field">Mouth${chips('mouth', NM.mouth)}</div>`
+      : t === 'fit' ? `<div class="field">Top${chips('top', NM.top)}</div><div class="field">Top colour${sw('topC', NM.cloth)}</div>${e.top === 'jersey' ? `<div class="field">Jersey number<input class="inp" type="number" min="0" max="99" value="${+e.num || 0}" data-a="nmNum" oninput="this.dataset.v=this.value"></div>` : ''}${e.top === 'dress' ? '' : `<div class="field">Bottoms${chips('bottom', NM.bottom)}</div><div class="field">Bottoms colour${sw('bottomC', NM.cloth)}</div>`}<div class="field">Shoes${chips('shoes', NM.shoes)}</div><div class="field">Shoe colour${sw('shoesC', NM.cloth)}</div>`
+      : `<div class="field">Extras${chips('extra', NM.extra)}</div><p class="mute small">Caps, beanies and headphones use your top colour.</p>`;
+    return `<div class="nm-wrap"><div class="nm-stage">${nmSvg(e, { label: 'Your avatar preview', cheer: S.nmCheer })}<button class="btn sm" data-a="nmRandom">${ic('spark', 14)} Surprise me</button></div>
+      <div class="nm-side"><h2 class="disp" style="margin:0 0 4px">Your Nexa avatar</h2><p class="mute small" style="margin:0 0 10px">Design your look and your fit. Friends see it when you play games together.</p>
+      <div class="seg nm-tabs">${tabs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-a="nmTab" data-v="${k}">${n}</button>`).join('')}</div>
+      <div class="nm-panel">${panel}</div>
+      <div class="nm-btns"><button class="btn pri" data-a="nmSave">Save avatar</button><button class="btn" data-a="nmPhoto">Use as profile photo</button></div></div></div>`;
+  };
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  Object.assign(actions, {
+    nmOpen: () => { S.nmEdit = { ...(nmOf(S.me) || NM_DEF) }; S.nmTab = 'look'; S.menu = null; S.modal = { type: 'nexame' }; render(); },
+    nmTab: d => { S.nmTab = d.v; render(); },
+    nmSet: d => { const k = d.k, v = ['skin', 'hairC', 'topC', 'bottomC', 'shoesC'].includes(k) ? +d.v : d.v; S.nmEdit = { ...S.nmEdit, [k]: v }; S.nmCheer = true; render(); clearTimeout(S.nmCT); S.nmCT = setTimeout(() => { S.nmCheer = false; render(); }, 650); },
+    nmRandom: () => { S.nmEdit = { skin: Math.floor(Math.random() * NM.skin.length), hair: pick(NM.hair)[0], hairC: Math.floor(Math.random() * NM.hairC.length), eyes: pick(NM.eyes)[0], mouth: pick(NM.mouth)[0], top: pick(NM.top)[0], topC: Math.floor(Math.random() * NM.cloth.length), bottom: pick(NM.bottom)[0], bottomC: Math.floor(Math.random() * NM.cloth.length), shoes: pick(NM.shoes)[0], shoesC: Math.floor(Math.random() * NM.cloth.length), extra: Math.random() < .5 ? 'none' : pick(NM.extra)[0], num: Math.floor(Math.random() * 99) }; render(); },
+    nmSave: async () => { const c = { ...S.nmEdit, num: Math.max(0, Math.min(99, +S.nmEdit.num || 0)) }; await db().update('users/' + S.me, { nexame: c }); if (S.users[S.me]) S.users[S.me] = { ...S.users[S.me], nexame: c }; if (S.profile) S.profile = { ...S.profile, nexame: c }; S.modal = null; render(); toast('Avatar saved ✓'); },
+    nmPhoto: async () => {
+      const c = S.nmEdit, svg = nmSvg(c, { head: true }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" ');
+      const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode().catch(() => {});
+      const cv = document.createElement('canvas'); cv.width = cv.height = 480; const x = cv.getContext('2d');
+      const g = x.createLinearGradient(0, 0, 480, 480); g.addColorStop(0, '#2B2D6E'); g.addColorStop(1, '#7A3E8E'); x.fillStyle = g; x.fillRect(0, 0, 480, 480); x.drawImage(img, 0, 0, 480, 480);
+      try { const url = await storeImg(cv.toDataURL('image/png'), 'avatar'); await db().update('users/' + S.me, { avatar: url, nexame: c }); S.modal = null; render(); toast('Your avatar is now your profile photo'); } catch { toast('Couldn\'t save the photo. Try again.'); }
+    },
+  });
+  document.addEventListener('input', e => { if (e.target.matches?.('[data-a="nmNum"]') && S.nmEdit) { S.nmEdit.num = Math.max(0, Math.min(99, +e.target.value || 0)); const st = document.querySelector('.nm-stage svg'); if (st) st.outerHTML = nmSvg(S.nmEdit); } });
+  // Settings › Profile: your avatar card
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (S.setSec !== 'profile' && S.setSec) return h;
+    const mine = nmOf(S.me);
+    const card = `<div class="panel nm-card"><div class="nm-mini">${nmSvg(mine || NM_DEF, { label: 'Your avatar' })}</div><div class="grow"><b>Your Nexa avatar</b><div class="mute small">${mine ? 'Shown when you play games with friends.' : 'Design a person who looks like you, outfit and all, and play games as them.'}</div></div><button class="btn sm pri" data-a="nmOpen">${mine ? 'Edit' : 'Design'}</button></div>`;
+    const i = h.indexOf('<div class="sigprof"'); if (i > 0) return h.slice(0, i) + card + h.slice(i);
+    const j = h.lastIndexOf('</section>'); return j > 0 ? h.slice(0, j) + card + h.slice(j) : h;
+  };
+  // games: both players stand on a little stage; the winner cheers
+  const _g = vGame;
+  vGame = function (m) {
+    const h = _g(m); const g = m.game || {}; if (!h) return h;
+    const ps = [...new Set([g.x, g.o, ...Object.keys(g.p || {}), ...(g.players || [])].filter(u => typeof u === 'string' && u))].slice(0, 2);
+    if (!ps.length) return h;
+    let win = null;
+    try { if (g.t === 'ttt') { const w = tttWinner(g.b); if (w && w.p !== 'draw') win = w.p === 'X' ? g.x : g.o; } if (g.t === 'rps') { const e = Object.entries(g.p || {}); if (e.length >= 2) { const [[ua, a], [ub, b]] = e; const beats = { r: 's', p: 'r', s: 'p' }; win = a === b ? null : beats[a] === b ? ua : ub; } } if (g.winner) win = g.winner; } catch {}
+    const stage = `<div class="nm-game">${ps.map((u, i) => `<div class="nm-player ${i ? 'flip' : ''} ${win === u ? 'won' : ''}">${nmSvg(nmOf(u) || { ...NM_DEF, topC: i ? 4 : 2, skin: i ? 3 : 1 }, { cheer: win === u, sad: win && win !== u, label: dname(u) })}<span>${esc(dname(u).split(' ')[0])}${win === u ? ' 🏆' : ''}</span></div>`).join(ps.length === 2 ? '<b class="nm-vs">VS</b>' : '')}</div>`;
+    return h.replace(/^(<div class="bub game[^"]*">)/, `$1${stage}`);
+  };
+  // a nudge to make one: after your first game without an avatar
+  Object.assign(actions, { nmHome: () => actions.nmOpen() });
+}
+
+/* ================= Nexa 1.2: design your own glass colours ================= */
+// Settings › Appearance › "Your colours": the three glows behind the glass, plus a custom panel and edge colour.
+{
+  const hex2rgb = h => { const n = parseInt(String(h || '#000000').slice(1), 16); return `${n >> 16} ${(n >> 8) & 255} ${n & 255}`; };
+  const _at = applyTheme;
+  applyTheme = function (...a) {
+    const r = _at(...a);
+    try {
+      const root = document.documentElement, st = root.style, p = S.prefs, g = Array.isArray(p.glowCols) && p.glowCols.length === 3 ? p.glowCols : null;
+      root.dataset.glow = g && root.dataset.look === 'pro' ? '1' : '';
+      if (g) g.forEach((c, i) => st.setProperty('--glow' + (i + 1), hex2rgb(c))); else [1, 2, 3].forEach(i => st.removeProperty('--glow' + i));
+      if (p.panelTint === 'custom' && /^#[0-9a-f]{6}$/i.test(p.tintCustom || '') && root.dataset.look === 'pro') { root.dataset.tint = 'custom'; st.setProperty('--tint', hex2rgb(p.tintCustom)); }
+      if (p.sigCol === 'custom' && /^#[0-9a-f]{6}$/i.test(p.edgeCustom || '')) {
+        const cc = p.edgeCustom, mx = pct => `color-mix(in oklab, ${cc} ${pct}%, transparent)`;
+        st.setProperty('--prism', `conic-gradient(${cc},${cc})`); st.setProperty('--prismL', `linear-gradient(90deg,${cc},color-mix(in oklab, ${cc} 75%, #fff))`);
+        st.setProperty('--prismEdge', `linear-gradient(120deg,${mx(95)},${mx(55)})`); st.setProperty('--prismCard', `linear-gradient(120deg,${mx(55)},rgba(255,255,255,.04) 45%,${mx(35)})`);
+        st.setProperty('--glowA', mx(70)); st.setProperty('--glowB', mx(45)); st.setProperty('--prismText', `linear-gradient(90deg,${cc},${cc})`);
+      }
+    } catch {}
+    return r;
+  };
+  try { applyTheme(); } catch {}
+  const PRESETS = [['Night', ['#625CFF', '#A85CE6', '#28AAC8']], ['Sunset', ['#FF7A59', '#FF4F9A', '#7A5CFF']], ['Ocean', ['#1E90FF', '#00C2A8', '#3B4BFF']], ['Forest', ['#2FBF71', '#0E7C66', '#B6E35A']], ['Candy', ['#FF8AD8', '#8AB4FF', '#FFD36E']], ['Mono', ['#8A8FA3', '#5C6170', '#C8CCD8']]];
+  const _s = vSettings;
+  vSettings = function () {
+    const h = _s(); if (S.setSec !== 'appearance' || lookOf(S.prefs) !== 'pro') return h;
+    const g = S.prefs.glowCols || ['#625CFF', '#A85CE6', '#28AAC8'], on = Array.isArray(S.prefs.glowCols);
+    const card = `<div class="field" id="glowPick">Your colours<span class="mute small" style="font-weight:500">Pick the colours that glow behind the glass, then any panel or edge colour you like.</span>
+      <div class="glow-prev" style="background:radial-gradient(60% 70% at 10% 10%,${g[0]}AA,transparent 70%),radial-gradient(55% 65% at 95% 30%,${g[1]}99,transparent 70%),radial-gradient(60% 70% at 30% 100%,${g[2]}88,transparent 70%),#0B0B12"><div class="glow-glass">Glass</div></div>
+      <div class="glow-row">${g.map((c, i) => `<label class="glow-c"><input type="color" value="${c}" data-glow="${i}"><span>Glow ${i + 1}</span></label>`).join('')}
+        <label class="glow-c"><input type="color" value="${S.prefs.tintCustom || '#3D7BFF'}" data-tintc="1"><span>Panels</span></label>
+        <label class="glow-c"><input type="color" value="${S.prefs.edgeCustom || '#8C97FF'}" data-edgec="1"><span>Edges</span></label></div>
+      <div class="pills" style="margin-top:8px">${PRESETS.map(([n, cs]) => `<button class="pill" data-a="glowPreset" data-v="${n}">${n}</button>`).join('')}${on || S.prefs.panelTint === 'custom' || S.prefs.sigCol === 'custom' ? `<button class="pill" data-a="glowReset">Reset</button>` : ''}</div></div>`;
+    const i = h.indexOf('<div class="field" id="tintPick">'); if (i > 0) return h.slice(0, i) + card + h.slice(i);
+    return h.replace(/(<div class="field" id="sigPick">[\s\S]*?<\/button><\/div><\/div>)/, `$1${card}`);
+  };
+  document.addEventListener('change', e => {
+    const t = e.target; if (!t.matches?.('#glowPick input[type=color]')) return;
+    if (t.dataset.glow) { const g = [...(S.prefs.glowCols || ['#625CFF', '#A85CE6', '#28AAC8'])]; g[+t.dataset.glow] = t.value; savePrefs({ glowCols: g }); }
+    if (t.dataset.tintc) savePrefs({ tintCustom: t.value, panelTint: 'custom' });
+    if (t.dataset.edgec) savePrefs({ edgeCustom: t.value, sigCol: 'custom' });
+  });
+  Object.assign(actions, {
+    glowPreset: d => { const p = PRESETS.find(x => x[0] === d.v); if (p) savePrefs({ glowCols: p[1] }); },
+    glowReset: () => savePrefs({ glowCols: null, panelTint: S.prefs.panelTint === 'custom' ? '' : S.prefs.panelTint, sigCol: S.prefs.sigCol === 'custom' ? 'rainbow' : S.prefs.sigCol }),
+  });
+}
+// the get-the-app / notifications question never pops up over a call
+{
+  const iv = setInterval(() => { const L = document.getElementById('askLayer'); if (L && (S.call || S.incoming)) L.remove(); }, 400);
+}
+
+// Nexa 1.2 (update number 21.4)
+WN_TITLE['21.4'] = 'What’s new in Nexa 1.2';
+WN_INTRO['21.4'] = 'Make Nexa look like you.';
+WN_HUMAN['21.4'] = [
+  ['user', 'Your own avatar', 'Design a person who looks like you: hair, face, outfit, shoes and extras. Settings › Profile › Your Nexa avatar.'],
+  ['spark', 'Play as your avatar', 'In games, both players stand face to face, and the winner celebrates.'],
+  ['palette', 'Your colours', 'Pick the colours behind the glass, and any colour for panels and edges. Settings › Appearance.'],
+  ['lock', 'Plus everything in 1.1', 'Encrypted chats, a notification check, voice messages as text and installing on Mac.'],
+];
+WN_STEPS['21.4'] = WN_STEPS['21.0']; UP_HL['21.4'] = UP_HL['21.0'];
