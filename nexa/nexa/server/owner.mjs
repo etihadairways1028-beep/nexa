@@ -206,8 +206,12 @@ export default async (req) => {
   if (ownerUid ? tok.uid !== ownerUid : !tok.email_verified) return json({ error: 'verify-email', message: ownerUid ? 'This account isn\'t the one saved as OWNER_UID (Cloudflare settings).' : 'Confirm it\'s you: add OWNER_UID (Cloudflare settings) (see the steps), or verify your email.', uid: tok.uid }, 403);
   let body = {}; try { body = await req.json(); } catch {}
   const ref = db.doc(SECRET_DOC);
-  const sec = (await ref.get()).data() || {};
+  let sec = (await ref.get()).data() || {};
   const now = Date.now();
+  // Locked out (forgot the PIN, lost the code app)? Add OWNER_RESET in Cloudflare (any new word, e.g. reset1).
+  // The next visit starts the owner setup again (new PIN + new second step). Only works once per word.
+  const resetWord = (process.env.OWNER_RESET || '').trim();
+  if (resetWord && sec.resetUsed !== resetWord) { await ref.set({ resetUsed: resetWord, resetAt: now }); sec = { resetUsed: resetWord }; }
 
   const method = sec.method || (sec.totp ? 'totp' : '');
   const active = !!(sec.active || sec.totp) && sec.hv === 2;
@@ -220,7 +224,7 @@ export default async (req) => {
     const how = ['nexa', 'email', 'totp'].includes(body.method) ? body.method : 'totp';
     if (how === 'email' && !(await mailReady(db))) return json({ error: 'Email codes need an email server first — add one in Nexa Support → Settings → Email.' }, 400);
     const salt = crypto.randomBytes(16).toString('hex');
-    const base = { hv: 2, pinHash: hashPin(pin, salt), salt, sessionKey: crypto.randomBytes(32).toString('hex'), uid: tok.uid, fails: 0, lockUntil: 0, createdAt: now, method: how };
+    const base = { hv: 2, ...(sec.resetUsed ? { resetUsed: sec.resetUsed } : {}), pinHash: hashPin(pin, salt), salt, sessionKey: crypto.randomBytes(32).toString('hex'), uid: tok.uid, fails: 0, lockUntil: 0, createdAt: now, method: how };
     if (how === 'totp') {
       const secret = b32enc(crypto.randomBytes(20));
       await ref.set({ ...base, pendingTotp: secret, active: false });
