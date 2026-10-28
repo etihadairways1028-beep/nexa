@@ -1,11 +1,12 @@
 {
- "version": "21.4",
+ "version": "21.7",
  "notes": [
-  "Design your own Nexa avatar, outfit and all.",
-  "Play games as your avatar.",
-  "Pick your own glass colours.",
-  "Encrypted chats, a notification check, voice messages as text and installing on Mac."
+  "Send files up to 2 GB.",
+  "Faster and smoother.",
+  "Pick the colour of your letters and headings.",
+  "Better Liquid Glass: Clear, Balanced or Frosted.",
+  "New Terms & Conditions."
  ],
  "quiet": false,
- "display": "1.2"
+ "display": "1.4"
 }
