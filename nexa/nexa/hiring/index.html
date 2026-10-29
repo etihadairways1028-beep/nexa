@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Careers at Nexa — Join the Nexa Team</title>
+<link rel="canonical" href="https://www.nexaconnect.qd.je/hiring/">
+<meta name="description" content="Volunteer with Nexa: Support Team, Moderators, Designers & Video Creators and Testers. Remote, flexible hours.">
+<meta name="theme-color" content="#09090F">
+<link rel="icon" href="/favicon-v4.png">
+<link rel="preload" href="/nexa-serif.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/nexa-sans.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/*! © 2026 Nexa (nexaconnect.qd.je). All rights reserved. */
+@font-face{font-family:"Nexa Serif";src:url(/nexa-serif.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Nexa Serif";font-style:italic;src:url(/nexa-serif-italic.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Nexa Sans";font-weight:100 900;src:url(/nexa-sans.woff2) format("woff2");font-display:swap}
+:root{--ink:#09090F;--panel:#121219;--panel2:#17171F;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.16);--text:#F3F1EC;--mute:#A3A1AE;--faint:#6F6D7B;--ac:#8C97FF;--ac2:#FF8FB1;
+  --prism:linear-gradient(90deg,#FF7AB6,#FFB86B,#FFE27A,#7BF0B8,#7FB2FF,#B794FF);color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--text);font:16px/1.6 "Nexa Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.serif{font-family:"Nexa Serif",Georgia,serif;font-weight:400;letter-spacing:-.01em}
+.eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
+.mute{color:var(--mute)}
+/* top bar */
+.nav{position:sticky;top:0;z-index:20;background:rgba(9,9,15,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:14px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:19px;letter-spacing:-.02em}
+.brand img{width:30px;height:30px;border-radius:9px}
+.brand small{font-weight:600;color:var(--mute);font-size:13px;letter-spacing:0;padding-left:10px;border-left:1px solid var(--line2)}
+.nav .sp{flex:1}
+.nav a.link{font-size:14px;color:var(--mute);text-decoration:none}
+.nav a.link:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 22px;border-radius:999px;border:1px solid var(--line2);background:rgba(255,255,255,.04);color:var(--text);font:inherit;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer;transition:transform .15s,background .2s}
+.btn:hover{background:rgba(255,255,255,.09)}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:#F3F1EC;color:#0B0B10;border-color:transparent}
+.btn.pri:hover{background:#fff}
+.btn.sm{height:38px;padding:0 16px;font-size:14px}
+/* hero */
+.hero{position:relative;overflow:hidden;padding:84px 0 70px;border-bottom:1px solid var(--line)}
+.hero::before{content:"";position:absolute;inset:-30% -10% auto;height:520px;background:radial-gradient(45% 60% at 20% 30%,rgba(140,151,255,.22),transparent 70%),radial-gradient(40% 55% at 80% 20%,rgba(255,143,177,.16),transparent 70%);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:center}
+.hero h1{font-size:clamp(44px,7vw,82px);line-height:1;margin:14px 0 18px}
+.hero h1 i{font-style:italic;background:var(--prism);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:clamp(17px,2vw,20px);color:#CFCDD8;max-width:560px;margin:0 0 26px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
+.chip{font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line2)}
+.ctas{display:flex;flex-wrap:wrap;gap:10px}
+.heroCard{position:relative;border-radius:28px;padding:28px;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.015));border:1px solid var(--line2);box-shadow:0 30px 80px -40px rgba(140,151,255,.5)}
+.heroCard::after{content:"";position:absolute;inset:0;border-radius:28px;padding:1px;background:var(--prism);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.55;pointer-events:none}
+.heroCard .n{font-family:"Nexa Serif",Georgia,serif;font-size:56px;line-height:1}
+.heroCard .row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.heroCard .row:last-child{border:0}
+/* sections */
+section.blk{padding:76px 0;border-bottom:1px solid var(--line)}
+.head{max-width:700px;margin-bottom:36px}
+.head h2{font-size:clamp(34px,4.5vw,52px);line-height:1.05;margin:10px 0 12px}
+.head p{color:var(--mute);margin:0;font-size:17px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:24px}
+.card h3{margin:12px 0 6px;font-size:18px}
+.card p{margin:0;color:var(--mute);font-size:15px}
+.ico{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:20px;background:rgba(255,255,255,.05);border:1px solid var(--line2)}
+/* roles */
+.role{display:flex;flex-direction:column;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:28px;position:relative;overflow:hidden}
+.role::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--c,var(--prism))}
+.role .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.role h3{font-family:"Nexa Serif",Georgia,serif;font-weight:400;font-size:32px;line-height:1.05;margin:4px 0 0}
+.tag{font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line2);white-space:nowrap}
+.role ul{margin:0;padding-left:18px;color:#CFCDD8;font-size:15px}
+.role li{margin:4px 0}
+.role .sub{font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:4px}
+.meta{display:flex;flex-wrap:wrap;gap:16px;font-size:13.5px;color:var(--mute);padding-top:12px;border-top:1px solid var(--line);margin-top:auto}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;counter-reset:s}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:24px;counter-increment:s}
+.step::before{content:counter(s,decimal-leading-zero);font-family:"Nexa Serif",Georgia,serif;font-size:40px;line-height:1;background:var(--prism);-webkit-background-clip:text;background-clip:text;color:transparent}
+.step h3{margin:14px 0 6px;font-size:17px}
+.step p{margin:0;color:var(--mute);font-size:14.5px}
+/* standards */
+.rule1{display:flex;gap:16px;align-items:center;padding:20px 24px;border-radius:20px;background:linear-gradient(135deg,rgba(255,92,140,.14),rgba(124,92,255,.14));border:1px solid rgba(255,120,170,.4);margin-bottom:16px}
+.rule1 b{font-size:18px}
+.list{margin:0;padding:0;list-style:none}
+.list li{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);color:#CFCDD8;font-size:15.5px}
+.list li:last-child{border:0}
+.list li::before{content:"✓";color:#7BF0B8;font-weight:800}
+/* faq */
+details{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:0 22px;margin-bottom:10px}
+summary{cursor:pointer;list-style:none;padding:18px 0;font-weight:700;display:flex;justify-content:space-between;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:22px;line-height:1;color:var(--mute)}
+details[open] summary::after{content:"–"}
+details p{margin:0 0 18px;color:var(--mute)}
+/* form */
+.apply{display:grid;grid-template-columns:.8fr 1.2fr;gap:36px;align-items:start}
+.formcard{background:var(--panel);border:1px solid var(--line2);border-radius:26px;padding:28px}
+.f{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.f label,.flab{font-size:13.5px;font-weight:700}
+.f .hint{font-size:12.5px;color:var(--faint)}
+.inp{width:100%;min-height:48px;padding:12px 14px;border-radius:14px;border:1px solid var(--line2);background:#0D0D13;color:var(--text);font:inherit;font-size:15.5px;outline:none;transition:border-color .2s,box-shadow .2s}
+.inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(140,151,255,.25)}
+textarea.inp{min-height:130px;resize:vertical;line-height:1.5}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#A3A1AE 50%),linear-gradient(135deg,#A3A1AE 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:inline-flex;align-items:center;height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:#0D0D13;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s,border-color .2s}
+.seg input:checked+span{background:#F3F1EC;color:#0B0B10;border-color:transparent}
+.seg input:focus-visible+span{box-shadow:0 0 0 3px rgba(140,151,255,.4)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;color:#CFCDD8;margin:10px 0}
+.check input{width:20px;height:20px;flex:none;margin:1px 0 0;accent-color:#8C97FF}
+.check a{text-decoration:underline;text-underline-offset:2px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.err{display:none;padding:12px 14px;border-radius:14px;background:rgba(255,80,120,.12);border:1px solid rgba(255,107,138,.5);color:#FFC2CF;font-size:14px;margin-bottom:12px}
+.ok{display:none;text-align:center;padding:30px 10px}
+.ok .big{font-family:"Nexa Serif",Georgia,serif;font-size:42px;line-height:1.05;margin:8px 0}
+.ok code{font:700 18px/1 "Nexa Sans",system-ui;padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--line2);display:inline-block;margin:6px 0 14px}
+.or{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:13px;margin:18px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line2)}
+.alt{display:flex;align-items:center;gap:14px;padding:16px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.alt b{display:block}
+footer{padding:40px 0 60px;color:var(--faint);font-size:13.5px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
+footer a{color:var(--mute);text-decoration:none}
+footer .sp{flex:1}
+@media (max-width:900px){.hero .wrap,.apply{grid-template-columns:1fr}.grid4,.steps{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.nav a.link{display:none}}
+@media (max-width:560px){.grid4,.steps,.two{grid-template-columns:1fr}.hero{padding:56px 0 48px}section.blk{padding:56px 0}.brand small{display:none}.formcard{padding:20px}.role{padding:22px}.alt{flex-wrap:wrap}.alt .btn{width:100%}}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="/"><img src="/icon-192-v4.png" alt="">nexa<small>Careers</small></a>
+  <span class="sp"></span>
+  <a class="link" href="#roles">Open roles</a><a class="link" href="#how">How it works</a><a class="link" href="#faq">FAQ</a>
+  <a class="btn sm pri" href="#apply">Apply</a>
+</div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <div>
+    <div class="eyebrow">Careers at Nexa</div>
+    <h1 class="serif">Help build a <i>kinder</i> place to talk.</h1>
+    <p class="lead">Nexa is a free messaging app for friends, groups and communities, made to look like nothing else. We’re building the team that keeps it helpful, safe and beautiful, and we’d love you to be part of it.</p>
+    <div class="chips"><span class="chip">Volunteer roles</span><span class="chip">Remote, from anywhere</span><span class="chip">Flexible hours</span><span class="chip">Ages 13+</span></div>
+    <div class="ctas"><a class="btn pri" href="#roles">See open roles</a><a class="btn" href="#apply">Apply now</a></div>
+  </div>
+  <aside class="heroCard" aria-label="At a glance">
+    <div class="eyebrow">At a glance</div>
+    <div class="row"><span class="mute">Open roles</span><b>4</b></div>
+    <div class="row"><span class="mute">Time</span><b>From 1–2 hours a week</b></div>
+    <div class="row"><span class="mute">Where</span><b>Online, in Nexa</b></div>
+    <div class="row"><span class="mute">Reply</span><b>Within 7 days</b></div>
+  </aside>
+</div></section>
+
+<section class="blk" id="perks"><div class="wrap">
+  <div class="head"><div class="eyebrow">Why join</div><h2 class="serif">Real work, on an app people use every day.</h2><p>Every role on the Nexa Team has a direct effect on the app and the people in it.</p></div>
+  <div class="grid4">
+    <div class="card"><div class="ico">🛠️</div><h3>Shape the app</h3><p>Your ideas and feedback go straight to the people building Nexa.</p></div>
+    <div class="card"><div class="ico">🏅</div><h3>Nexa Team badge</h3><p>A Team badge on your profile so everyone knows you help run Nexa.</p></div>
+    <div class="card"><div class="ico">🚀</div><h3>Early access</h3><p>Try new features on the test version before anyone else.</p></div>
+    <div class="card"><div class="ico">📄</div><h3>Experience that counts</h3><p>Real teamwork, communication and creative work you can talk about in school and job applications.</p></div>
+  </div>
+</div></section>
+
+<section class="blk" id="roles"><div class="wrap">
+  <div class="head"><div class="eyebrow">Open roles</div><h2 class="serif">Find where you fit.</h2><p>All roles are volunteer, remote and flexible. You can apply for more than one.</p></div>
+  <div class="grid2">
+    <article class="role" style="--c:linear-gradient(90deg,#7FB2FF,#8C97FF)">
+      <div class="top"><div><div class="eyebrow">Community</div><h3>Support Team</h3></div><span class="tag">2–5 h / week</span></div>
+      <p class="mute" style="margin:0">Be the friendly voice of Nexa. Answer questions from people who message <b>@support</b> and help them get unstuck.</p>
+      <div class="sub">What you’ll do</div>
+      <ul><li>Reply to help chats in Nexa Support, kindly and clearly</li><li>Explain features and walk people through problems</li><li>Pass on bugs and ideas to the team</li></ul>
+      <div class="sub">You’ll be great if you</div>
+      <ul><li>Are patient and write clearly</li><li>Know Nexa well, or want to learn it inside out</li></ul>
+      <div class="meta"><span>📍 Remote</span><span>🗣️ English</span><a class="btn sm" href="#apply" data-role="support">Apply for this role</a></div>
+    </article>
+    <article class="role" style="--c:linear-gradient(90deg,#FF7AB6,#B794FF)">
+      <div class="top"><div><div class="eyebrow">Safety</div><h3>Moderator</h3></div><span class="tag">2–5 h / week</span></div>
+      <p class="mute" style="margin:0">Keep Nexa kind. Review reports and flagged messages and make fair decisions using the Nexa Rules.</p>
+      <div class="sub">What you’ll do</div>
+      <ul><li>Review reports and flagged messages</li><li>Warn people, and suggest bans for serious cases</li><li>Spot patterns and help improve the rules</li></ul>
+      <div class="sub">You’ll be great if you</div>
+      <ul><li>Stay calm and fair, even when people aren’t</li><li>Can keep private information private</li></ul>
+      <div class="meta"><span>📍 Remote</span><span>🔒 Confidential</span><a class="btn sm" href="#apply" data-role="moderator">Apply for this role</a></div>
+    </article>
+    <article class="role" style="--c:linear-gradient(90deg,#FFB86B,#FFE27A)">
+      <div class="top"><div><div class="eyebrow">Creative</div><h3>Designer &amp; Video Creator</h3></div><span class="tag">Flexible</span></div>
+      <p class="mute" style="margin:0">Make Nexa look and feel amazing, inside the app and on social media.</p>
+      <div class="sub">What you’ll do</div>
+      <ul><li>Make short videos and posts for TikTok, Reels and YouTube</li><li>Design stickers, avatar outfits, backgrounds and festival looks</li><li>Give feedback on new screens before they ship</li></ul>
+      <div class="sub">You’ll be great if you</div>
+      <ul><li>Have an eye for design or editing (any app is fine)</li><li>Can share a few things you’ve made</li></ul>
+      <div class="meta"><span>📍 Remote</span><span>🎨 Portfolio welcome</span><a class="btn sm" href="#apply" data-role="creative">Apply for this role</a></div>
+    </article>
+    <article class="role" style="--c:linear-gradient(90deg,#7BF0B8,#7FB2FF)">
+      <div class="top"><div><div class="eyebrow">Product</div><h3>Tester</h3></div><span class="tag">1–3 h / week</span></div>
+      <p class="mute" style="margin:0">Try every update on the Nexa test site first and help us catch problems before everyone else sees them.</p>
+      <div class="sub">What you’ll do</div>
+      <ul><li>Test new updates on your phone or computer</li><li>Report bugs with clear steps and screenshots</li><li>Share honest feedback on what feels good and what doesn’t</li></ul>
+      <div class="sub">You’ll be great if you</div>
+      <ul><li>Notice small details</li><li>Have an iPhone, Android, iPad or computer (any is great)</li></ul>
+      <div class="meta"><span>📍 Remote</span><span>📱 Any device</span><a class="btn sm" href="#apply" data-role="tester">Apply for this role</a></div>
+    </article>
+  </div>
+</div></section>
+
+<section class="blk" id="how"><div class="wrap">
+  <div class="head"><div class="eyebrow">How it works</div><h2 class="serif">Four simple steps.</h2><p>We read every application ourselves.</p></div>
+  <div class="steps">
+    <div class="step"><h3>Apply</h3><p>Fill in the short form below. It takes about five minutes.</p></div>
+    <div class="step"><h3>We review</h3><p>The team reads your application and replies within 7 days.</p></div>
+    <div class="step"><h3>Quick chat</h3><p>If it’s a good fit, we’ll chat with you on Nexa or by email.</p></div>
+    <div class="step"><h3>Welcome</h3><p>You get your Team badge, access to your tools and a short guide to get started.</p></div>
+  </div>
+</div></section>
+
+<section class="blk" id="standards"><div class="wrap">
+  <div class="grid2" style="align-items:start">
+    <div class="head" style="margin:0"><div class="eyebrow">Our standards</div><h2 class="serif">The Nexa Team sets the example.</h2><p>Everyone on the team agrees to the <a href="/terms.html">Terms &amp; Conditions</a> and to these standards.</p></div>
+    <div>
+      <div class="rule1"><span style="font-size:26px">💙</span><div><b>No bullying. No swearing. No offensive language.</b><div class="mute" style="font-size:14px">Rule number 1 on Nexa, and on the Nexa Team.</div></div></div>
+      <ul class="list">
+        <li>Keep private messages, reports and personal information confidential, always.</li>
+        <li>Be fair and respectful to everyone, whoever they are.</li>
+        <li>Never ask anyone for passwords, codes or personal details.</li>
+        <li>Never share or copy Nexa’s design, code or unreleased features.</li>
+        <li>Under 18? You’ll need a parent or guardian’s permission to volunteer.</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<section class="blk" id="faq"><div class="wrap" style="max-width:820px">
+  <div class="head"><div class="eyebrow">Questions</div><h2 class="serif">Good to know.</h2></div>
+  <details><summary>Is this a paid job?</summary><p>No. All Nexa Team roles are volunteer roles, so they are unpaid. You get a Team badge, early access to new features and real experience working on an app.</p></details>
+  <details><summary>Do I need experience?</summary><p>No. We care more about kindness, reliability and wanting to help. For the Designer &amp; Video Creator role, it helps to share a few things you’ve made.</p></details>
+  <details><summary>How much time do I need?</summary><p>As little as 1–2 hours a week. You choose when; there are no fixed shifts.</p></details>
+  <details><summary>How old do I need to be?</summary><p>You need to be 13 or older to use Nexa and to apply. If you’re under 18, a parent or guardian needs to be OK with you volunteering.</p></details>
+  <details><summary>Can I apply for more than one role?</summary><p>Yes. Send one application per role, or mention the other roles in your answer.</p></details>
+  <details><summary>What happens to my information?</summary><p>Only the Nexa Team sees your application, and we use it only to review it and contact you. See the <a href="/privacy.html">Privacy Policy</a>.</p></details>
+</div></section>
+
+<section class="blk" id="apply" style="border-bottom:0"><div class="wrap apply">
+  <div class="head" style="margin:0"><div class="eyebrow">Apply</div><h2 class="serif">Join the Nexa Team.</h2><p>Fill in the form, or message us in Nexa if you prefer. We reply to everyone within 7 days.</p>
+    <div class="or">or</div>
+    <div class="alt"><span class="ico">💬</span><div style="flex:1"><b>Message @support in Nexa</b><span class="mute" style="font-size:14px">Opens a chat with the team, with a message ready to send.</span></div><a class="btn sm" id="msgNexa" href="/?help=jobs">Open Nexa</a></div>
+  </div>
+  <div class="formcard">
+    <form id="appForm" novalidate>
+      <div class="err" id="err" role="alert"></div>
+      <div class="two"><div class="f"><label for="name">Full name</label><input class="inp" id="name" name="name" autocomplete="name" maxlength="80" required></div>
+        <div class="f"><label for="email">Email</label><input class="inp" id="email" name="email" type="email" autocomplete="email" maxlength="120" required></div></div>
+      <div class="two"><div class="f"><label for="handle">Nexa username <span class="mute">(optional)</span></label><input class="inp" id="handle" name="handle" placeholder="@yourname" maxlength="30" autocapitalize="off"></div>
+        <div class="f"><label for="where">Country or time zone <span class="mute">(optional)</span></label><input class="inp" id="where" name="where" maxlength="60"></div></div>
+      <div class="f"><label for="role">Role</label><select class="inp" id="role" name="role" required><option value="">Choose a role…</option><option value="support">Support Team</option><option value="moderator">Moderator</option><option value="creative">Designer &amp; Video Creator</option><option value="tester">Tester</option></select></div>
+      <div class="f"><span class="flab">Age group</span><div class="seg" role="radiogroup" aria-label="Age group"><label><input type="radio" name="age" value="13-15"><span>13–15</span></label><label><input type="radio" name="age" value="16-17"><span>16–17</span></label><label><input type="radio" name="age" value="18+"><span>18 or over</span></label></div></div>
+      <div class="f"><span class="flab">Time you can give</span><div class="seg" role="radiogroup" aria-label="Hours per week"><label><input type="radio" name="hours" value="1-2"><span>1–2 h a week</span></label><label><input type="radio" name="hours" value="3-5"><span>3–5 h</span></label><label><input type="radio" name="hours" value="6+"><span>6 h or more</span></label></div></div>
+      <div class="f"><label for="why">Why do you want to join the Nexa Team?</label><textarea class="inp" id="why" name="why" maxlength="1500" required placeholder="Tell us a bit about yourself and what you’d bring to the role."></textarea><span class="hint" id="whyCount">At least a couple of sentences</span></div>
+      <div class="f"><label for="links">Experience or links <span class="mute">(optional)</span></label><input class="inp" id="links" name="links" maxlength="600" placeholder="Anything you’ve done before, or links to your work"></div>
+      <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <label class="check"><input type="checkbox" name="volunteer"><span>I understand this is a <b>volunteer (unpaid)</b> role.</span></label>
+      <label class="check" id="parentRow" hidden><input type="checkbox" name="parent"><span>I’m under 18 and my <b>parent or guardian</b> is OK with me volunteering.</span></label>
+      <label class="check"><input type="checkbox" name="agree"><span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and the Nexa Team standards, including keeping private information confidential.</span></label>
+      <button class="btn pri" type="submit" id="send" style="width:100%;margin-top:10px;height:52px">Send application</button>
+    </form>
+    <div class="ok" id="ok" role="status"><div style="font-size:44px">💙</div><div class="big serif">Application sent.</div><p class="mute">Thank you for applying to the Nexa Team. Your reference number is</p><code id="ref"></code><p class="mute" style="margin:0">We’ll reply to <b id="okEmail"></b> within 7 days. Keep an eye on your inbox (and your spam folder).</p><p style="margin-top:20px"><a class="btn" href="/">Back to Nexa</a></p></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap"><span>© 2026 Nexa. All rights reserved.</span><span class="sp"></span><a href="/">Nexa</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="mailto:nexaconnectofficial@gmail.com">Contact</a></div></footer>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s), f = $('#appForm');
+  const ROLE_NAMES = { support: 'Support Team', moderator: 'Moderator', creative: 'Designer & Video Creator', tester: 'Tester' };
+  let api = '/api/jobs'; try { const t = JSON.parse(localStorage.getItem('nexa.jobsApi') || 'null'); if (t && location.hostname === 'localhost') api = t; } catch {}
+  const msgLink = () => { const r = f.role.value; $('#msgNexa').href = '/?help=jobs' + (r ? '&role=' + r : ''); };
+  document.querySelectorAll('[data-role]').forEach(a => a.addEventListener('click', () => { f.role.value = a.dataset.role; msgLink(); setTimeout(() => f.name.focus({ preventScroll: true }), 400); }));
+  f.role.addEventListener('change', msgLink);
+  f.addEventListener('change', e => { if (e.target.name === 'age') $('#parentRow').hidden = e.target.value === '18+'; });
+  f.why.addEventListener('input', () => { const n = f.why.value.trim().length; $('#whyCount').textContent = n < 30 ? `At least a couple of sentences (${n}/30)` : `${n} / 1500`; });
+  const showErr = m => { const e = $('#err'); e.textContent = m; e.style.display = m ? 'block' : 'none'; if (m) e.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); showErr('');
+    const v = Object.fromEntries(new FormData(f)); const age = (f.querySelector('[name=age]:checked') || {}).value || '', hours = (f.querySelector('[name=hours]:checked') || {}).value || '';
+    const body = { name: v.name, email: v.email, handle: v.handle, where: v.where, role: v.role, age, hours, why: v.why, links: v.links, website: v.website, volunteer: !!v.volunteer, parent: !!v.parent, agree: !!v.agree };
+    const need = !body.name.trim() ? 'Please add your name.' : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email.trim()) ? 'Please add an email address we can reply to.' : !body.role ? 'Please choose a role.' : !age ? 'Please pick your age group.' : !hours ? 'Please pick how much time you can give.' : body.why.trim().length < 30 ? 'Tell us a little more about why you want to join.' : !body.volunteer || !body.agree ? 'Please tick the boxes at the end of the form.' : age !== '18+' && !body.parent ? 'If you’re under 18, please confirm a parent or guardian is OK with you volunteering.' : '';
+    if (need) return showErr(need);
+    const b = $('#send'); b.disabled = true; b.textContent = 'Sending…';
+    try {
+      const r = await fetch(api, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Something went wrong. Please try again, or message @support in Nexa.');
+      $('#ref').textContent = j.ref; $('#okEmail').textContent = body.email.trim(); f.style.display = 'none'; $('#ok').style.display = 'block'; $('#ok').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } catch (er) { showErr(er.message); b.disabled = false; b.textContent = 'Send application'; }
+  });
+})();
+</script>
+</body></html>
