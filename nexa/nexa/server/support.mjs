@@ -13,7 +13,7 @@ const SUPPORT_EMAIL = (process.env.SUPPORT_EMAIL || 'nexaconnectofficial@gmail.c
 const AGENTS = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }];
 // one-time team change (Oct 2026): Yaseen removed; Shiv and Arrick get the password the owner chose.
 // Only a salted hash is stored here — never the password itself. Everyone is signed out once.
-const PW_RESET = { id: 'team-2026-10b', salt: '0bd61fdd805f17ac6e53fa16f11b5f56', hash: 'dd96e64bd6868b0ea77e2c668628f61a7660f0a9fd4319dbc87fad78a2015c23' };
+const PW_RESET = { id: 'team-2026-10c', salt: '2f865d00275042ba6c075e69ce1d31d8', hash: '090e4e4418298588931ce0bdfb8d4701c1bdbff2810ad5b418e21f7008016b4f' };
 const DEFAULT_PASSWORD = 'nexaofficial';
 const DEFAULT_AUTO_REPLY = 'Thank you for reaching out to Nexa Support. The next Nexa Support agent will get back to you soon! Thank you for choosing Nexa 💙';
 const DOC = 'supportSecrets/main'; // no Firestore rule lets app users read this

@@ -28,7 +28,7 @@ function iconFor(req, uid, user) {
   try { const o = new URL(req.url).origin; return `${o}/api/avatar?u=${encodeURIComponent(uid)}&s=${avatarSig(uid, KEY)}&v=${(user.avatar.length % 99991).toString(36)}`; } catch { return ''; }
 }
 
-const label = m => (m.e2e || m.enc) ? '🔒 Encrypted message' : m.once ? 'View-once photo' : m.meet ? 'Google Meet — tap to join' : m.video ? (m.video.round ? 'Video message' : 'Video') : m.live ? 'Shared live location' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.audio ? 'Voice message' : m.stickerImg || m.sticker ? 'Sticker' : m.gif ? 'GIF'
+const label = m => (m.e2e || m.enc) ? '🔒 Encrypted message' : m.file ? '📎 ' + String(m.file.name || 'File').slice(0, 80) : m.once ? 'View-once photo' : m.meet ? 'Google Meet — tap to join' : m.video ? (m.video.round ? 'Video message' : 'Video') : m.live ? 'Shared live location' : m.bot ? 'Nexa AI: ' + (m.text || '') : m.audio ? 'Voice message' : m.stickerImg || m.sticker ? 'Sticker' : m.gif ? 'GIF'
   : (m.images && m.images.length > 1) ? `${m.images.length} photos` : (m.images || m.image) ? 'Photo' : m.poll ? 'Poll: ' + (m.poll.q || '')
   : m.game ? 'Sent a game' : m.theme ? 'Shared a chat theme' : (m.text || 'New message');
 
