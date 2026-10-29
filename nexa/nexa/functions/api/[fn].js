@@ -8,8 +8,9 @@ import avatar from '../../server/avatar.mjs';
 import turn from '../../server/turn.mjs';
 import quicklogin from '../../server/quicklogin.mjs';
 import passkey from '../../server/passkey.mjs';
+import files from '../../server/files.mjs';
 
-const HANDLERS = { notify, owner, support, music, avatar, turn, quicklogin, passkey };
+const HANDLERS = { notify, owner, support, music, avatar, turn, quicklogin, passkey, files };
 
 export async function onRequest(ctx) {
   const h = HANDLERS[ctx.params.fn];
@@ -19,7 +20,7 @@ export async function onRequest(ctx) {
   const pe = globalThis.process.env || (globalThis.process.env = {});
   for (const [k, v] of Object.entries(ctx.env || {})) if (typeof v === 'string') pe[k] = v.trim(); // stray spaces/new lines from copy-paste break logins
   try {
-    return await h(ctx.request, { ip: ctx.request.headers.get('cf-connecting-ip') || '', waitUntil: p => ctx.waitUntil(p) });
+    return await h(ctx.request, { ip: ctx.request.headers.get('cf-connecting-ip') || '', waitUntil: p => ctx.waitUntil(p), env: ctx.env || {} });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'Server error: ' + (e && e.message || e) }), { status: 500, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   }
