@@ -1,13 +1,12 @@
 {
- "version": "21.8",
+ "version": "21.9",
  "notes": [
-  "Channels in groups, set up by Nexa AI, and group tags.",
-  "Smooth mode: much faster on phones and iPads.",
-  "Draw on your avatar, any colour, eyes open or closed.",
-  "Nexa AI works again.",
-  "Get Nexa on your Mac.",
-  "Join the Nexa Team from Settings."
+  "Link your YouTube and more on your profile.",
+  "Intro videos on profiles.",
+  "Change your tag, and tap tags to see the group.",
+  "Groups like servers: categories, roles and a member list.",
+  "Private notes and subtitles on profiles."
  ],
  "quiet": false,
- "display": "1.5"
+ "display": "1.6"
 }
