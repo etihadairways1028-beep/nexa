@@ -1,12 +1,13 @@
 {
- "version": "21.7",
+ "version": "21.8",
  "notes": [
-  "Send files up to 2 GB.",
-  "Faster and smoother.",
-  "Pick the colour of your letters and headings.",
-  "Better Liquid Glass: Clear, Balanced or Frosted.",
-  "New Terms & Conditions."
+  "Channels in groups, set up by Nexa AI, and group tags.",
+  "Smooth mode: much faster on phones and iPads.",
+  "Draw on your avatar, any colour, eyes open or closed.",
+  "Nexa AI works again.",
+  "Get Nexa on your Mac.",
+  "Join the Nexa Team from Settings."
  ],
  "quiet": false,
- "display": "1.4"
+ "display": "1.5"
 }

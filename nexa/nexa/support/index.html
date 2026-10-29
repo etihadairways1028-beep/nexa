@@ -128,7 +128,7 @@ let app = null; async function fbApp() { if (!app) { const F = await import(base
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} } };
-const TABS = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['reports', 'Reports'], ['people', 'People'], ['updates', 'Updates'], ['settings', 'Settings']];
+const TABS = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['reports', 'Reports'], ['jobs', 'Jobs'], ['people', 'People'], ['updates', 'Updates'], ['settings', 'Settings']];
 const hashTab = () => { const h = location.hash.replace('#', ''); return h === 'inbox' ? 'chats' : TABS.some(t => t[0] === h) ? h : 'home'; };
 const S = { step: 'loading', err: '', okMsg: '', busy: false, session: store.get('nexa.support.session') || '', agent: JSON.parse(store.get('nexa.support.agent') || 'null'), tab: hashTab(), cid: '', drafts: {}, sound: store.get('nexa.support.sound') !== '0', desk: store.get('nexa.support.desk') === '1', flagFilter: 'open', repFilter: 'open', q: '', people: [], agents: [] };
 const fn = CONFIG.supportEndpoint || '/api/support';
@@ -168,7 +168,7 @@ function render() {
 }
 function topbar() {
   const n = S.dash?.stats || {};
-  const badge = k => { const v = k === 'chats' ? (S.inbox?.unread ?? n.waiting) : k === 'flags' ? n.flags : k === 'reports' ? n.reports : 0; return v ? ` <span class="badge">${v}</span>` : ''; };
+  const badge = k => { const v = k === 'chats' ? (S.inbox?.unread ?? n.waiting) : k === 'flags' ? n.flags : k === 'reports' ? n.reports : k === 'jobs' ? (S.apps || []).filter(a => a.status === 'new').length : 0; return v ? ` <span class="badge">${v}</span>` : ''; };
   return `<div class="top glass row spread wrapflex"><div class="row"><div class="logo" style="width:40px;height:40px;border-radius:12px"></div><div><b style="font-size:18px">Nexa Support</b><div class="mute small">Signed in as <b>${esc(S.agent?.name || '')}</b> · <a href="#" id="switch" class="mute">switch</a></div></div></div>
   <div class="tabs scrollx">${TABS.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}${badge(k)}</button>`).join('')}</div>
   <div class="row"><button class="btn sm pri" id="newmsg">+ Message</button><button class="btn sm" id="lock">Lock</button></div></div>`;
@@ -179,6 +179,7 @@ function vApp() {
   if (S.tab === 'chats') body = vChats();
   if (S.tab === 'flags') body = vFlags();
   if (S.tab === 'reports') body = vReports();
+  if (S.tab === 'jobs') body = vJobs();
   if (S.tab === 'people') body = vPeople();
   if (S.tab === 'updates') body = vUpdates();
   if (S.tab === 'settings') body = vSettings();
@@ -229,6 +230,19 @@ function vReports() {
     <div class="flist">${list.length ? list.map(r => `<div class="flag"><div class="row spread wrapflex"><div class="row">${avatar(r.target, 36)}<div><b>${esc(r.target.name || 'Nexa user')}</b> <span class="mute small">${r.target.handle ? '@' + esc(r.target.handle) : ''}</span><div class="mute small">Reported by ${esc(r.reporter.name || 'someone')} · ${hm(r.at)}${r.banned ? ' · <b style="color:#ff9aa8">banned</b>' : ''}</div></div></div><span class="pill">${esc(r.reason || 'Report')}</span></div>
       ${r.details ? `<div class="ftext">${esc(r.details)}</div>` : ''}${r.msgText ? `<div class="ftext mute">Message: “${esc(r.msgText)}”</div>` : ''}
       <div class="row wrapflex" style="gap:6px">${!r.resolved ? `<button class="btn sm" data-rep="${r.id}" data-do="warn">⚠️ Warn</button><button class="btn sm red" data-rep="${r.id}" data-do="ban">🚫 Ban</button><button class="btn sm" data-rep="${r.id}" data-do="dismiss">No action</button>` : `<span class="mute small">${esc(r.handledBy || '')}</span><button class="btn sm" data-rep="${r.id}" data-do="reopen">Reopen</button>`}${r.target.id ? `<button class="btn sm" data-chat="${r.target.id}" data-name="${esc(r.target.name || '')}">Message</button>` : ''}</div></div>`).join('') : `<div class="mute" style="padding:20px;text-align:center">${S.repFilter === 'open' ? 'No open reports. 🎉' : 'Nothing handled yet.'}</div>`}</div></section>`;
+}
+const JOB_ST = [['new', 'New'], ['talking', 'Talking'], ['accepted', 'Accepted'], ['declined', 'Declined']];
+function vJobs() {
+  if (!S.apps) return '<div class="glass card">Loading applications…</div>';
+  const f = S.jobFilter || 'new', list = S.apps.filter(a => (a.status || 'new') === f);
+  const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+  return `<section class="glass card"><div class="row spread wrapflex"><div><h2>🧑‍💼 Nexa Team applications</h2><div class="mute small">From the Careers page (nexaconnect.qd.je/careers). Volunteer roles.</div></div>
+    <div class="tabs scrollx">${JOB_ST.map(([k, l]) => `<button class="tab ${f === k ? 'on' : ''}" data-jf="${k}">${l} · ${S.apps.filter(a => (a.status || 'new') === k).length}</button>`).join('')}</div></div>
+    <div class="flist">${list.length ? list.map(a => `<div class="flag"><div class="row spread wrapflex"><div><b>${esc(a.name)}</b> <span class="mute small">${a.handle ? '@' + esc(a.handle) : 'no Nexa username'} · ${esc(a.email)}</span>
+      <div class="mute small">${esc(a.ref || '')} · ${ago(a.at)} · age ${esc(a.age)}${a.age !== '18+' ? (a.parentOk ? ' (parent OK ✓)' : '') : ''} · ${esc(a.hours)} h/week${a.where ? ' · ' + esc(a.where) : ''}</div></div><span class="pill">${esc(a.roleName || a.role)}</span></div>
+      <div class="ftext">${esc(a.why)}</div>${a.links ? `<div class="ftext mute">Experience / links: ${esc(a.links)}</div>` : ''}${a.note ? `<div class="mute small">Note: ${esc(a.note)} — ${esc(a.handledBy || '')}</div>` : ''}
+      <div class="row wrapflex" style="gap:6px">${JOB_ST.filter(([k]) => k !== (a.status || 'new')).map(([k, l]) => `<button class="btn sm ${k === 'declined' ? 'red' : ''}" data-app="${a.id}" data-st="${k}">${k === 'accepted' ? '✅ ' : k === 'declined' ? '✖ ' : k === 'talking' ? '💬 ' : ''}${l}</button>`).join('')}
+      ${a.uid ? `<button class="btn sm" data-chat="${a.uid}" data-name="${esc(a.name)}">Message on Nexa</button>` : ''}<a class="btn sm" href="mailto:${esc(a.email)}?subject=${encodeURIComponent('Your Nexa Team application (' + (a.roleName || '') + ')')}">Email</a></div></div>`).join('') : `<div class="mute" style="padding:20px;text-align:center">No ${f === 'new' ? 'new ' : ''}applications here.</div>`}</div></section>`;
 }
 function vPeople() {
   return `<section class="glass card"><h2>👥 Find someone</h2><form id="f-search" class="row" style="gap:8px"><input class="inp" id="pq" placeholder="Name or @username" value="${esc(S.q)}" autocomplete="off"><button class="btn pri">Search</button></form>
@@ -313,6 +327,7 @@ async function loadAll() {
     S.dash = d; const old = S.inbox; S.inbox = ib; checkNew(old, ib);
     if (S.tab === 'flags' || S.tab === 'home' || !S.flags) { const f = await api('flags'); checkFlags(S.flags, f.list); S.flags = f.list; }
     if (S.tab === 'reports' || !S.reports) S.reports = (await api('reports')).list;
+    if (S.tab === 'jobs' || !S.apps || tick % 6 === 0) { try { S.apps = (await api('apps')).list; } catch { S.apps = S.apps || []; } }
     if (S.tab === 'updates' && (!S.upd || tick % 4 === 0)) loadUpdates();
     if (S.tab === 'settings' && !S.smtp) loadSmtp();
     document.title = ((ib.unread || 0) + (d.stats.flags || 0) ? `(${(ib.unread || 0) + (d.stats.flags || 0)}) ` : '') + 'Nexa Support';
@@ -410,6 +425,8 @@ document.addEventListener('click', async e => {
   if (t.id === 'back') { S.cid = ''; S.thread = null; return render(); }
   if (d.ff) { S.flagFilter = d.ff; return render(); }
   if (d.rf) { S.repFilter = d.rf; return render(); }
+  if (d.jf) { S.jobFilter = d.jf; return render(); }
+  if (d.app) { let note = ''; if (d.st === 'declined' || d.st === 'accepted') { note = prompt(d.st === 'accepted' ? 'Note for the team (optional):' : 'Why? (only the team sees this, optional)', ''); if (note === null) return; } try { await api('appSet', { id: d.app, status: d.st, note }); const a = S.apps.find(x => x.id === d.app); if (a) { a.status = d.st; a.note = note; a.handledBy = S.agent?.name || ''; } render(); } catch (er) { alert(er.message); } return; }
   if (d.tpl != null) { const ta = $('#rtext'); if (ta) { ta.value = TEMPLATES[+d.tpl][1]; S.drafts[S.cid] = ta.value; ta.focus(); } return; }
   if (d.ctpl != null) { const ta = $('#ctext'); if (ta) { ta.value = TEMPLATES[+d.ctpl][1]; S.compose.text = ta.value; } return; }
   if (t.id === 'tReply') { const c = S.inbox.list.find(x => x.id === S.cid); const allow = !(S.thread ? !S.thread.readOnly : !c.readOnly); try { await api('setReply', { cid: S.cid, allow }); if (S.thread) S.thread.readOnly = !allow; c.readOnly = !allow; S.flash = allow ? '✅ They can reply in this chat.' : '🔒 This chat is now official-only — they can read but not reply.'; renderKeep(); } catch (er) { alert(er.message); } return; }
