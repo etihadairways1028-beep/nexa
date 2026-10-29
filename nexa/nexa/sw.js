@@ -1,14 +1,14 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '21.7';
+const VERSION = '21.8';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
 const QUIET = false;
-const NOTES = ["Send files up to 2 GB.", "Faster and smoother.", "Pick the colour of your letters and headings.", "Better Liquid Glass: Clear, Balanced or Frosted.", "New Terms & Conditions."];
+const NOTES = ["Channels in groups, set up by Nexa AI, and group tags.", "Smooth mode: much faster on phones and iPads.", "Draw on your avatar, any colour, eyes open or closed.", "Nexa AI works again.", "Get Nexa on your Mac.", "Join the Nexa Team from Settings."];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '74';
+const CACHE = PREFIX + '75';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server

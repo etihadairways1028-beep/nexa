@@ -204,28 +204,42 @@ async function FirebaseBackend(cfg) {
     async refresh() { if (fa.currentUser) await fa.currentUser.reload(); return !!(fa.currentUser && fa.currentUser.emailVerified); }
   };
   // Nexa AI via Firebase AI Logic (Gemini Developer API). Loaded lazily on first use.
-  let model = null;
+  // Gemini 2.x models were shut down in 2026, so old names are swapped for a current one, and if a model
+  // ever stops working Nexa AI tries the next one on the list by itself.
+  const MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+  const wanted = (!cfg.aiModel || /^gemini-(1|2)(\.|-)/.test(cfg.aiModel)) ? MODELS[0] : cfg.aiModel;
+  let order = [...new Set([wanted, ...MODELS])], aiX = null;
+  const gone = e => /404|not found|no longer|deprecat|not supported|unsupported|retired|invalid.*model|model.*invalid/i.test(String(e && (e.message || e)));
+  const getM = async (name, system, search) => {
+    if (!aiX) { const X = await import(base + 'firebase-ai.js'); aiX = { X, inst: X.getAI(app, { backend: new X.GoogleAIBackend() }) }; }
+    return aiX.X.getGenerativeModel(aiX.inst, { model: name, ...(system ? { systemInstruction: system } : {}), ...(search ? { tools: [{ googleSearch: {} }] } : {}) });
+  };
+  const withModel = async run => {
+    let last;
+    for (const name of order) {
+      try { const out = await run(name); if (order[0] !== name) order = [name, ...order.filter(x => x !== name)]; return out; }
+      catch (e) { last = e; if (!gone(e)) throw e; }
+    }
+    throw last;
+  };
   const ai = {
     async generate(prompt, system) {
-      if (!model) {
-        const X = await import(base + 'firebase-ai.js');
-        const inst = X.getAI(app, { backend: new X.GoogleAIBackend() });
-        model = X.getGenerativeModel(inst, { model: cfg.aiModel || 'gemini-2.5-flash', systemInstruction: system });
-      }
-      const r = await model.generateContent(prompt);
-      return r.response.text();
+      return withModel(async name => { const m = await getM(name, system); const r = await m.generateContent(prompt); return r.response.text(); });
     },
-    // v18.1: a real conversation — history, photos, live typing, and Google Search for up-to-date answers
+    // a real conversation: history, photos, live typing, and Google Search for up-to-date answers
     async stream({ system, contents, search, onText }) {
-      const X = await import(base + 'firebase-ai.js');
-      const inst = X.getAI(app, { backend: new X.GoogleAIBackend() });
-      const m = X.getGenerativeModel(inst, { model: cfg.aiModel || 'gemini-2.5-flash', systemInstruction: system, ...(search ? { tools: [{ googleSearch: {} }] } : {}) });
-      const r = await m.generateContentStream({ contents });
-      let out = '';
-      for await (const ch of r.stream) { let t = ''; try { t = ch.text(); } catch {} if (t) { out += t; onText && onText(out); } }
-      if (!out) { try { out = (await r.response).text(); } catch {} }
-      return out;
-    }
+      return withModel(async name => {
+        const m = await getM(name, system, search);
+        let r;
+        try { r = await m.generateContentStream({ contents }); }
+        catch (e) { if (search && !gone(e)) { r = await (await getM(name, system, false)).generateContentStream({ contents }); } else throw e; }
+        let out = '';
+        for await (const ch of r.stream) { let t = ''; try { t = ch.text(); } catch {} if (t) { out += t; onText && onText(out); } }
+        if (!out) { try { out = (await r.response).text(); } catch {} }
+        return out;
+      });
+    },
+    model: () => order[0],
   };
   // Optional: Firebase Storage for photos (needs the Blaze plan on new projects). Off unless cfg.useStorage.
   let st = null;
