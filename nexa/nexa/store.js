@@ -206,8 +206,8 @@ async function FirebaseBackend(cfg) {
   // Nexa AI via Firebase AI Logic (Gemini Developer API). Loaded lazily on first use.
   // Gemini 2.x models were shut down in 2026, so old names are swapped for a current one, and if a model
   // ever stops working Nexa AI tries the next one on the list by itself.
-  const MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
-  const wanted = (!cfg.aiModel || /^gemini-(1|2)(\.|-)/.test(cfg.aiModel)) ? MODELS[0] : cfg.aiModel;
+  const MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.1-flash-lite']; // current models (Oct 2026)
+  const wanted = (!cfg.aiModel || /^gemini-(1|2|3\.5-flash$|3\.7)(\.|-|$)/.test(cfg.aiModel)) ? MODELS[0] : cfg.aiModel;
   let order = [...new Set([wanted, ...MODELS])], aiX = null;
   const gone = e => /404|not found|no longer|deprecat|not supported|unsupported|retired|invalid.*model|model.*invalid/i.test(String(e && (e.message || e)));
   const getM = async (name, system, search) => {
@@ -218,7 +218,7 @@ async function FirebaseBackend(cfg) {
     let last;
     for (const name of order) {
       try { const out = await run(name); if (order[0] !== name) order = [name, ...order.filter(x => x !== name)]; return out; }
-      catch (e) { last = e; if (!gone(e)) throw e; }
+      catch (e) { last = e; if (/quota|429|exhausted|permission|api.?key|not enabled|PERMISSION_DENIED|billing/i.test(String(e && (e.message || e)))) throw e; } // any other problem: try the next model
     }
     throw last;
   };
@@ -240,6 +240,7 @@ async function FirebaseBackend(cfg) {
       });
     },
     model: () => order[0],
+    lastError: null,
   };
   // Optional: Firebase Storage for photos (needs the Blaze plan on new projects). Off unless cfg.useStorage.
   let st = null;
