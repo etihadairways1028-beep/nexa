@@ -1,12 +1,12 @@
 {
- "version": "21.9",
+ "version": "21.10",
  "notes": [
-  "Link your YouTube and more on your profile.",
-  "Intro videos on profiles.",
-  "Change your tag, and tap tags to see the group.",
-  "Groups like servers: categories, roles and a member list.",
-  "Private notes and subtitles on profiles."
+  "Spaces: your groups as icons on the left.",
+  "Nexa rows: names, roles and tags on every message.",
+  "Tap a name for a profile pop-up.",
+  "Tag cards and voice lounges.",
+  "Profile tabs: Board, Activity, Together."
  ],
  "quiet": false,
- "display": "1.6"
+ "display": "1.7"
 }
