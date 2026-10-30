@@ -175,6 +175,18 @@ export default async (req) => {
     await fr.update({ status: act === 'reopen' ? 'open' : 'done', action: act, handledBy: agent.name, handledAt: now });
     return ok({ done: true });
   }
+  // ---------- Nexa Team applications (from the /careers page)
+  if (body.action === 'apps') {
+    const qs = await db.collection('applications').orderBy('at', 'desc').limit(200).get().catch(() => ({ docs: [] }));
+    return ok({ list: qs.docs.map(d => ({ id: d.id, ...d.data() })) });
+  }
+  if (body.action === 'appSet') {
+    if (!ID.test(String(body.id || ''))) return json({ error: 'Bad application' }, 400);
+    const st = ['new', 'talking', 'accepted', 'declined'].includes(body.status) ? body.status : 'new';
+    const ar = db.doc('applications/' + body.id); if (!(await ar.get()).data()) return json({ error: 'Not found' }, 404);
+    await ar.update({ status: st, note: String(body.note ?? '').slice(0, 500), handledBy: agent.name, handledAt: now });
+    return ok({ done: true });
+  }
   if (body.action === 'reports') {
     const qs = await db.collection('reports').orderBy('at', 'desc').limit(150).get().catch(() => ({ docs: [] }));
     const list = qs.docs.map(d => ({ id: d.id, ...d.data() }));
