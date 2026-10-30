@@ -1,12 +1,10 @@
 {
- "version": "21.10",
+ "version": "21.11",
  "notes": [
-  "Spaces: your groups as icons on the left.",
-  "Nexa rows: names, roles and tags on every message.",
-  "Tap a name for a profile pop-up.",
-  "Tag cards and voice lounges.",
-  "Profile tabs: Board, Activity, Together."
+  "Fits smaller windows better.",
+  "Hiring page fixed, with a new glass look.",
+  "Spaces, Nexa rows and profile pop-ups (1.7)."
  ],
  "quiet": false,
- "display": "1.7"
+ "display": "1.7.1"
 }
