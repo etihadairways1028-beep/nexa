@@ -129,9 +129,38 @@ footer a{color:var(--mute);text-decoration:none}
 footer .sp{flex:1}
 @media (max-width:900px){.hero .wrap,.apply{grid-template-columns:1fr}.grid4,.steps{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.nav a.link{display:none}}
 @media (max-width:560px){.grid4,.steps,.two{grid-template-columns:1fr}.hero{padding:56px 0 48px}section.blk{padding:56px 0}.brand small{display:none}.formcard{padding:20px}.role{padding:22px}.alt{flex-wrap:wrap}.alt .btn{width:100%}}
+
+/* ===== Liquid Glass (Nexa 1.7) ===== */
+body{background:#07070D}
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,#141432 0%,#07070D 60%)}
+.aurora i{position:absolute;width:52vmax;height:52vmax;border-radius:50%;filter:blur(70px);opacity:.55;animation:drift 26s ease-in-out infinite alternate}
+.aurora i:nth-child(1){left:-12vmax;top:-14vmax;background:radial-gradient(circle,#7C6BFF 0%,transparent 65%)}
+.aurora i:nth-child(2){right:-14vmax;top:8vmax;background:radial-gradient(circle,#FF6FAE 0%,transparent 65%);animation-duration:31s;animation-delay:-8s}
+.aurora i:nth-child(3){left:18vmax;bottom:-22vmax;background:radial-gradient(circle,#38D9C0 0%,transparent 65%);opacity:.38;animation-duration:36s;animation-delay:-14s}
+.aurora i:nth-child(4){right:10vmax;bottom:-10vmax;width:34vmax;height:34vmax;background:radial-gradient(circle,#FFC86B 0%,transparent 65%);opacity:.3;animation-duration:29s;animation-delay:-4s}
+@keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(6vmax,4vmax,0) scale(1.12)}100%{transform:translate3d(-4vmax,8vmax,0) scale(.95)}}
+.hero,section.blk{background:transparent;border-bottom-color:rgba(255,255,255,.06)}
+.hero::before{display:none}
+:root{--glass:linear-gradient(155deg,rgba(255,255,255,.13),rgba(255,255,255,.04) 45%,rgba(255,255,255,.07));--gline:rgba(255,255,255,.22)}
+.card,.role,.step,details,.formcard,.heroCard,.alt,.rule1{background:var(--glass)!important;border:1px solid var(--gline)!important;backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(255,255,255,.06),inset 1px 0 0 rgba(255,255,255,.12),0 24px 60px -28px rgba(0,0,0,.7)!important;position:relative}
+.card::after,.step::after,.formcard::after,.role::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(120% 60% at 15% 0%,rgba(255,255,255,.16),transparent 45%)}
+.role{transition:transform .35s cubic-bezier(.2,1.2,.4,1),box-shadow .35s}
+.role:hover,.card:hover,.step:hover{transform:translateY(-4px)}
+.card,.step{transition:transform .35s cubic-bezier(.2,1.2,.4,1)}
+.role::before{height:4px;filter:saturate(140%);box-shadow:0 0 18px var(--c,#8C97FF)}
+.ico{background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.05));border-color:rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.nav{background:rgba(12,12,22,.42)!important;backdrop-filter:blur(24px) saturate(180%)!important;-webkit-backdrop-filter:blur(24px) saturate(180%)!important;border-bottom:1px solid rgba(255,255,255,.12)!important;box-shadow:inset 0 -1px 0 rgba(255,255,255,.04)}
+.btn{background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border-color:rgba(255,255,255,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.35);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.btn.pri{background:linear-gradient(180deg,#FFFFFF,#E9E6F5);color:#0B0B10;box-shadow:inset 0 1px 0 #fff,0 10px 30px -10px rgba(185,168,255,.8)}
+.chip,.tag{background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.04));border-color:rgba(255,255,255,.26);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.inp,.seg span{background:rgba(8,8,16,.45)!important;border-color:rgba(255,255,255,.2)!important;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+.seg input:checked+span{background:linear-gradient(180deg,#fff,#E9E6F5)!important;color:#0B0B10}
+.hero h1{text-shadow:0 2px 40px rgba(140,151,255,.25)}
+@media (max-width:760px){.card,.role,.step,details,.formcard,.heroCard,.alt,.rule1{backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%)}.aurora i{filter:blur(50px)}}
+@media (prefers-reduced-motion:reduce){.aurora i{animation:none}}
 </style>
 </head>
-<body>
+<body><div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <header class="nav"><div class="wrap">
   <a class="brand" href="/"><img src="/icon-192-v4.png" alt="">nexa<small>Careers</small></a>
   <span class="sp"></span>
