@@ -1,17 +1,17 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '21.9';
+const VERSION = '21.10';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
 const QUIET = false;
-const NOTES = ["Link your YouTube and more on your profile.", "Intro videos on profiles.", "Change your tag, and tap tags to see the group.", "Groups like servers: categories, roles and a member list.", "Private notes and subtitles on profiles."];
+const NOTES = ["Spaces: your groups as icons on the left.", "Nexa rows: names, roles and tags on every message.", "Tap a name for a profile pop-up.", "Tag cards and voice lounges.", "Profile tabs: Board, Activity, Together."];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '76';
+const CACHE = PREFIX + '77';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
-const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|__seen)(\/|$)|^\/(test\/)?manifest\.webmanifest$/; // always straight from the server
+const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|hiring|__seen)(\/|$)|^\/(test\/)?(manifest\.webmanifest|careers\.html|terms\.html|privacy\.html)$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
