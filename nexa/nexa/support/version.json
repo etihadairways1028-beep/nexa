@@ -1,10 +1,13 @@
 {
- "version": "21.11",
+ "version": "21.12",
  "notes": [
-  "Fits smaller windows better.",
-  "Hiring page fixed, with a new glass look.",
-  "Spaces, Nexa rows and profile pop-ups (1.7)."
+  "The Nexa menu is back on every page.",
+  "Names and @usernames on every message.",
+  "@everyone and #channels in groups.",
+  "Banner videos on profiles.",
+  "Apply to the Nexa Team inside Nexa.",
+  "Nexa AI fixed."
  ],
  "quiet": false,
- "display": "1.7.1"
+ "display": "1.7.2"
 }
