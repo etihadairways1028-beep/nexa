@@ -98,6 +98,10 @@ export default async (req) => {
   const agent = AGENTS.find(x => x.id === s.agent); if (!agent) return json({ error: 'session' }, 401);
   // until an agent has set their own password, the starting password only lets them change it (it's public in the code)
   if (!((sec.agents || {})[agent.id] || {}).changed && body.action !== 'changePassword' && body.action !== 'logout') return json({ error: 'mustChange', message: 'Set your own password first (Settings).' }, 403);
+  // team presence: who on the team has the support page open
+  if (now - (((sec.agents || {})[agent.id] || {}).seen || 0) > 60e3) await ref.update({ [`agents.${agent.id}.seen`]: now }).catch(() => {});
+  const team = AGENTS.map(a => { const r = (sec.agents || {})[a.id] || {}; const seen = a.id === agent.id ? now : (r.seen || 0); return { id: a.id, name: a.name, seen, online: now - seen < 3 * 60e3 }; });
+  const dayKey = t => new Date(t).toISOString().slice(0, 10);
   const fresh = sign({ ...s, exp: now + 12 * 3600e3 }, sec.sessionKey);
   const ok = o => json({ ...o, session: fresh, agent });
   const myConv = async cid => { if (!ID.test(String(cid || ''))) return null; const c = (await db.doc('conversations/' + cid).get()).data(); return c && (c.members || []).includes(me) ? c : null; };
@@ -115,14 +119,14 @@ export default async (req) => {
     const openReports = reports.docs.filter(d => !d.data().resolved).length;
     let users = null, online = null; try { users = (await db.collection('users').count().get()).data().count; } catch {}
     try { online = (await db.collection('users').where('lastSeen', '>=', now - 3 * 60e3).count().get()).data().count; } catch {}
-    return ok({ stats: { waiting, chats: convs.length, flags: flags.docs.length, reports: openReports, bans: bans.size, users, online }, ui: { autoReply: sec.autoReply ?? DEFAULT_AUTO_REPLY } });
+    return ok({ stats: { waiting, chats: convs.length, flags: flags.docs.length, reports: openReports, bans: bans.size, users, online }, team, ui: { autoReply: sec.autoReply ?? DEFAULT_AUTO_REPLY } });
   }
   if (body.action === 'inbox') {
     const qs = await db.collection('conversations').where('members', 'array-contains', me).get();
     const convs = qs.docs.map(x => ({ id: x.id, ...x.data() })).filter(c => c.type === 'dm' && (c.last || c.help));
     const info = await userInfo(db, convs.map(c => (c.members || []).find(u => u !== me)));
     const bans = new Set((await db.collection('bans').get()).docs.map(b => b.id));
-    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = info[u] || {}, last = c.last || {}; return { id: c.id, uid: u, name: p.name, handle: p.handle, avatar: p.avatar, online: p.online, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: !!last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u), claimed: c.claimedBy || '', asked: ['shiv', 'arrick'].includes(c.askedFor) ? c.askedFor : '' }; }).sort((a, b) => b.last.at - a.last.at);
+    const list = convs.map(c => { const u = (c.members || []).find(x => x !== me) || me, p = info[u] || {}, last = c.last || {}; return { id: c.id, uid: u, name: p.name, handle: p.handle, avatar: p.avatar, online: p.online, last: { text: String(last.text || '').slice(0, 140), from: last.from === me ? 'me' : 'them', at: last.at || c.createdAt || 0 }, unread: !!last.from && last.from !== me && (last.at || 0) > ((c.reads || {})[me] || 0), banned: bans.has(u), readOnly: (c.readOnlyFor || []).includes(u), claimed: c.claimedBy || '', asked: ['shiv', 'arrick'].includes(c.askedFor) ? c.askedFor : '', assigned: AGENTS.some(a => a.id === c.supportAssign) ? c.supportAssign : '', done: !!c.supportDone && !(last.from && last.from !== me && (last.at || 0) > c.supportDone), seenAt: (c.reads || {})[u] || 0, typing: now - ((c.typing || {})[u] || 0) < 6000 }; }).sort((a, b) => b.last.at - a.last.at);
     return ok({ list, unread: list.filter(c => c.unread).length });
   }
   if (body.action === 'thread') {
@@ -130,13 +134,20 @@ export default async (req) => {
     const qs = await db.collection(`conversations/${body.cid}/messages`).orderBy('at', 'desc').limit(80).get();
     const msgs = qs.docs.map(x => { const m = x.data(); const imgs = (m.images || (m.image ? [m.image] : [])).filter(i => typeof i === 'string' && i.length < 600000).slice(0, 4); return { id: x.id, mine: m.from === me, agent: m.agent || '', at: m.at || 0, text: m.deleted ? '' : String(m.text || ''), label: m.deleted ? 'Message deleted' : m.text ? '' : (m.audio ? 'Voice message' : m.video ? 'Video' : imgs.length ? '' : m.sticker || m.stickerImg ? 'Sticker' : 'Message'), imgs: m.deleted ? [] : imgs, system: !!m.system }; }).reverse();
     if (c.last && c.last.from !== me) await db.doc('conversations/' + body.cid).update({ ['reads.' + me]: Math.max(now, (c.last.at || 0) + 1) }).catch(() => {});
-    return ok({ msgs, typing: Object.entries(c.typing || {}).some(([u, t]) => u !== me && now - (t || 0) < 6000), readOnly: (c.readOnlyFor || []).length > 0, claimed: c.claimedBy || '' });
+    const other = (c.members || []).find(u => u !== me);
+    return ok({ msgs, typing: Object.entries(c.typing || {}).some(([u, t]) => u !== me && now - (t || 0) < 6000), readOnly: (c.readOnlyFor || []).length > 0, claimed: c.claimedBy || '', seenAt: (c.reads || {})[other] || 0, assigned: c.supportAssign || '', done: c.supportDone || 0 });
   }
   if (body.action === 'reply') {
     const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
-    const text = String(body.text || '').trim().slice(0, 4000); if (!text) return json({ error: 'Type a message first' }, 400);
-    await sendAs(db, me, body.cid, c, text, req, { agent: agent.name, staff: 'support' });
-    if (!c.claimedBy) await db.doc('conversations/' + body.cid).update({ claimedBy: agent.name }).catch(() => {});
+    const text = String(body.text || '').trim().slice(0, 4000);
+    const img = typeof body.image === 'string' && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(body.image) && body.image.length < 750000 ? body.image : '';
+    if (!text && !img) return json({ error: 'Type a message first' }, 400);
+    await sendAs(db, me, body.cid, c, text, req, { agent: agent.name, staff: 'support', ...(img ? { images: [img] } : {}) });
+    if (img && !text) await db.doc('conversations/' + body.cid).update({ 'last.text': '📷 Photo' }).catch(() => {});
+    const upd = { supportDone: 0 }; if (!c.claimedBy) upd.claimedBy = agent.name;
+    await db.doc('conversations/' + body.cid).update(upd).catch(() => {});
+    // team stats: replies per day, and how long people waited for an answer
+    try { const k = dayKey(now), waited = c.last && c.last.from && c.last.from !== me ? Math.max(0, now - (c.last.at || now)) : 0; await db.doc('supportStats/days').set({ [k]: { [agent.id]: { r: admin.firestore.FieldValue.increment(1), ...(waited ? { rt: admin.firestore.FieldValue.increment(Math.min(waited, 7 * 864e5)), rn: admin.firestore.FieldValue.increment(1) } : {}) } } }, { merge: true }); } catch {}
     return ok({ sent: true });
   }
   if (body.action === 'setReply') {
@@ -160,7 +171,7 @@ export default async (req) => {
     return ok({ list });
   }
   if (body.action === 'flags') {
-    const qs = await db.collection('flags').orderBy('at', 'desc').limit(150).get().catch(() => ({ docs: [] }));
+    const qs = await db.collection('flags').orderBy('at', 'desc').limit(500).get().catch(() => ({ docs: [] }));
     const list = qs.docs.map(d => ({ id: d.id, ...d.data() }));
     const info = await userInfo(db, list.map(f => f.from));
     const bans = new Set((await db.collection('bans').get()).docs.map(x => x.id));
@@ -201,6 +212,44 @@ export default async (req) => {
     if (body.do === 'ban' && r.target) await db.doc('bans/' + r.target).set({ by: me, byName: agent.name, at: now, reason: String(body.reason || r.reason || 'Reported').slice(0, 200) });
     await rr.update({ resolved: body.do !== 'reopen', handledBy: agent.name, handledAt: now, action: body.do });
     return ok({ done: true });
+  }
+  // ---------- team tools
+  if (body.action === 'typing') { const c = await myConv(body.cid); if (c) await db.doc('conversations/' + body.cid).update({ ['typing.' + me]: now }).catch(() => {}); return ok({ done: true }); }
+  if (body.action === 'assign') {
+    const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
+    const to = AGENTS.some(a => a.id === body.to) ? body.to : '';
+    await db.doc('conversations/' + body.cid).update({ supportAssign: to }); return ok({ done: true });
+  }
+  if (body.action === 'done') {
+    const c = await myConv(body.cid); if (!c) return json({ error: 'Chat not found' }, 404);
+    await db.doc('conversations/' + body.cid).update({ supportDone: body.done ? now : 0, ...(body.done ? { ['reads.' + me]: now } : {}) }); return ok({ done: true });
+  }
+  if (body.action === 'notes' || body.action === 'noteAdd' || body.action === 'noteDel') {
+    if (!uidOk(body.uid)) return json({ error: 'Bad user' }, 400);
+    const nr = db.doc('supportNotes/' + body.uid); let list = ((await nr.get()).data() || {}).list || [];
+    if (body.action === 'noteAdd') { const t = String(body.text || '').trim().slice(0, 600); if (!t) return json({ error: 'Write a note first' }, 400); list = [{ text: t, by: agent.name, at: now }, ...list].slice(0, 50); await nr.set({ list }); }
+    if (body.action === 'noteDel') { list = list.filter(n => n.at !== +body.at); await nr.set({ list }); }
+    return ok({ list });
+  }
+  if (body.action === 'stats') {
+    const DAYS = 14, start = new Date(); start.setUTCHours(0, 0, 0, 0); const since = start.getTime() - (DAYS - 1) * 864e5;
+    const keys = Array.from({ length: DAYS }, (_, i) => dayKey(since + i * 864e5));
+    const blank = () => Object.fromEntries(keys.map(k => [k, 0]));
+    const chats = blank(), flagsD = blank(), repD = blank(), usersD = blank();
+    const [qs, fl, rp, st] = await Promise.all([
+      db.collection('conversations').where('members', 'array-contains', me).get(),
+      db.collection('flags').where('at', '>=', since).get().catch(() => ({ docs: [] })),
+      db.collection('reports').where('at', '>=', since).get().catch(() => ({ docs: [] })),
+      db.doc('supportStats/days').get(),
+    ]);
+    qs.docs.forEach(d => { const c = d.data(); if (c.type !== 'dm') return; const t = ms(c.createdAt); if (t >= since) chats[dayKey(t)] = (chats[dayKey(t)] || 0) + 1; });
+    fl.docs.forEach(d => { const t = ms(d.data().at); if (t >= since) flagsD[dayKey(t)]++; });
+    rp.docs.forEach(d => { const t = ms(d.data().at); if (t >= since) repD[dayKey(t)]++; });
+    await Promise.all(keys.map(async (k, i) => { const a = since + i * 864e5; try { usersD[k] = (await db.collection('users').where('createdAt', '>=', a).where('createdAt', '<', a + 864e5).count().get()).data().count; } catch {} }));
+    const sd = st.data() || {};
+    const agents = Object.fromEntries(AGENTS.map(a => { let r = 0, rt = 0, rn = 0; keys.forEach(k => { const x = (sd[k] || {})[a.id] || {}; r += x.r || 0; rt += x.rt || 0; rn += x.rn || 0; }); return [a.id, { name: a.name, replies: r, avgWait: rn ? Math.round(rt / rn) : 0 }]; }));
+    const replies = Object.fromEntries(keys.map(k => [k, AGENTS.reduce((n, a) => n + (((sd[k] || {})[a.id] || {}).r || 0), 0)]));
+    return ok({ days: keys.map(k => ({ d: k, chats: chats[k] || 0, replies: replies[k] || 0, flags: flagsD[k] || 0, reports: repD[k] || 0, users: usersD[k] || 0 })), agents, team });
   }
   if (body.action === 'warn') { if (!uidOk(body.uid)) return json({ error: 'Bad user' }, 400); const n = await warnUser(db, body.uid, body.reason, me, agent.name + ' (Nexa Support)'); return ok({ n }); }
   if (body.action === 'ban' || body.action === 'unban') {
