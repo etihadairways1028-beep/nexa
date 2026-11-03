@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nexa Dev Hub</title>
+<meta name="description" content="Nexa Dev Hub: where the Nexa web developers pick up tasks, share work and get reviews.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#09090F">
+<link rel="icon" href="/favicon-v4.png">
+<style>
+.board{display:grid;grid-template-columns:repeat(6,minmax(210px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:160px}
+.col-h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13.5px;padding:2px 4px}.col-h i{width:10px;height:10px;border-radius:50%}
+.tcard{padding:11px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid var(--line);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;transition:transform .15s}.tcard:hover{transform:translateY(-2px)}
+.st-todo{background:#C9C7D2}.st-doing{background:#7FB2FF}.st-review{background:#FFD27A}.st-changes{background:#FF9DA8}.st-approved{background:#7BF0B8}.st-done{background:#B794FF}
+.chip{display:inline-block;font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:8px;color:#0B0B12}
+.prio{font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.1)}.prio.high{background:#FF9DA8;color:#2a0008}
+.tmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--mute)}
+.rv{padding:16px;display:flex;flex-direction:column;gap:10px}
+.pg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.pg-ed{padding:12px;display:flex;flex-direction:column;gap:10px}
+.pg-tabs{display:flex;gap:4px}.pg-tabs button{height:34px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:rgba(255,255,255,.05);cursor:pointer;font-weight:700;font-size:13px}.pg-tabs button.on{background:#F3F1EC;color:#0B0B12}
+.pg textarea{width:100%;height:56vh;min-height:300px;resize:vertical;border-radius:14px;border:1px solid var(--line2);background:rgba(0,0,0,.45);color:#E8E6F0;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;padding:12px;outline:none;tab-size:2}
+.pg-out{padding:12px;display:flex;flex-direction:column;gap:10px}.pg-out iframe{width:100%;height:56vh;min-height:300px;border:0;border-radius:14px;background:#fff}
+.next{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:rgba(255,255,255,.05);cursor:pointer;border:0;width:100%;text-align:left}
+@media (max-width:860px){.board{grid-template-columns:repeat(6,80vw)}.pg{grid-template-columns:1fr}.pg textarea,.pg-out iframe{height:42vh}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { boot, S, api, esc, icon, toast, ago, avatar, render, reload, openModal, closeModal, askAI, uploadFile, vComments, linkify } from '/team/kit.js';
+
+const ST = [['todo', 'To do'], ['doing', 'Doing'], ['review', 'Review'], ['changes', 'Needs changes'], ['approved', 'Approved'], ['done', 'Done']];
+const STN = Object.fromEntries(ST);
+const T = () => S.data.task || [];
+
+function vHome() {
+  const D = S.data, mine = T().filter(t => t.who === D.me.id && t.status !== 'done');
+  const news = T().filter(t => (t.comments || []).some(c => c.owner)).sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 4);
+  return `<div class="k-head"><div><h1 class="k-h1">Hi ${esc(D.me.name)} 👋</h1><p class="mute">Pick up tasks, share your work and get it reviewed.</p></div>
+    <div class="k-row"><button class="k-btn pri" data-a="newTask">${icon('plus', 18)} New task</button><button class="k-btn" data-a="tab" data-v="play">${icon('code', 18)} Playground</button></div></div>
+  <div class="k-cards" style="margin-bottom:16px">${[['To do', T().filter(t => t.status === 'todo').length, '#C9C7D2'], ['Doing', T().filter(t => t.status === 'doing').length, '#7FB2FF'], ['Waiting for review', T().filter(t => t.status === 'review').length, '#FFD27A'], ['Done', T().filter(t => t.status === 'done').length, '#B794FF']].map(([l, n, c]) => `<div class="glass k-card k-stat"><span class="mute small" style="display:flex;align-items:center;gap:8px"><i style="width:9px;height:9px;border-radius:50%;background:${c}"></i>${l}</span><b>${n}</b></div>`).join('')}</div>
+  <div class="k-cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+    <section class="glass k-card"><h3 style="margin:0 0 10px">Your tasks</h3>${mine.length ? mine.map(t => `<button class="next" data-a="openTask" data-v="${t.id}"><span class="chip st-${t.status}">${esc(STN[t.status])}</span><span style="min-width:0"><b>${esc(t.title)}</b><div class="mute small">${t.prio === 'high' ? '🔥 High · ' : ''}${ago(t.updatedAt || t.at)}</div></span></button>`).join('') : '<div class="mute">Nothing on your plate. Grab one from <a href="#" data-a="tab" data-v="tasks">Tasks</a>.</div>'}</section>
+    <section class="glass k-card"><h3 style="margin:0 0 10px">From the owner</h3>${news.length ? news.map(t => { const c = [...t.comments].reverse().find(c => c.owner); return `<button class="next" data-a="openTask" data-v="${t.id}"><span class="chip st-${t.status}">${esc(STN[t.status])}</span><span style="min-width:0"><b>${esc(t.title)}</b><div class="mute small">“${esc(c.text)}” · ${ago(c.at)}</div></span></button>`; }).join('') : '<div class="mute">When the owner approves work or asks for changes, it shows here.</div>'}</section>
+    <section class="glass k-card"><h3 style="margin:0 0 10px">How it works</h3><ol class="mute" style="margin:0;padding-left:20px;line-height:1.8"><li>Take a task and move it to <b>Doing</b></li><li>Build it (try ideas in the <b>Playground</b>)</li><li>Add a link or file and press <b>Send for review</b></li><li>The owner approves it, then it's <b>Done</b></li></ol></section>
+  </div>`;
+}
+function vTasks() {
+  return `<div class="k-head"><div><h1 class="k-h1">Tasks</h1><p class="mute">Everything the web team is working on.</p></div><button class="k-btn pri" data-a="newTask">${icon('plus', 18)} New task</button></div>
+  <div class="board">${ST.map(([k, l]) => { const L = T().filter(t => t.status === k).sort((a, b) => (b.prio === 'high') - (a.prio === 'high')); return `<section class="glass col"><div class="col-h"><i class="st-${k}"></i>${l} <span class="mute">${L.length}</span></div>${L.map(card).join('') || '<span class="mute small" style="padding:4px">Nothing here</span>'}</section>`; }).join('')}</div>`;
+}
+const nameOf = id => (S.data.team.find(t => t.id === id) || {}).name || '';
+const card = t => `<button class="tcard" data-a="openTask" data-v="${t.id}"><b>${esc(t.title)}</b><span class="tmeta">${t.prio !== 'normal' ? `<span class="prio ${t.prio}">${t.prio === 'high' ? '🔥 High' : 'Low'}</span>` : ''}${t.who ? `${avatar(nameOf(t.who) || '?', 20)} ${esc(nameOf(t.who))}` : '<span>Free to take</span>'}${(t.comments || []).length ? ` · 💬 ${t.comments.length}` : ''}${t.link ? ' · 🔗' : ''}</span></button>`;
+function vReviews() {
+  const L = T().filter(t => ['review', 'changes'].includes(t.status));
+  return `<div class="k-head"><div><h1 class="k-h1">Reviews</h1><p class="mute">Check each other's work. The owner gives the final OK.</p></div><button class="k-btn ai" data-a="aiReview">${icon('spark', 18)} Review code with AI</button></div>
+  ${L.length ? `<div style="display:flex;flex-direction:column;gap:12px">${L.map(t => `<section class="glass rv"><div class="k-row" style="justify-content:space-between"><div><span class="chip st-${t.status}">${esc(STN[t.status])}</span> <b style="font-size:17px;margin-left:6px">${esc(t.title)}</b></div><span class="mute small">${esc(nameOf(t.who) || t.name)} · ${ago(t.updatedAt || t.at)}</span></div>
+    ${t.text ? `<div class="mute" style="white-space:pre-wrap">${linkify(esc(t.text))}</div>` : ''}${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener" class="k-btn sm" style="align-self:flex-start">🔗 Open the work</a>` : ''}
+    <div class="k-row"><button class="k-btn sm" data-a="openTask" data-v="${t.id}">Open</button><button class="k-btn sm" data-a="lgtm" data-v="${t.id}">👍 Looks good</button></div></section>`).join('')}</div>`
+    : `<div class="k-empty glass">${icon('eye', 34)}<b>Nothing to review</b><span class="mute">When someone presses "Send for review" on a task, it shows here.</span></div>`}`;
+}
+function taskModal(t) {
+  const isNew = !t.id;
+  openModal(() => { const c = isNew ? t : T().find(x => x.id === t.id) || t;
+    return `<div class="k-mhead"><b>${isNew ? 'New task' : esc(c.title)}</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div>
+    ${!isNew ? `<span class="chip st-${c.status}">${esc(STN[c.status])}</span> <span class="mute small">added by ${esc(c.name)} · ${ago(c.at)}</span>` : ''}
+    <form id="f-task" data-id="${c.id || ''}">
+      <label class="k-lab">What needs doing</label><input class="k-in" name="title" value="${esc(c.title || '')}" maxlength="140" placeholder="e.g. Make the settings page faster on phones" required>
+      <label class="k-lab" style="display:flex;justify-content:space-between">Details <a href="#" data-a="aiTask">✨ Help me plan it</a></label><textarea class="k-in" name="text" maxlength="4000" placeholder="Steps, notes, what “done” means">${esc(c.text || '')}</textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div><label class="k-lab">Who</label><select class="k-in k-sel" name="who"><option value="">Free to take</option>${S.data.team.map(m => `<option value="${m.id}" ${m.id === c.who ? 'selected' : ''}>${esc(m.name)}${m.id === S.data.me.id ? ' (me)' : ''}</option>`).join('')}</select></div>
+        <div><label class="k-lab">Priority</label><select class="k-in k-sel" name="prio">${[['low', 'Low'], ['normal', 'Normal'], ['high', '🔥 High']].map(([v, l]) => `<option value="${v}" ${(c.prio || 'normal') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div><label class="k-lab">Status</label><select class="k-in k-sel" name="status">${ST.filter(([k]) => !['approved'].includes(k) || c.status === 'approved').filter(([k]) => k !== 'done' || ['approved', 'done'].includes(c.status)).map(([k, l]) => `<option value="${k}" ${(c.status || 'todo') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      </div>
+      <label class="k-lab">Link to the work (test site, GitHub, preview)</label><input class="k-in" name="link" type="url" value="${esc(c.link || '')}" placeholder="https://…">
+      <div class="k-row" style="margin-top:16px"><button class="k-btn pri" name="go" value="save">${isNew ? 'Add task' : 'Save'}</button>
+        ${!isNew && ['todo', 'doing', 'changes'].includes(c.status) ? `<button class="k-btn ai" name="go" value="review">${icon('send', 16)} Send for review</button>` : ''}
+        ${!isNew && c.status === 'approved' ? `<button class="k-btn ai" name="go" value="done">${icon('check', 16)} Mark done</button>` : ''}
+        ${!isNew && !c.who ? `<button class="k-btn" name="go" value="take">✋ I'll take it</button>` : ''}
+        ${!isNew ? `<button type="button" class="k-btn danger" data-a="delTask" data-v="${c.id}" style="margin-left:auto">${icon('trash', 16)}</button>` : ''}</div>
+    </form>${isNew ? '' : vComments(c, 'task')}`; });
+}
+// ---- playground
+const PG = { tab: 'html', html: '<div class="card">\n  <h1>Hello Nexa 👋</h1>\n  <p>Edit the code and watch it change.</p>\n  <button id="b">Press me</button>\n</div>', css: 'body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui;background:linear-gradient(135deg,#1b1640,#3a1630);color:#fff}\n.card{padding:28px 32px;border-radius:24px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(20px);text-align:center}\nbutton{height:42px;padding:0 18px;border:0;border-radius:99px;background:#fff;font-weight:700;cursor:pointer}', js: "document.getElementById('b').onclick = () => {\n  document.querySelector('h1').textContent = 'It works! 🎉';\n};" };
+try { const s = JSON.parse(localStorage.getItem('nexa.devhub.pg') || 'null'); if (s) Object.assign(PG, s); } catch {}
+const doc = () => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${PG.css}</style></head><body>${PG.html}<script>${PG.js.replace(/<\/script/gi, '<\\/script')}<\/script></body></html>`;
+function vPlay() {
+  return `<div class="k-head"><div><h1 class="k-h1">Playground</h1><p class="mute">Try HTML, CSS and JavaScript with a live preview. Save it to share with the team.</p></div>
+    <div class="k-row"><button class="k-btn" data-a="aiFix">${icon('spark', 18)} Ask AI about this</button><button class="k-btn" data-a="pgSave">${icon('up', 18)} Save to Files</button><button class="k-btn sm" data-a="pgReset">Reset</button></div></div>
+  <div class="pg"><section class="glass pg-ed"><div class="pg-tabs">${['html', 'css', 'js'].map(k => `<button class="${PG.tab === k ? 'on' : ''}" data-a="pgTab" data-v="${k}">${k.toUpperCase()}</button>`).join('')}</div><textarea id="pgcode" spellcheck="false" aria-label="Code">${esc(PG[PG.tab])}</textarea></section>
+  <section class="glass pg-out"><div class="k-row" style="justify-content:space-between"><b>Preview</b><span class="mute small">Updates as you type</span></div><iframe id="pgout" sandbox="allow-scripts allow-modals" title="Preview"></iframe></section></div>`;
+}
+let pgT = 0;
+const runPG = () => { const f = document.getElementById('pgout'); if (f) f.srcdoc = doc(); try { localStorage.setItem('nexa.devhub.pg', JSON.stringify(PG)); } catch {} };
+function mountPlay(el) {
+  runPG(); const ta = el.querySelector('#pgcode');
+  ta.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input', { bubbles: true })); } });
+}
+
+boot({
+  site: 'devhub', name: 'Nexa Dev Hub', emoji: '💻', tagline: 'For the Nexa web developers.',
+  filesHint: 'Builds, screenshots and code to share with the team.', chatHint: 'Ask for help, share links, plan together.',
+  aiHint: 'Code help, bugs, reviews', accept: '',
+  aiStarters: ['How do I make a page load faster on phones?', 'Explain Firestore security rules simply', 'Write a liquid-glass button in CSS', 'Help me find the bug in some JavaScript'],
+  tabs: [
+    { id: 'home', label: 'Home', icon: 'home', view: vHome },
+    { id: 'tasks', label: 'Tasks', icon: 'board', view: vTasks, badge: D => (D.task || []).filter(t => t.status === 'changes' && t.who === D.me.id).length },
+    { id: 'reviews', label: 'Reviews', icon: 'eye', view: vReviews, badge: D => (D.task || []).filter(t => t.status === 'review').length },
+    { id: 'play', label: 'Playground', short: 'Code', icon: 'code', view: vPlay, mount: mountPlay, live: true },
+    { id: 'files', label: 'Files', icon: 'folder' },
+    { id: 'chat', label: 'Team chat', short: 'Chat', icon: 'chat' },
+  ],
+  onInput: e => { if (e.target.id === 'pgcode') { PG[PG.tab] = e.target.value; clearTimeout(pgT); pgT = setTimeout(runPG, 350); } },
+  onSubmit: async (f, e) => {
+    if (f.id !== 'f-task') return;
+    const go = (e.submitter && e.submitter.name === 'go' && e.submitter.value) || 'save', id = f.dataset.id;
+    const status = go === 'review' ? 'review' : go === 'done' ? 'done' : go === 'take' ? 'doing' : f.status.value;
+    const who = go === 'take' ? S.data.me.id : f.who.value;
+    try { await api('save', { item: { id: id || undefined, title: f.title.value, text: f.text.value, who, prio: f.prio.value, link: f.link.value, status } }); S.modal = null; await reload(true);
+      toast(go === 'review' ? `${icon('send', 16)} Sent for review` : go === 'done' ? '🎉 Done' : go === 'take' ? '✋ It’s yours' : 'Saved'); } catch (er) { toast(esc(er.message)); }
+  },
+  actions: {
+    newTask: () => taskModal({ title: '', status: 'todo', prio: 'normal' }),
+    openTask: d => { const t = T().find(x => x.id === d.v); if (t) taskModal(t); },
+    delTask: async d => { if (!confirm('Delete this task?')) return; await api('del', { kind: 'task', id: d.v }); closeModal(); reload(true); },
+    lgtm: async d => { await api('comment', { kind: 'task', id: d.v, text: '👍 Looks good to me' }); reload(true); toast('Thanks for reviewing'); },
+    aiTask: async () => { const f = document.getElementById('f-task'); toast('✨ Planning…', 0); try { const t = await askAI(`Break this web task for the Nexa app into 3-6 short, clear steps and say what "done" means. Task: "${f.title.value}". ${f.text.value ? 'Notes: ' + f.text.value : ''} Reply with just the steps.`, { silent: true }); f.text.value = (f.text.value ? f.text.value + '\n\n' : '') + t.trim(); toast('✨ Done'); } catch (e) { toast(esc(e.message), 5000); } },
+    aiReview: () => openModal(() => `<div class="k-mhead"><b>Review code with AI</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div><p class="mute small">Paste some code. Nexa AI checks it for bugs, speed and safety.</p><textarea class="k-in" id="rvcode" style="min-height:260px;font:13px ui-monospace,Menlo,monospace" placeholder="Paste code here"></textarea><div class="k-row" style="margin-top:12px"><button class="k-btn pri" data-a="aiReviewGo">${icon('spark', 18)} Review it</button></div>`),
+    aiReviewGo: () => { const c = document.getElementById('rvcode').value.trim(); if (!c) return; S.modal = null; askAI('Review this code for the Nexa web app. List bugs, speed problems and safety problems first (most important first), then show fixed code.\n\n```\n' + c.slice(0, 10000) + '\n```'); },
+    pgTab: d => { PG.tab = d.v; document.querySelectorAll('.pg-tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === d.v)); const ta = document.getElementById('pgcode'); ta.value = PG[d.v]; ta.focus(); },
+    pgReset: () => { if (!confirm('Start again with the example?')) return; try { localStorage.removeItem('nexa.devhub.pg'); } catch {} location.reload(); },
+    pgSave: async () => { const name = (prompt('Name for this file', 'playground') || '').trim(); if (!name) return; await uploadFile(new File([doc()], name.replace(/[^\w -]+/g, '').replace(/\s+/g, '-') + '.html', { type: 'text/html' }), 'devhub', { thumb: '' }).catch(e => toast(esc(e.message))); },
+    aiFix: () => askAI(`Here is my playground code. Explain what it does, point out any bugs, and suggest one improvement.\n\nHTML:\n\`\`\`html\n${PG.html.slice(0, 4000)}\n\`\`\`\nCSS:\n\`\`\`css\n${PG.css.slice(0, 4000)}\n\`\`\`\nJS:\n\`\`\`js\n${PG.js.slice(0, 4000)}\n\`\`\``),
+  },
+});
+</script>
+</body>
+</html>
