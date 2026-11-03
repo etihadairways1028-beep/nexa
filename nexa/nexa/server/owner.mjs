@@ -316,6 +316,7 @@ export default async (req) => {
     const NAMES = { support: 'Support & Safety', community: 'Community Guide', creative: 'Designer & Video Creator', webdev: 'Web Developer', tester: 'Tester' };
     await db.doc('users/' + hd.uid).set({ team: { role: ROLE, name: NAMES[ROLE], since: Date.now() } }, { merge: true });
     let login = null;
+    if (body.tickOnly) return ok({ done: true, name: p.name || h, login: null }); // just the tick (e.g. people who already have a login)
     if (ROLE === 'support' || ROLE === 'community') {
       const sr = db.doc('supportSecrets/main'), sec = (await sr.get()).data() || {}; const hired = [...(sec.hired || [])];
       let rec = hired.find(x => x.uid === hd.uid);
@@ -324,7 +325,7 @@ export default async (req) => {
       await sr.update({ hired, [`agents.${rec.id}`]: { salt, hash: crypto.pbkdf2Sync('nexasupport', salt, 3000, 32, 'sha256').toString('hex'), changed: Date.now(), v: 2, fails: 0, lockUntil: 0 } });
       login = { site: 'Nexa Support', url: new URL('/support/', req.url).href, name: rec.name, password: 'nexasupport' };
     }
-    if (site === 'studio' || site === 'devhub') { const l = await addSiteLogin(db, site, { uid: hd.uid, name: p.name || h }); if (l) login = { site: l.site, url: new URL(l.path, req.url).href, name: l.name, password: l.password }; }
+    if (!body.tickOnly && (site === 'studio' || site === 'devhub')) { const l = await addSiteLogin(db, site, { uid: hd.uid, name: p.name || h }); if (l) login = { site: l.site, url: new URL(l.path, req.url).href, name: l.name, password: l.password }; }
     return ok({ done: true, name: p.name || h, login });
   }
   if (body.action === 'sites') return ok(await siteOverview(db));
