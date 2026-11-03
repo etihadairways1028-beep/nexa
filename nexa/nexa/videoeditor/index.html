@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nexa Studio</title>
+<meta name="description" content="Nexa Studio: where the Nexa designers and video creators make videos, plan posts and share designs.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#09090F">
+<link rel="icon" href="/favicon-v4.png">
+<style>
+/* video editor */
+.ve{display:grid;grid-template-columns:300px minmax(0,1fr) 300px;gap:14px;align-items:start}
+.ve-col{padding:14px;display:flex;flex-direction:column;gap:10px}
+.ve-stage{padding:14px;display:flex;flex-direction:column;align-items:center;gap:12px;position:sticky;top:64px}
+.ve-canvaswrap{position:relative;width:100%;display:grid;place-items:center;background:repeating-conic-gradient(rgba(255,255,255,.03) 0 25%,transparent 0 50%) 0 0/22px 22px;border-radius:16px;padding:10px}
+.ve-canvaswrap canvas{max-width:100%;max-height:58vh;border-radius:12px;box-shadow:0 20px 50px -20px rgba(0,0,0,.8);background:#000;display:block}
+.ve-ctrl{display:flex;align-items:center;gap:10px;width:100%}
+.ve-playb{width:48px;height:48px;border-radius:50%;border:0;background:#F3F1EC;color:#0B0B12;display:grid;place-items:center;cursor:pointer;flex:none}
+.ve-time{font:600 13px ui-monospace,Menlo,monospace;color:var(--mute);white-space:nowrap}
+input[type=range]{width:100%;accent-color:#9AA2FF}
+.ve-strip{display:flex;gap:4px;width:100%;height:30px}
+.ve-strip span{border-radius:8px;background:linear-gradient(135deg,rgba(140,151,255,.45),rgba(255,143,177,.35));border:1px solid rgba(255,255,255,.2);overflow:hidden;font-size:11px;padding:6px 6px;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;min-width:6px}
+.ve-strip span.brand{background:rgba(255,255,255,.12)}.ve-strip span.on{outline:2px solid #fff}
+.ve-clip{display:flex;gap:10px;padding:8px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.ve-clip img{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:#000}
+.ve-clip .nm{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ve-clip .tr{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)}
+.ve-mini{width:30px;height:30px;border-radius:9px;border:1px solid var(--line2);background:rgba(255,255,255,.06);display:grid;place-items:center;cursor:pointer;flex:none}
+.ve-h{font-weight:800;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:4px;display:flex;align-items:center;gap:8px}
+.ve-seg{display:flex;gap:4px;flex-wrap:wrap}.ve-seg button{height:34px;padding:0 11px;border-radius:10px;border:1px solid var(--line2);background:rgba(255,255,255,.05);cursor:pointer;font-size:13px;font-weight:600}.ve-seg button.on{background:#F3F1EC;color:#0B0B12}
+.ve-tog{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;padding:4px 0;cursor:pointer}
+.ve-tog input[type=checkbox]{width:40px;height:24px;appearance:none;border-radius:99px;background:rgba(255,255,255,.18);position:relative;cursor:pointer;transition:.2s;flex:none}
+.ve-tog input[type=checkbox]::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}.ve-tog input[type=checkbox]:checked{background:#8C97FF}.ve-tog input[type=checkbox]:checked::after{left:19px}
+.ve-drop{border:1.5px dashed rgba(255,255,255,.25);border-radius:16px;padding:18px;text-align:center;color:var(--mute);font-size:14px}
+.ve-colors{display:flex;gap:6px}.ve-colors button{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.3);cursor:pointer}.ve-colors button.on{border-color:#fff;box-shadow:0 0 0 2px #8C97FF}
+.ve-rec{position:absolute;inset:10px;border-radius:12px;display:grid;place-items:center;background:rgba(0,0,0,.55);font-weight:700;text-align:center}
+/* plan */
+.cal{padding:14px}.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-d{min-height:92px;border-radius:14px;padding:6px;background:rgba(255,255,255,.04);border:1px solid var(--line);cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.cal-d.out{opacity:.35}.cal-d.today{border-color:#9AA2FF;box-shadow:inset 0 0 0 1px #9AA2FF}
+.cal-d>b{font-size:12.5px;color:var(--mute)}.cal-wk{font-size:12px;color:var(--mute);text-align:center;font-weight:700}
+.chip{display:block;font-size:11.5px;font-weight:700;padding:3px 7px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;text-align:left;cursor:pointer;color:#0B0B12}
+.st-idea{background:#C9C7D2}.st-making{background:#7FB2FF}.st-review{background:#FFD27A}.st-changes{background:#FF9DA8}.st-approved{background:#7BF0B8}.st-published{background:#B794FF}
+.board{display:grid;grid-template-columns:repeat(6,minmax(200px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:140px}
+.col-h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13.5px;padding:2px 4px}.col-h i{width:10px;height:10px;border-radius:50%}
+.pcard{padding:10px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid var(--line);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;transition:transform .15s}.pcard:hover{transform:translateY(-2px)}
+.pcard img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px}
+.plats{display:flex;gap:4px;flex-wrap:wrap}.plat{font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.1)}
+.plat-t{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line2);background:rgba(255,255,255,.05);cursor:pointer;font-weight:600;font-size:13px}.plat-t.on{background:#F3F1EC;color:#0B0B12}
+.next{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:rgba(255,255,255,.05);cursor:pointer;border:0;width:100%;text-align:left}
+.next .dt{width:48px;text-align:center;flex:none}.next .dt b{display:block;font-size:22px;line-height:1}
+@media (max-width:1180px){.ve{grid-template-columns:minmax(0,1fr) 300px}.ve-left{grid-column:1/-1;order:3}}
+@media (max-width:860px){.ve{grid-template-columns:1fr}.ve-stage{position:static;order:0}.ve-left{order:1}.ve>section:last-child{order:2}.ve-canvaswrap canvas{max-height:46vh}.cal-d{min-height:62px}.chip{font-size:10px;padding:2px 4px}.board{grid-template-columns:repeat(6,78vw)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { boot, S, api, esc, icon, toast, ago, size, avatar, render, reload, openModal, closeModal, askAI, uploadFile, getBlob, makeThumb, download, pickFile, vComments } from '/team/kit.js';
+
+const ST = [['idea', 'Ideas'], ['making', 'Making'], ['review', 'Waiting for owner'], ['changes', 'Needs changes'], ['approved', 'Approved'], ['published', 'Published']];
+const STN = Object.fromEntries(ST);
+const PLATS = ['TikTok', 'YouTube', 'Instagram', 'Nexa', 'X'];
+const fileById = id => (S.data.file || []).find(f => f.id === id);
+const dkey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+// ================= HOME
+function vHome() {
+  const D = S.data, P = D.post || [], today = dkey(new Date());
+  const up = P.filter(p => p.date && p.date >= today && p.status !== 'published').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+  const news = P.filter(p => (p.comments || []).some(c => c.owner)).sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 4);
+  const mo = today.slice(0, 7);
+  return `<div class="k-head"><div><h1 class="k-h1">Hi ${esc(D.me.name)} 👋</h1><p class="mute">Make videos, plan posts and share designs for Nexa.</p></div>
+    <div class="k-row"><button class="k-btn pri" data-a="tab" data-v="editor">${icon('film', 18)} Make a video</button><button class="k-btn" data-a="newPost">${icon('plus', 18)} Plan a post</button></div></div>
+  <div class="k-cards" style="margin-bottom:16px">
+    ${[['Waiting for owner', P.filter(p => p.status === 'review').length, '#FFD27A'], ['Approved to post', P.filter(p => p.status === 'approved').length, '#7BF0B8'], ['Published this month', P.filter(p => p.status === 'published' && (p.date || '').startsWith(mo)).length, '#B794FF'], ['Files', (D.file || []).filter(f => f.ready).length, '#7FB2FF']].map(([l, n, c]) => `<div class="glass k-card k-stat"><span class="mute small" style="display:flex;align-items:center;gap:8px"><i style="width:9px;height:9px;border-radius:50%;background:${c}"></i>${l}</span><b>${n}</b></div>`).join('')}
+  </div>
+  <div class="k-cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+    <section class="glass k-card"><h3 style="margin:0 0 10px">Coming up</h3>${up.length ? up.map(p => { const d = new Date(p.date + 'T12:00'); return `<button class="next" data-a="openPost" data-v="${p.id}"><span class="dt"><span class="mute small">${d.toLocaleDateString([], { month: 'short' })}</span><b>${d.getDate()}</b></span><span style="min-width:0"><b>${esc(p.title)}</b><div class="mute small">${esc(STN[p.status])}${p.platforms?.length ? ' · ' + p.platforms.join(', ') : ''}</div></span></button>`; }).join('') : '<div class="mute">Nothing planned yet. <a href="#" data-a="newPost">Plan a post</a></div>'}</section>
+    <section class="glass k-card"><h3 style="margin:0 0 10px">From the owner</h3>${news.length ? news.map(p => { const c = [...p.comments].reverse().find(c => c.owner); return `<button class="next" data-a="openPost" data-v="${p.id}"><span class="chip st-${p.status}" style="flex:none">${esc(STN[p.status])}</span><span style="min-width:0"><b>${esc(p.title)}</b><div class="mute small">“${esc(c.text)}” · ${ago(c.at)}</div></span></button>`; }).join('') : '<div class="mute">When the owner approves a post or asks for changes, it shows here.</div>'}</section>
+    <section class="glass k-card"><h3 style="margin:0 0 10px">How it works</h3><ol class="mute" style="margin:0;padding-left:20px;line-height:1.8"><li>Make a video in the <b>Video editor</b>, or upload a design</li><li>Plan a post and press <b>Send to owner</b></li><li>The owner approves it (or asks for changes)</li><li>Post it, then press <b>Mark as published</b></li></ol></section>
+  </div>`;
+}
+
+// ================= PLAN
+function vPlan() {
+  const P = S.data.post || [], off = S.mo || 0, base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + off);
+  const first = new Date(base); first.setDate(1 - ((base.getDay() + 6) % 7)); const today = dkey(new Date());
+  const days = Array.from({ length: 42 }, (_, i) => { const d = new Date(first); d.setDate(first.getDate() + i); return d; });
+  const byDay = {}; P.forEach(p => { if (p.date) (byDay[p.date] = byDay[p.date] || []).push(p); });
+  return `<div class="k-head"><div><h1 class="k-h1">Plan & publish</h1><p class="mute">Plan posts, send them to the owner, then post them.</p></div><button class="k-btn pri" data-a="newPost">${icon('plus', 18)} New post</button></div>
+  <section class="glass cal" style="margin-bottom:16px"><div class="k-row" style="justify-content:space-between;margin-bottom:10px"><b style="font-size:18px">${base.toLocaleDateString([], { month: 'long', year: 'numeric' })}</b><div class="k-row"><button class="k-btn sm" data-a="mo" data-v="-1">‹</button><button class="k-btn sm" data-a="mo" data-v="0">Today</button><button class="k-btn sm" data-a="mo" data-v="1">›</button></div></div>
+    <div class="cal-g">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="cal-wk">${d}</div>`).join('')}
+    ${days.map(d => { const k = dkey(d), L = byDay[k] || []; return `<div class="cal-d ${d.getMonth() !== base.getMonth() ? 'out' : ''} ${k === today ? 'today' : ''}" data-a="newPost" data-date="${k}"><b>${d.getDate()}</b>${L.slice(0, 3).map(p => `<button class="chip st-${p.status}" data-a="openPost" data-v="${p.id}" title="${esc(p.title)}">${esc(p.title)}</button>`).join('')}${L.length > 3 ? `<span class="mute small">+${L.length - 3}</span>` : ''}</div>`; }).join('')}</div></section>
+  <div class="board">${ST.map(([k, l]) => { const L = P.filter(p => p.status === k); return `<section class="glass col"><div class="col-h"><i class="st-${k}"></i>${l} <span class="mute">${L.length}</span></div>${L.map(p => { const f = p.fileId && fileById(p.fileId); return `<button class="pcard" data-a="openPost" data-v="${p.id}">${f?.thumb ? `<img src="${esc(f.thumb)}" alt="">` : ''}<b>${esc(p.title)}</b>${p.date ? `<span class="mute small">${new Date(p.date + 'T12:00').toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>` : ''}${p.platforms?.length ? `<span class="plats">${p.platforms.map(x => `<span class="plat">${esc(x)}</span>`).join('')}</span>` : ''}${(p.comments || []).length ? `<span class="mute small">💬 ${p.comments.length}</span>` : ''}</button>`; }).join('') || '<span class="mute small" style="padding:4px">Nothing here</span>'}</section>`; }).join('')}</div>`;
+}
+function postModal(p) {
+  const isNew = !p.id; let plats = new Set(p.platforms || []);
+  const media = (S.data.file || []).filter(f => f.ready && /^(video|image)\//.test(f.type));
+  openModal(() => { const cur = isNew ? p : (S.data.post || []).find(x => x.id === p.id) || p; const f = cur.fileId && fileById(cur.fileId);
+    return `<div class="k-mhead"><b>${isNew ? 'New post' : esc(cur.title)}</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div>
+    ${!isNew ? `<span class="chip st-${cur.status}" style="display:inline-block">${esc(STN[cur.status])}</span>` : ''}
+    <form id="f-post" data-id="${cur.id || ''}">
+      <label class="k-lab">Title</label><input class="k-in" name="title" value="${esc(cur.title || '')}" maxlength="140" placeholder="e.g. Nexa 1.8 launch reel" required>
+      <label class="k-lab" style="display:flex;justify-content:space-between">Caption <a href="#" data-a="aiCaption">✨ Write it with AI</a></label><textarea class="k-in" name="text" maxlength="4000" placeholder="What the post says, with #hashtags">${esc(cur.text || '')}</textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="k-lab">Post date</label><input class="k-in" type="date" name="date" value="${esc(cur.date || '')}"></div>
+      <div><label class="k-lab">Video or design</label><select class="k-in k-sel" name="fileId"><option value="">None</option>${media.map(m => `<option value="${m.id}" ${m.id === cur.fileId ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div></div>
+      ${f?.thumb ? `<img src="${esc(f.thumb)}" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin-top:10px">` : ''}
+      <label class="k-lab">Where</label><div class="k-row" id="plats">${PLATS.map(x => `<button type="button" class="plat-t ${plats.has(x) ? 'on' : ''}" data-a="plat" data-v="${x}">${esc(x)}</button>`).join('')}</div>
+      <div class="k-row" style="margin-top:16px">
+        <button class="k-btn pri" name="go" value="save">${isNew ? 'Save idea' : 'Save'}</button>
+        ${['idea', 'making', 'changes'].includes(cur.status || 'idea') ? `<button class="k-btn ai" name="go" value="review">${icon('send', 16)} Send to owner</button>` : ''}
+        ${cur.status === 'approved' ? `<button class="k-btn ai" name="go" value="published">${icon('check', 16)} Mark as published</button>` : ''}
+        ${cur.status === 'review' ? '<span class="mute small">Waiting for the owner to approve</span>' : ''}
+        ${!isNew ? `<button type="button" class="k-btn danger" data-a="delPost" data-v="${cur.id}" style="margin-left:auto">${icon('trash', 16)}</button>` : ''}
+      </div></form>${isNew ? '' : vComments(cur, 'post')}`; });
+  S.plats = plats;
+}
+
+// ================= VIDEO EDITOR
+const E = { clips: [], aspect: '9:16', fit: 'cover', filter: 'none', imgDur: 3, text: { t: '', sub: '', pos: 'bottom', style: 'glass', color: '#FFFFFF', size: 1, secs: 0 }, brand: { mark: true, intro: false, outro: true }, music: null, vol: 1, mvol: .5, t: 0, playing: false, rec: null };
+const RES = { '9:16': [720, 1280], '16:9': [1280, 720], '1:1': [960, 960], '4:5': [864, 1080] };
+let cv, cx, actx, mixDest, rafId = 0, segIdx = -1, lastWall = 0, uid = 0;
+const segs = () => { const L = []; let t = 0; const add = (kind, dur, clip) => { L.push({ kind, dur, clip, start: t }); t += dur; };
+  if (E.brand.intro) add('intro', 2); E.clips.forEach(c => add(c.kind, c.kind === 'video' ? Math.max(.2, c.b - c.a) : c.dur, c)); if (E.brand.outro && E.clips.length) add('outro', 2.5); return L; };
+const total = () => segs().reduce((a, s) => a + s.dur, 0);
+const segAt = t => { const L = segs(); for (let i = 0; i < L.length; i++) if (t < L[i].start + L[i].dur || i === L.length - 1) return [L[i], i, L]; return [null, -1, L]; };
+const fmt = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') + '.' + Math.floor((t % 1) * 10);
+
+function ensureAudio() {
+  if (actx) return; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  actx = new AC(); mixDest = actx.createMediaStreamDestination();
+  E.clips.forEach(wire); if (E.music) wire(E.music);
+}
+function wire(c) { if (!actx || !c.el || c.node || c.kind === 'image') return; try { c.node = actx.createMediaElementSource(c.el); c.gain = actx.createGain(); c.node.connect(c.gain); c.gain.connect(actx.destination); c.gain.connect(mixDest); setVol(); } catch (e) { } }
+function setVol() { E.clips.forEach(c => { if (c.gain) c.gain.gain.value = c.mute ? 0 : E.vol; else if (c.el) { c.el.volume = Math.min(1, E.vol); c.el.muted = !!c.mute; } }); if (E.music) { if (E.music.gain) E.music.gain.gain.value = E.mvol; else if (E.music.el) E.music.el.volume = E.mvol; } }
+
+async function addMedia(file, fromId) {
+  const url = URL.createObjectURL(file), kind = /^video\//.test(file.type) ? 'video' : /^image\//.test(file.type) ? 'image' : /^audio\//.test(file.type) ? 'audio' : '';
+  if (!kind) return toast('That isn’t a video, picture or song.');
+  if (kind === 'audio') { const el = new Audio(url); el.loop = true; el.preload = 'auto'; E.music = { kind: 'audio', el, name: file.name, url }; wire(E.music); setVol(); paintSide(); return toast('Music added'); }
+  const c = { id: ++uid, kind, name: file.name, url, fileId: fromId || '' };
+  if (kind === 'video') {
+    const el = document.createElement('video'); el.src = url; el.preload = 'auto'; el.playsInline = true; el.crossOrigin = 'anonymous';
+    await new Promise((res, rej) => { el.onloadedmetadata = res; el.onerror = () => rej(new Error('This video can’t be opened here. Try an MP4.')); }).catch(e => { toast(esc(e.message)); throw e; });
+    c.el = el; c.dur = el.duration || 5; c.a = 0; c.b = Math.min(c.dur, 60); c.w = el.videoWidth; c.h = el.videoHeight;
+  } else { const im = new Image(); im.src = url; await im.decode().catch(() => {}); c.el = im; c.dur = E.imgDur; c.w = im.naturalWidth; c.h = im.naturalHeight; }
+  c.thumb = await makeThumb(file).catch(() => ''); E.clips.push(c); wire(c); setVol(); paintSide(); seek(E.t); toast(`${esc(file.name)} added`);
+}
+function drawMedia(el, w, h, W, H, fit) {
+  if (!w || !h) return; const sc = fit === 'cover' ? Math.max(W / w, H / h) : Math.min(W / w, H / h), dw = w * sc, dh = h * sc;
+  if (fit !== 'cover') { cx.save(); cx.filter = 'blur(28px) brightness(.55)'; const s2 = Math.max(W / w, H / h) * 1.1; cx.drawImage(el, (W - w * s2) / 2, (H - h * s2) / 2, w * s2, h * s2); cx.restore(); }
+  cx.drawImage(el, (W - dw) / 2, (H - dh) / 2, dw, dh);
+}
+const FILTERS = { none: 'none', bright: 'brightness(1.1) saturate(1.2)', warm: 'sepia(.22) saturate(1.25) brightness(1.03)', cool: 'hue-rotate(-10deg) saturate(1.15) brightness(1.02)', mono: 'grayscale(1) contrast(1.12)', dream: 'saturate(1.4) contrast(.95) brightness(1.08)' };
+function rr(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
+function wrapLines(text, maxW) { const out = []; String(text).split('\n').forEach(par => { let line = ''; par.split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if (cx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }); out.push(line); }); return out; }
+function drawText(W, H) {
+  const T = E.text; if (!T.t && !T.sub) return;
+  const fs = Math.round(Math.min(W, H) * .075 * T.size), sfs = Math.round(fs * .52), pad = fs * .55;
+  cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  const big = T.style === 'bold' ? `900 ${fs}px "Nexa Sans",system-ui,sans-serif` : T.style === 'serif' ? `400 ${Math.round(fs * 1.15)}px "Nexa Serif",Georgia,serif` : `800 ${fs}px "Nexa Sans",system-ui,sans-serif`;
+  cx.font = big; const L = T.t ? wrapLines(T.style === 'bold' ? T.t.toUpperCase() : T.t, W * .82) : [];
+  cx.font = `600 ${sfs}px "Nexa Sans",system-ui,sans-serif`; const SL = T.sub ? wrapLines(T.sub, W * .8) : [];
+  const lh = fs * 1.15, slh = sfs * 1.3, bh = L.length * lh + SL.length * slh + pad * 2;
+  cx.font = big; let bw = Math.max(...L.map(l => cx.measureText(l).width), 0); cx.font = `600 ${sfs}px "Nexa Sans",system-ui,sans-serif`; bw = Math.max(bw, ...SL.map(l => cx.measureText(l).width)) + pad * 2.4;
+  const cy = T.pos === 'top' ? H * .14 + bh / 2 : T.pos === 'middle' ? H / 2 : H * .84 - bh / 2;
+  if (T.style === 'glass') { rr((W - bw) / 2, cy - bh / 2, bw, bh, Math.min(bh / 2, fs * .9)); cx.fillStyle = 'rgba(255,255,255,.16)'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = 'rgba(255,255,255,.4)'; cx.stroke(); }
+  if (T.style === 'caption') { rr((W - bw) / 2, cy - bh / 2, bw, bh, fs * .3); cx.fillStyle = 'rgba(0,0,0,.78)'; cx.fill(); }
+  let y = cy - bh / 2 + pad + lh / 2; cx.font = big;
+  L.forEach(l => { if (T.style === 'prism') { const g = cx.createLinearGradient(W * .2, 0, W * .8, 0); ['#FF7AB6', '#FFB86B', '#FFE27A', '#7BF0B8', '#7FB2FF', '#B794FF'].forEach((c, i) => g.addColorStop(i / 5, c)); cx.fillStyle = g; } else cx.fillStyle = T.color;
+    if (T.style === 'bold' || T.style === 'prism' || T.style === 'serif') { cx.shadowColor = 'rgba(0,0,0,.55)'; cx.shadowBlur = fs * .35; }
+    cx.fillText(l, W / 2, y); cx.shadowBlur = 0; y += lh; });
+  cx.font = `600 ${sfs}px "Nexa Sans",system-ui,sans-serif`; cx.fillStyle = 'rgba(255,255,255,.88)'; y += (slh - lh) / 2;
+  SL.forEach(l => { cx.fillText(l, W / 2, y); y += slh; }); cx.restore();
+}
+function drawCard(kind, lt, dur, W, H) {
+  const g = cx.createLinearGradient(0, 0, W, H); const k = lt / dur; g.addColorStop(0, `hsl(${245 + k * 30} 70% 22%)`); g.addColorStop(1, `hsl(${330 + k * 20} 70% 18%)`); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  [[.25, .3, '#6E5BFF'], [.8, .2, '#FF6FA8'], [.5, .85, '#2FC8A8']].forEach(([x, y, c], i) => { const r = Math.min(W, H) * (.45 + .05 * Math.sin(lt * 2 + i)); const rg = cx.createRadialGradient(W * x, H * y, 0, W * x, H * y, r); rg.addColorStop(0, c + '88'); rg.addColorStop(1, c + '00'); cx.fillStyle = rg; cx.fillRect(0, 0, W, H); });
+  const a = Math.min(1, lt / .4, (dur - lt) / .35), s = Math.min(W, H); cx.save(); cx.globalAlpha = Math.max(0, a); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
+  cx.font = `400 ${Math.round(s * .2)}px "Nexa Serif",Georgia,serif`; cx.fillText('nexa', W / 2, H / 2 - s * .03 + (1 - a) * 20);
+  cx.font = `600 ${Math.round(s * .045)}px "Nexa Sans",system-ui,sans-serif`; cx.fillStyle = 'rgba(255,255,255,.85)';
+  cx.fillText(kind === 'intro' ? (E.text.t || 'Chat with everyone you love') : 'Try Nexa · nexaconnect.qd.je', W / 2, H / 2 + s * .12);
+  const g2 = cx.createLinearGradient(W / 2 - s * .2, 0, W / 2 + s * .2, 0); ['#FF7AB6', '#FFE27A', '#7BF0B8', '#7FB2FF', '#B794FF'].forEach((c, i) => g2.addColorStop(i / 4, c)); cx.fillStyle = g2; rr(W / 2 - s * .2 * a, H / 2 + s * .19, s * .4 * a, s * .008, s * .004); cx.fill(); cx.restore();
+}
+function drawMark(W, H) {
+  const s = Math.min(W, H), h = s * .07, x = W - s * .04, y = s * .04; cx.save(); cx.font = `400 ${Math.round(h * .62)}px "Nexa Serif",Georgia,serif`; const tw = cx.measureText('nexa').width, w = tw + h * 1.3;
+  rr(x - w, y, w, h, h / 2); cx.fillStyle = 'rgba(255,255,255,.18)'; cx.fill(); cx.strokeStyle = 'rgba(255,255,255,.35)'; cx.lineWidth = 1.5; cx.stroke();
+  const g = cx.createLinearGradient(x - w, 0, x - w + h * .5, 0); g.addColorStop(0, '#FF7AB6'); g.addColorStop(1, '#7FB2FF'); cx.fillStyle = g; cx.beginPath(); cx.arc(x - w + h * .48, y + h / 2, h * .17, 0, 7); cx.fill();
+  cx.fillStyle = '#fff'; cx.textBaseline = 'middle'; cx.fillText('nexa', x - w + h * .8, y + h / 2 + 1); cx.restore();
+}
+function frame() {
+  if (!cx) return; const [W, H] = RES[E.aspect]; const [s] = segAt(E.t);
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H);
+  if (!s) { cx.fillStyle = 'rgba(255,255,255,.5)'; cx.textAlign = 'center'; cx.font = `600 ${Math.round(W * .04)}px "Nexa Sans",sans-serif`; cx.fillText('Add a video or picture to start', W / 2, H / 2); return; }
+  const lt = E.t - s.start;
+  if (s.kind === 'intro' || s.kind === 'outro') drawCard(s.kind, lt, s.dur, W, H);
+  else {
+    const c = s.clip; cx.save(); cx.filter = FILTERS[E.filter] || 'none';
+    if (s.kind === 'image') { const z = 1 + .06 * (lt / s.dur); cx.translate(W / 2, H / 2); cx.scale(z, z); cx.translate(-W / 2, -H / 2); } // gentle zoom on pictures
+    drawMedia(c.el, c.w, c.h, W, H, E.fit); cx.restore();
+    const first = segs().find(x => x.kind === 'video' || x.kind === 'image');
+    if (!E.text.secs || (first && E.t - first.start < E.text.secs)) drawText(W, H);
+    if (E.brand.mark) drawMark(W, H);
+  }
+  if (lt < .25) { cx.fillStyle = `rgba(0,0,0,${(1 - lt / .25) * .7})`; cx.fillRect(0, 0, W, H); } // soft cut
+  const tt = document.getElementById('vetime'); if (tt) tt.textContent = fmt(E.t) + ' / ' + fmt(total());
+  const sk = document.getElementById('veseek'); if (sk && document.activeElement !== sk) { sk.max = total() || 1; sk.value = E.t; }
+}
+function startSeg(s) { if (s && s.kind === 'video') { const c = s.clip; c.el.currentTime = c.a + (E.t - s.start); const p = c.el.play(); p && p.catch(() => {}); } }
+function stopAll() { E.clips.forEach(c => c.kind === 'video' && c.el.pause()); E.music?.el.pause(); }
+function play() {
+  if (!E.clips.length) return toast('Add a video or picture first');
+  ensureAudio(); actx?.state === 'suspended' && actx.resume();
+  if (E.t >= total() - .05) E.t = 0; E.playing = true; const [s, i] = segAt(E.t); segIdx = i; startSeg(s);
+  if (E.music) { E.music.el.currentTime = E.t % (E.music.el.duration || 1e9); E.music.el.play().catch(() => {}); }
+  lastWall = performance.now(); cancelAnimationFrame(rafId); rafId = requestAnimationFrame(loop); paintPlay();
+}
+function pause() { E.playing = false; cancelAnimationFrame(rafId); stopAll(); paintPlay(); if (E.rec) finishRec(); }
+function loop(now) {
+  if (!E.playing) return; const dt = Math.min(.1, (now - lastWall) / 1000); lastWall = now;
+  const L = segs(), s = L[segIdx];
+  if (!s) return pause();
+  if (s.kind === 'video') { const c = s.clip; E.t = s.start + Math.max(0, c.el.currentTime - c.a); if (c.el.currentTime >= c.b - .03 || c.el.ended) { c.el.pause(); E.t = s.start + s.dur; next(L); } }
+  else { E.t += dt; if (E.t >= s.start + s.dur) next(L); }
+  frame(); if (E.rec) { const p = document.getElementById('recp'); if (p) p.textContent = Math.min(100, Math.round(E.t / total() * 100)) + '%'; }
+  if (E.playing) rafId = requestAnimationFrame(loop);
+}
+function next(L) { segIdx++; if (segIdx >= L.length) { E.t = total(); frame(); return pause(); } E.t = L[segIdx].start; startSeg(L[segIdx]); }
+function seek(t) {
+  E.t = Math.max(0, Math.min(t, total())); const [s, i] = segAt(E.t); segIdx = i;
+  if (E.playing) { stopAll(); startSeg(s); if (E.music) { E.music.el.currentTime = E.t % (E.music.el.duration || 1e9); E.music.el.play().catch(() => {}); } }
+  else if (s && s.kind === 'video') { s.clip.el.currentTime = s.clip.a + (E.t - s.start); s.clip.el.onseeked = () => { s.clip.el.onseeked = null; frame(); }; }
+  frame(); paintStrip();
+}
+function paintPlay() { const b = document.getElementById('veplay'); if (b) b.innerHTML = icon(E.playing ? 'pause' : 'play', 22); }
+function paintStrip() { const el = document.getElementById('vestrip'); if (!el) return; const L = segs(), T = total() || 1, [, cur] = segAt(E.t); el.innerHTML = L.map((s, i) => `<span class="${s.kind === 'intro' || s.kind === 'outro' ? 'brand' : ''} ${i === cur ? 'on' : ''}" style="flex:${s.dur / T}" data-a="veJump" data-v="${s.start}" title="${esc(s.clip?.name || s.kind)}">${esc(s.clip?.name || (s.kind === 'intro' ? 'Intro' : 'Outro'))}</span>`).join(''); }
+function setupCanvas() { const [W, H] = RES[E.aspect]; cv.width = W; cv.height = H; frame(); }
+
+// export: records the canvas + sound while it plays from the start
+function pickMime() { const C = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']; return C.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || ''; }
+function exportVideo() {
+  if (!E.clips.length) return toast('Add a video or picture first');
+  if (!window.MediaRecorder || !cv.captureStream) return toast('This browser can’t save videos. Try Chrome on a computer.');
+  pause(); ensureAudio(); actx?.state === 'suspended' && actx.resume(); E.t = 0;
+  const vs = cv.captureStream(30), tracks = [...vs.getVideoTracks(), ...(mixDest ? mixDest.stream.getAudioTracks() : [])];
+  const mime = pickMime(), chunks = [], rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime || undefined, videoBitsPerSecond: 6e6, audioBitsPerSecond: 160e3 });
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = () => { const type = (mime || 'video/webm').split(';')[0], blob = new Blob(chunks, { type }); E.rec = null; document.getElementById('verec')?.remove(); if (!rec._cancel) doneModal(blob, type); };
+  E.rec = rec; rec.start(500);
+  document.querySelector('.ve-canvaswrap').insertAdjacentHTML('beforeend', `<div class="ve-rec" id="verec"><div>🔴 Making your video… <span id="recp">0%</span><div class="mute small" style="margin:6px 0 10px">Keep this tab open. It takes as long as the video.</div><button class="k-btn sm" data-a="veCancel">Cancel</button></div></div>`);
+  play();
+}
+function finishRec() { const r = E.rec; if (r && r.state !== 'inactive') setTimeout(() => r.state !== 'inactive' && r.stop(), 150); }
+function doneModal(blob, type) {
+  const ext = type.includes('mp4') ? 'mp4' : 'webm', name = (E.text.t || 'nexa-video').replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').slice(0, 40).toLowerCase() + '.' + ext, url = URL.createObjectURL(blob);
+  const file = new File([blob], name, { type });
+  openModal(() => `<div class="k-mhead"><b>Your video is ready 🎉</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div>
+    <div class="k-prev"><video src="${url}" controls playsinline autoplay muted></video></div><div class="mute small">${size(blob.size)} · ${fmt(total())} · ${ext.toUpperCase()}</div>
+    <div class="k-row" style="margin-top:12px"><button class="k-btn pri" data-a="veSave">${icon('up', 18)} Save to Studio</button><button class="k-btn" data-a="veDl">${icon('dl', 18)} Download</button></div>
+    ${ext === 'webm' ? '<p class="mute small">Tip: TikTok and Instagram like MP4 best. Chrome and Safari on new versions save MP4 automatically.</p>' : ''}`);
+  S.lastExport = { file, blob, name };
+}
+function paintSide() {
+  const el = document.getElementById('veclips'); if (el) el.innerHTML = E.clips.length ? E.clips.map((c, i) => `<div class="ve-clip"><img src="${esc(c.thumb || '')}" alt=""><div style="flex:1;min-width:0"><div class="nm">${esc(c.name)}</div>
+    ${c.kind === 'video' ? `<div class="tr">Start <input type="number" step=".1" min="0" max="${c.dur.toFixed(1)}" value="${c.a.toFixed(1)}" data-clip="${c.id}" data-k="a" class="k-in" style="height:30px;padding:0 6px;width:62px"> End <input type="number" step=".1" min="0" max="${c.dur.toFixed(1)}" value="${c.b.toFixed(1)}" data-clip="${c.id}" data-k="b" class="k-in" style="height:30px;padding:0 6px;width:62px"></div>` : `<div class="tr">Show for <input type="number" step=".5" min="1" max="20" value="${c.dur}" data-clip="${c.id}" data-k="dur" class="k-in" style="height:30px;padding:0 6px;width:56px"> s</div>`}
+    <div class="k-row" style="gap:4px;margin-top:4px"><button class="ve-mini" data-a="veMove" data-v="${c.id}" data-d="-1" ${i ? '' : 'disabled'} title="Move up">↑</button><button class="ve-mini" data-a="veMove" data-v="${c.id}" data-d="1" ${i < E.clips.length - 1 ? '' : 'disabled'} title="Move down">↓</button>${c.kind === 'video' ? `<button class="ve-mini" data-a="veMute" data-v="${c.id}" title="Sound on/off">${c.mute ? '🔇' : '🔊'}</button>` : ''}<button class="ve-mini" data-a="veDel" data-v="${c.id}" title="Remove">${icon('trash', 15)}</button></div></div></div>`).join('')
+    : `<div class="ve-drop">Drop videos or pictures here<br><span class="small">MP4, MOV, JPG, PNG · up to 40 MB to save</span></div>`;
+  const m = document.getElementById('vemusic'); if (m) m.innerHTML = E.music ? `<div class="ve-clip" style="align-items:center"><span style="font-size:22px">🎵</span><div style="flex:1;min-width:0"><div class="nm">${esc(E.music.name)}</div><input type="range" min="0" max="1" step=".05" value="${E.mvol}" data-ve="mvol" aria-label="Music volume"></div><button class="ve-mini" data-a="veNoMusic">${icon('x', 14)}</button></div>` : `<button class="k-btn sm" data-a="veMusic">${icon('music', 16)} Add music</button>`;
+  paintStrip(); frame();
+}
+const seg = (k, opts, cur) => `<div class="ve-seg">${opts.map(([v, l]) => `<button class="${String(cur) === String(v) ? 'on' : ''}" data-a="veSet" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+function vEditor() {
+  const T = E.text;
+  return `<div class="k-head"><div><h1 class="k-h1">Video editor</h1><p class="mute">Put clips together, add text and Nexa branding, then save it for TikTok, YouTube or Instagram.</p></div>
+    <div class="k-row"><button class="k-btn" data-a="aiIdeas">${icon('spark', 18)} Ideas</button><button class="k-btn pri" data-a="veExport">${icon('dl', 18)} Save video</button></div></div>
+  <div class="ve">
+    <section class="glass ve-col ve-left"><div class="ve-h">${icon('film', 16)} Clips</div><div class="k-row"><button class="k-btn sm" data-a="veAdd">${icon('plus', 16)} From computer</button><button class="k-btn sm" data-a="veFromStudio">${icon('folder', 16)} From Studio</button></div><div id="veclips" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="ve-h">${icon('music', 16)} Music</div><div id="vemusic"></div>
+      <label class="ve-tog">Video sound<input type="range" min="0" max="1.5" step=".05" value="${E.vol}" data-ve="vol" style="width:130px;height:auto;appearance:auto;background:none" aria-label="Video volume"></label></section>
+    <section class="glass ve-stage"><div class="ve-canvaswrap"><canvas id="vecv" aria-label="Video preview"></canvas></div>
+      <div class="ve-strip" id="vestrip"></div>
+      <div class="ve-ctrl"><button class="ve-playb" id="veplay" data-a="vePlay" aria-label="Play">${icon('play', 22)}</button><input type="range" id="veseek" min="0" step=".05" value="0" aria-label="Time"><span class="ve-time" id="vetime">0:00.0</span></div>
+      <div class="k-row">${seg('aspect', [['9:16', '9:16 TikTok'], ['16:9', '16:9 YouTube'], ['1:1', '1:1'], ['4:5', '4:5 Insta']], E.aspect)}</div></section>
+    <section class="glass ve-col"><div class="ve-h">${icon('text', 16)} Text</div>
+      <input class="k-in" data-ve="t" value="${esc(T.t)}" placeholder="Big title, e.g. Meet Nexa 1.8" maxlength="120"><input class="k-in" data-ve="sub" value="${esc(T.sub)}" placeholder="Small line under it (optional)" maxlength="160">
+      ${seg('style', [['glass', 'Glass'], ['bold', 'Bold'], ['caption', 'Caption'], ['prism', 'Prism'], ['serif', 'Elegant']], T.style)}
+      ${seg('pos', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], T.pos)}
+      <div class="ve-colors">${['#FFFFFF', '#FFE27A', '#FF8FB1', '#8C97FF', '#7BF0B8', '#0B0B12'].map(c => `<button style="background:${c}" class="${T.color === c ? 'on' : ''}" data-a="veSet" data-k="color" data-v="${c}" aria-label="Colour ${c}"></button>`).join('')}</div>
+      <label class="ve-tog">Size<input type="range" min=".6" max="1.6" step=".05" value="${T.size}" data-ve="size" style="width:140px;height:auto;appearance:auto;background:none"></label>
+      ${seg('secs', [[0, 'Whole video'], [3, 'First 3s'], [5, 'First 5s']], T.secs)}
+      <div class="ve-h">${icon('spark', 16)} Look</div>${seg('filter', [['none', 'Normal'], ['bright', 'Bright'], ['warm', 'Warm'], ['cool', 'Cool'], ['dream', 'Dreamy'], ['mono', 'B&W']], E.filter)}
+      ${seg('fit', [['cover', 'Fill screen'], ['contain', 'Show all']], E.fit)}
+      <div class="ve-h">nexa Branding</div>
+      <label class="ve-tog">Nexa logo in the corner<input type="checkbox" data-vb="mark" ${E.brand.mark ? 'checked' : ''}></label>
+      <label class="ve-tog">Nexa intro (2s)<input type="checkbox" data-vb="intro" ${E.brand.intro ? 'checked' : ''}></label>
+      <label class="ve-tog">"Try Nexa" ending (2.5s)<input type="checkbox" data-vb="outro" ${E.brand.outro ? 'checked' : ''}></label></section>
+  </div>`;
+}
+function mountEditor(el) {
+  cv = el.querySelector('#vecv'); cx = cv.getContext('2d'); setupCanvas(); paintSide(); paintPlay();
+  const sk = el.querySelector('#veseek'); sk.oninput = () => seek(+sk.value);
+  document.fonts?.ready.then(frame);
+}
+
+// ================= SITE
+boot({
+  site: 'studio', name: 'Nexa Studio', emoji: '🎬', tagline: 'For the Nexa designers and video creators.',
+  filesHint: 'Videos, designs and pictures for the team. The owner can see them too.', chatHint: 'Share ideas and work in progress.',
+  aiHint: 'Ideas, hooks, captions, hashtags', accept: 'video/*,image/*,application/pdf,.psd,.fig,.ai,.svg',
+  aiStarters: ['Give me 5 TikTok ideas to show off Nexa', 'Write a catchy caption with hashtags for a Nexa launch video', 'What should we post this week? Make a 7-day plan', 'Give me 3 hooks for the first 2 seconds of a video'],
+  tabs: [
+    { id: 'home', label: 'Home', icon: 'home', view: vHome },
+    { id: 'editor', label: 'Video editor', short: 'Editor', icon: 'film', view: vEditor, mount: mountEditor, live: true },
+    { id: 'plan', label: 'Plan & publish', short: 'Plan', icon: 'cal', view: vPlan, badge: D => (D.post || []).filter(p => p.status === 'changes').length },
+    { id: 'files', label: 'Files', icon: 'folder' },
+    { id: 'chat', label: 'Team chat', short: 'Chat', icon: 'chat' },
+  ],
+  fileActions: f => /^(video|image)\//.test(f.type) ? `<button class="k-btn" data-a="useFile" data-v="${f.id}">${icon('film', 18)} Use in video editor</button><button class="k-btn" data-a="postFile" data-v="${f.id}">${icon('cal', 18)} Plan a post</button>` : '',
+  onDrop: fs => { if (S.tab !== 'editor') return false; fs.forEach(f => addMedia(f).catch(() => {})); return true; },
+  onInput: e => {
+    const t = e.target, k = t.dataset.ve; if (!k) return;
+    if (k === 'vol' || k === 'mvol') { E[k] = +t.value; setVol(); return; }
+    E.text[k] = k === 'size' ? +t.value : t.value; if (!E.playing) frame();
+  },
+  onChange: e => {
+    const t = e.target;
+    if (t.dataset.vb) { E.brand[t.dataset.vb] = t.checked; seek(E.t); return; }
+    if (t.dataset.clip) { const c = E.clips.find(x => x.id === +t.dataset.clip); if (!c) return; let v = +t.value || 0; if (t.dataset.k === 'a') c.a = Math.max(0, Math.min(v, c.b - .2)); else if (t.dataset.k === 'b') c.b = Math.max(c.a + .2, Math.min(v, c.dur)); else c.dur = Math.max(1, Math.min(20, v)); paintSide(); seek(E.t); }
+  },
+  onTab: t => { if (t !== 'editor' && E.playing && !E.rec) pause(); },
+  onSubmit: async (f, e) => {
+    if (f.id !== 'f-post') return;
+    const go = (e.submitter && e.submitter.name === 'go' && e.submitter.value) || 'save', id = f.dataset.id;
+    const cur = id ? (S.data.post || []).find(p => p.id === id) : null;
+    const status = go === 'review' ? 'review' : go === 'published' ? 'published' : (cur?.status || 'idea');
+    try { await api('save', { item: { id: id || undefined, title: f.title.value, text: f.text.value, date: f.date.value, fileId: f.fileId.value, platforms: [...S.plats], status } }); S.modal = null; await reload(true);
+      toast(go === 'review' ? `${icon('send', 16)} Sent to the owner` : go === 'published' ? '🎉 Marked as published' : 'Saved'); } catch (e) { toast(esc(e.message)); }
+  },
+  actions: {
+    mo: d => { S.mo = d.v === '0' ? 0 : (S.mo || 0) + +d.v; render(); },
+    newPost: (d, e) => { if (e.target.closest('.chip')) return; postModal({ title: '', date: d.date || '', status: 'idea', platforms: [] }); },
+    openPost: d => { const p = (S.data.post || []).find(x => x.id === d.v); if (p) postModal(p); },
+    postFile: d => postModal({ title: '', status: 'idea', fileId: d.v, platforms: [] }),
+    plat: (d, e, el) => { S.plats.has(d.v) ? S.plats.delete(d.v) : S.plats.add(d.v); el.classList.toggle('on'); },
+    delPost: async d => { if (!confirm('Delete this post?')) return; await api('del', { kind: 'post', id: d.v }); closeModal(); reload(true); },
+    aiCaption: async () => { const f = document.getElementById('f-post'); toast('✨ Writing…', 0); try { const t = await askAI(`Write one short, catchy social media caption (max 2 sentences, plus 4-6 hashtags) for a Nexa post titled "${f.title.value || 'Nexa'}". Platforms: ${[...S.plats].join(', ') || 'TikTok, Instagram'}. ${f.text.value ? 'Notes: ' + f.text.value : ''} Reply with only the caption.`, { silent: true }); f.text.value = t.trim(); toast('✨ Done'); } catch (e) { toast(esc(e.message), 5000); } },
+    aiIdeas: () => askAI(`I'm making a Nexa video${E.text.t ? ' called "' + E.text.t + '"' : ''}${E.clips.length ? ' with clips: ' + E.clips.map(c => c.name).join(', ') : ''}. Give me 5 short on-screen title ideas, 3 hooks for the first 2 seconds, and a caption with hashtags.`),
+    vePlay: () => E.playing ? pause() : play(),
+    veJump: d => seek(+d.v + .01),
+    veSet: d => { if (['aspect', 'filter', 'fit'].includes(d.k)) E[d.k] = d.v; else E.text[d.k] = d.k === 'secs' ? +d.v : d.v; if (d.k === 'aspect') setupCanvas(); document.querySelectorAll(`[data-a="veSet"][data-k="${d.k}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === d.v)); frame(); },
+    veAdd: async () => { const fs = await pickFile('video/*,image/*', true); for (const f of fs) await addMedia(f).catch(() => {}); },
+    veMusic: async () => { const [f] = await pickFile('audio/*'); if (f) addMedia(f); },
+    veNoMusic: () => { E.music?.el.pause(); E.music = null; paintSide(); },
+    veFromStudio: () => { const M = (S.data.file || []).filter(f => f.ready && /^(video|image|audio)\//.test(f.type)); openModal(() => `<div class="k-mhead"><b>Add from Studio</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div>${M.length ? `<div class="k-grid">${M.map(f => `<button class="k-file glass" data-a="useFile" data-v="${f.id}"><span class="k-thumb">${f.thumb ? `<img src="${esc(f.thumb)}" alt="">` : '🎵'}</span><span class="k-fname">${esc(f.name)}</span></button>`).join('')}</div>` : '<p class="mute">No videos or pictures in Studio yet.</p>'}`); },
+    useFile: async d => { const f = (S.data.file || []).find(x => x.id === d.v); S.modal = null; if (S.tab !== 'editor') { S.tab = 'editor'; render(); } else render(); toast('Getting the file…', 0); try { const b = await getBlob(f); await addMedia(new File([b], f.name, { type: f.type }), f.id); } catch (e) { toast(esc(e.message)); } },
+    veMove: d => { const i = E.clips.findIndex(c => c.id === +d.v), j = i + +d.d; if (j < 0 || j >= E.clips.length) return; [E.clips[i], E.clips[j]] = [E.clips[j], E.clips[i]]; paintSide(); seek(E.t); },
+    veMute: d => { const c = E.clips.find(x => x.id === +d.v); c.mute = !c.mute; setVol(); paintSide(); },
+    veDel: d => { const i = E.clips.findIndex(c => c.id === +d.v); if (i < 0) return; pause(); E.clips.splice(i, 1); paintSide(); seek(Math.min(E.t, total())); },
+    veExport: exportVideo,
+    veCancel: () => { if (E.rec) { E.rec._cancel = true; } pause(); },
+    veDl: () => { download(S.lastExport.blob, S.lastExport.name); toast('Downloaded'); },
+    veSave: async () => { const x = S.lastExport; S.modal = null; render(); try { const id = await uploadFile(x.file, 'video', { dur: total() }); if (id && confirm('Saved to Studio. Plan a post with this video now?')) { S.tab = 'plan'; render(); postModal({ title: E.text.t || '', status: 'making', fileId: id, platforms: [] }); } } catch (e) { toast(esc(e.message)); } },
+  },
+});
+addEventListener('beforeunload', e => { if (E.clips.length) { e.preventDefault(); e.returnValue = ''; } });
+</script>
+</body>
+</html>
