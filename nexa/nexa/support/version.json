@@ -1,10 +1,10 @@
 {
- "version": "21.13",
+ "version": "21.14",
  "notes": [
-  "Nexa Team tick next to people who work on Nexa.",
-  "Nexa AI answers more reliably.",
-  "New Nexa Team jobs: Community Guide and Web Developer."
+  "Nexa Team tick next to team members everywhere.",
+  "Nexa AI fixed: it now runs on Nexa\u2019s server.",
+  "Apply to the Nexa Team right on the hiring page."
  ],
  "quiet": false,
- "display": "1.7.3"
+ "display": "1.7.4"
 }
