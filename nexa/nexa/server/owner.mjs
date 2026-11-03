@@ -292,6 +292,46 @@ export default async (req) => {
     d.bans = bans.docs.map(b => ({ id: b.id, ...b.data() }));
     return ok({ ...d, link, ui: uiOut(ui), me });
   }
+  // ---------- the Nexa Team: who's on it, and every message the support team sends (only the owner sees this)
+  if (body.action === 'team') {
+    const [lg, tm, sec] = await Promise.all([
+      db.collection('supportLog').orderBy('at', 'desc').limit(300).get().catch(() => ({ docs: [] })),
+      db.collection('users').where('team.since', '>', 0).limit(200).get().catch(() => ({ docs: [] })),
+      db.doc('supportSecrets/main').get().then(x => x.data() || {}).catch(() => ({})),
+    ]);
+    const log = lg.docs.map(d => d.data());
+    const ids = [...new Set(log.map(l => l.to).filter(Boolean))], profs = {};
+    await Promise.all(ids.map(async u => { const p = (await db.doc('users/' + u).get()).data() || {}; profs[u] = { name: p.name || 'Nexa user', handle: p.handle || '' }; }));
+    const now2 = Date.now(), agents = sec.agents || {};
+    const logins = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }, ...(sec.hired || []).filter(h => !h.removed)].map(a => ({ id: a.id, name: a.name, role: a.role || 'support', uid: a.uid || '', online: now2 - ((agents[a.id] || {}).seen || 0) < 3 * 60e3, seen: (agents[a.id] || {}).seen || 0, lastLogin: (agents[a.id] || {}).lastLogin || 0 }));
+    return ok({ log: log.map(l => ({ ...l, toUser: profs[l.to] || null })), members: tm.docs.map(d => { const p = d.data(); return { id: d.id, name: p.name || '', handle: p.handle || '', team: p.team }; }), logins });
+  }
+  // add someone to a team website yourself (no need to hire through Jobs first)
+  if (body.action === 'teamAdd') {
+    const h = String(body.handle || '').trim().toLowerCase().replace(/^@/, ''), site = String(body.site || 'support');
+    const ROLE = { support: 'support', community: 'community', studio: 'creative', devhub: 'webdev', tester: 'tester' }[site]; if (!ROLE) return json({ error: 'Pick a place' }, 400);
+    const hd = (await db.doc('handles/' + h).get()).data(); if (!hd?.uid) return json({ error: 'No one has the username @' + h }, 404);
+    const p = (await db.doc('users/' + hd.uid).get()).data() || {};
+    const NAMES = { support: 'Support & Safety', community: 'Community Guide', creative: 'Designer & Video Creator', webdev: 'Web Developer', tester: 'Tester' };
+    await db.doc('users/' + hd.uid).set({ team: { role: ROLE, name: NAMES[ROLE], since: Date.now() } }, { merge: true });
+    let login = null;
+    if (ROLE === 'support' || ROLE === 'community') {
+      const sr = db.doc('supportSecrets/main'), sec = (await sr.get()).data() || {}; const hired = [...(sec.hired || [])];
+      let rec = hired.find(x => x.uid === hd.uid);
+      if (!rec) { const base = String(p.name || h).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 14) || 'agent'; let id = base, n = 2; while (['shiv', 'arrick'].includes(id) || hired.some(x => x.id === id)) id = base + n++; rec = { id, name: String(p.name || h).trim().split(' ')[0].slice(0, 20), uid: hd.uid, role: ROLE, at: Date.now() }; hired.push(rec); }
+      rec.removed = false; const salt = crypto.randomBytes(16).toString('hex');
+      await sr.update({ hired, [`agents.${rec.id}`]: { salt, hash: crypto.pbkdf2Sync('nexasupport', salt, 3000, 32, 'sha256').toString('hex'), changed: Date.now(), v: 2, fails: 0, lockUntil: 0 } });
+      login = { site: 'Nexa Support', url: new URL('/support/', req.url).href, name: rec.name, password: 'nexasupport' };
+    }
+    return ok({ done: true, name: p.name || h, login });
+  }
+  if (body.action === 'teamRemove') {
+    const u = String(body.uid || ''); if (!/^[\w-]{1,128}$/.test(u)) return json({ error: 'Bad user' }, 400);
+    await db.doc('users/' + u).update({ team: admin.firestore.FieldValue.delete() }).catch(() => {});
+    const sr = db.doc('supportSecrets/main'), sec = (await sr.get()).data() || {};
+    if ((sec.hired || []).some(h => h.uid === u)) await sr.update({ hired: sec.hired.map(h => h.uid === u ? { ...h, removed: true } : h) });
+    return ok({ done: true });
+  }
   if (body.action === 'inbox') {
     const qs = await db.collection('conversations').where('members', 'array-contains', me).get();
     const convs = qs.docs.map(x => ({ id: x.id, ...x.data() })).filter(c => c.type === 'dm' && (c.last || c.help));

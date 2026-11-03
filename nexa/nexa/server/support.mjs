@@ -6,15 +6,20 @@
 import admin from './fbadmin.js';
 import { sendMail, smtpSettings, emailHtml } from './mail.mjs';
 import crypto from 'node:crypto';
+import { gemini } from './gemini.mjs';
 import { Buffer } from 'node:buffer';
 import { deliver, sendAs, warnUser, setReply, startStaffChat, ensureStaffHandle, startPushJob, runPushJob } from './owner.mjs';
 
 const SUPPORT_EMAIL = (process.env.SUPPORT_EMAIL || 'nexaconnectofficial@gmail.com').toLowerCase();
-const AGENTS = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }];
+const BASE_AGENTS = [{ id: 'shiv', name: 'Shiv' }, { id: 'arrick', name: 'Arrick' }];
+// people hired from Nexa Team applications get their own Nexa Support login (sec.hired)
+const HIRE_LOGIN_ROLES = ['support', 'community', 'moderator'];
+const TEAM_ROLES = { support: 'Support & Safety', community: 'Community Guide', moderator: 'Support & Safety', creative: 'Designer & Video Creator', tester: 'Tester', webdev: 'Web Developer' };
 // one-time team change (Oct 2026): Yaseen removed; Shiv and Arrick get the password the owner chose.
 // Only a salted hash is stored here — never the password itself. Everyone is signed out once.
 const PW_RESET = { id: 'team-2026-10c', salt: '2f865d00275042ba6c075e69ce1d31d8', hash: '090e4e4418298588931ce0bdfb8d4701c1bdbff2810ad5b418e21f7008016b4f' };
 const DEFAULT_PASSWORD = 'nexaofficial';
+const SITE_PASSWORD = 'nexasupport'; // starting password for people added to Nexa Support
 const DEFAULT_AUTO_REPLY = 'Thank you for reaching out to Nexa Support. The next Nexa Support agent will get back to you soon! Thank you for choosing Nexa 💙';
 const DOC = 'supportSecrets/main'; // no Firestore rule lets app users read this
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -60,18 +65,19 @@ export default async (req) => {
   }
   if (!sec || !sec.sessionKey) {
     // first time: everyone starts with the same password; each person changes theirs in Settings
-    const agents = {}; AGENTS.forEach(a => { const salt = crypto.randomBytes(16).toString('hex'); agents[a.id] = { salt, hash: hash(DEFAULT_PASSWORD, salt), changed: 0, v: 2 }; });
+    const agents = {}; BASE_AGENTS.forEach(a => { const salt = crypto.randomBytes(16).toString('hex'); agents[a.id] = { salt, hash: hash(DEFAULT_PASSWORD, salt), changed: 0, v: 2 }; });
     sec = { sessionKey: crypto.randomBytes(32).toString('hex'), agents, devices: {}, uid: me, createdAt: now };
     await ref.set(sec);
   }
   if (sec.uid !== me) await ref.update({ uid: me });
   if (sec.pwReset !== PW_RESET.id) {
     const upd = { pwReset: PW_RESET.id, sessionsFrom: now, 'agents.yaseen': admin.firestore.FieldValue.delete() };
-    upd.devices = Object.fromEntries(Object.entries(sec.devices || {}).filter(([, d]) => d && AGENTS.some(x => x.id === d.agent)));
-    AGENTS.forEach(a => { upd['agents.' + a.id] = { salt: PW_RESET.salt, hash: PW_RESET.hash, changed: now, v: 2, fails: 0, lockUntil: 0 }; });
+    upd.devices = Object.fromEntries(Object.entries(sec.devices || {}).filter(([, d]) => d && BASE_AGENTS.some(x => x.id === d.agent)));
+    BASE_AGENTS.forEach(a => { upd['agents.' + a.id] = { salt: PW_RESET.salt, hash: PW_RESET.hash, changed: now, v: 2, fails: 0, lockUntil: 0 }; });
     await ref.update(upd); sec = (await ref.get()).data();
   }
 
+  const AGENTS = [...BASE_AGENTS, ...((sec.hired || []).filter(a => a && a.id && !a.removed).map(a => ({ id: a.id, name: a.name, role: a.role, hired: true })))];
   if (body.action === 'status') {
     const link = await ensureStaffHandle(db, me, 'support', 'Nexa Support', 'Official Nexa Support — message us any time.');
     // the Nexa Support photo is always the Nexa logo
@@ -144,6 +150,7 @@ export default async (req) => {
     if (!text && !img) return json({ error: 'Type a message first' }, 400);
     await sendAs(db, me, body.cid, c, text, req, { agent: agent.name, staff: 'support', ...(img ? { images: [img] } : {}) });
     if (img && !text) await db.doc('conversations/' + body.cid).update({ 'last.text': '📷 Photo' }).catch(() => {});
+    db.collection('supportLog').add({ agent: agent.id, agentName: agent.name, cid: body.cid, to: (c.members || []).find(u => u !== me) || '', text: text.slice(0, 600), photo: !!img, at: now }).catch(() => {});
     const upd = { supportDone: 0 }; if (!c.claimedBy) upd.claimedBy = agent.name;
     await db.doc('conversations/' + body.cid).update(upd).catch(() => {});
     // team stats: replies per day, and how long people waited for an answer
@@ -158,6 +165,7 @@ export default async (req) => {
     if (!uidOk(body.uid)) return json({ error: 'Bad user' }, 400);
     const cid = await startStaffChat(db, me, body.uid, body.allowReply !== false);
     if (body.text) { const c = (await db.doc('conversations/' + cid).get()).data(); await sendAs(db, me, cid, c, String(body.text).trim().slice(0, 4000), req, { agent: agent.name, staff: 'support' }); }
+    if (body.text) db.collection('supportLog').add({ agent: agent.id, agentName: agent.name, cid, to: body.uid, text: String(body.text).trim().slice(0, 600), photo: false, at: now, started: true }).catch(() => {});
     return ok({ cid });
   }
   if (body.action === 'search') {
@@ -195,8 +203,31 @@ export default async (req) => {
     if (!ID.test(String(body.id || ''))) return json({ error: 'Bad application' }, 400);
     const st = ['new', 'talking', 'accepted', 'declined'].includes(body.status) ? body.status : 'new';
     const ar = db.doc('applications/' + body.id); if (!(await ar.get()).data()) return json({ error: 'Not found' }, 404);
+    const app = (await ar.get()).data() || {};
     await ar.update({ status: st, note: String(body.note ?? '').slice(0, 500), handledBy: agent.name, handledAt: now });
-    return ok({ done: true });
+    let login = null;
+    const role = TEAM_ROLES[app.role] ? app.role : '';
+    if (app.uid && role) {
+      if (st === 'accepted') {
+        // the Nexa Team tick next to their name, for everyone to see
+        await db.doc('users/' + app.uid).set({ team: { role: role === 'moderator' ? 'support' : role, name: TEAM_ROLES[role], since: now } }, { merge: true }).catch(() => {});
+        // Support / Community people help through this website, so they get their own login here
+        if (HIRE_LOGIN_ROLES.includes(role)) {
+          const hired = [...(sec.hired || [])]; let rec = hired.find(h => h.uid === app.uid);
+          const pw = SITE_PASSWORD; // everyone on the team signs in to Nexa Support with the same password (the owner chose this)
+          if (!rec) { const base = (String(app.name || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 14) || 'agent'); let id = base, n = 2; while (AGENTS.some(a => a.id === id) || hired.some(h => h.id === id)) id = base + n++; rec = { id, name: String(app.name || 'Agent').trim().split(' ')[0].slice(0, 20), uid: app.uid, role, at: now }; hired.push(rec); }
+          rec.removed = false; const salt = crypto.randomBytes(16).toString('hex');
+          await ref.update({ hired, [`agents.${rec.id}`]: { salt, hash: hash(pw, salt), changed: now, v: 2, fails: 0, lockUntil: 0 } });
+          login = { name: rec.name, password: pw, url: new URL('/support/', req.url).href };
+        }
+      } else if (app.status === 'accepted') {
+        // no longer on the team: tick and login removed
+        await db.doc('users/' + app.uid).update({ team: admin.firestore.FieldValue.delete() }).catch(() => {});
+        const hired = (sec.hired || []).map(h => h.uid === app.uid ? { ...h, removed: true } : h);
+        await ref.update({ hired }).catch(() => {}); // their sessions stop working because they're no longer in the team list
+      }
+    }
+    return ok({ done: true, login });
   }
   if (body.action === 'reports') {
     const qs = await db.collection('reports').orderBy('at', 'desc').limit(150).get().catch(() => ({ docs: [] }));
@@ -212,6 +243,11 @@ export default async (req) => {
     if (body.do === 'ban' && r.target) await db.doc('bans/' + r.target).set({ by: me, byName: agent.name, at: now, reason: String(body.reason || r.reason || 'Reported').slice(0, 200) });
     await rr.update({ resolved: body.do !== 'reopen', handledBy: agent.name, handledAt: now, action: body.do });
     return ok({ done: true });
+  }
+  // ---------- Nexa AI for the team (reply ideas, summaries, help writing)
+  if (body.action === 'ai') {
+    try { const out = await gemini({ system: 'You help the Nexa Support team (Nexa is a messaging app for friends, groups and communities). Be friendly, clear and short. Use simple words. Never ask anyone for passwords.\n' + String(body.system || '').slice(0, 4000), prompt: String(body.prompt || '').slice(0, 12000) }); return ok({ text: out.text }); }
+    catch (e) { return json({ error: e.message, code: e.code }, e.status || 502); }
   }
   // ---------- team tools
   if (body.action === 'typing') { const c = await myConv(body.cid); if (c) await db.doc('conversations/' + body.cid).update({ ['typing.' + me]: now }).catch(() => {}); return ok({ done: true }); }

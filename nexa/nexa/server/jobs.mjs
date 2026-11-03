@@ -6,7 +6,7 @@ import admin from './fbadmin.js';
 import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
 
-const ROLES = { support: 'Support Team', moderator: 'Moderator', creative: 'Designer & Video Creator', tester: 'Tester' };
+const ROLES = { support: 'Support & Safety', community: 'Community Guide', creative: 'Designer & Video Creator', webdev: 'Web Developer', tester: 'Tester', moderator: 'Support & Safety' };
 const AGES = ['13-15', '16-17', '18+'];
 const HOURS = ['1-2', '3-5', '6+'];
 const TEST = () => (process.env.JOBS_TEST || '') === '1';
