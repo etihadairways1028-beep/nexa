@@ -447,9 +447,10 @@ function vCompose() {
 }
 function vHireLogin() {
   const h = S.hireLogin, a = h.app || {};
-  const msgText = `Welcome to the Nexa Team, ${h.name}! 🎉\n\nYou help people through Nexa Support (not your normal Nexa chats).\n1. Open ${h.url}\n2. Pick “${h.name}”\n3. Password: ${h.password}\n\nOnly help people there, not in your normal Nexa chats. Keep this private. Thanks for joining!`;
+  const site = h.site || 'Nexa Support', isSup = !h.site;
+  const msgText = `Welcome to the Nexa Team, ${h.name}! 🎉\n\n${isSup ? 'You help people through Nexa Support (not your normal Nexa chats).' : 'Your team works in ' + site + '.'}\n1. Open ${h.url}\n2. Pick “${h.name}”\n3. Password: ${h.password}\n\n${isSup ? 'Only help people there, not in your normal Nexa chats. ' : ''}Keep this private. Thanks for joining!`;
   return `<div class="sx-ov"><div class="modal glass"><div style="font-size:40px;text-align:center">🎉</div><h2 class="disp" style="margin:0;font-size:24px;text-align:center">${esc(a.name || h.name)} is on the Nexa Team</h2>
-    <div class="mute small" style="text-align:center">They now have the Nexa Team tick, and their own Nexa Support login. Send them these details privately.</div>
+    <div class="mute small" style="text-align:center">They now have the Nexa Team tick, and their own ${esc(site)} login. Send them these details privately.</div>
     <div class="sx-quote" style="font-family:ui-monospace,monospace;white-space:pre-wrap;font-size:13.5px">Name: ${esc(h.name)}\nPassword: ${esc(h.password)}\nWebsite: ${esc(h.url)}</div>
     <div class="row" style="gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="hireCopy" data-text="${esc(msgText)}">Copy</button>${a.uid ? `<button class="btn pri" id="hireSend" data-uid="${esc(a.uid)}" data-name="${esc(a.name || '')}" data-text="${esc(msgText)}">${ic('send', 15)} Send to them in Nexa</button>` : ''}<button class="btn" id="hireClose">Done</button></div></div></div>`;
 }
