@@ -1,10 +1,10 @@
 {
- "version": "21.14",
+ "version": "21.15",
  "notes": [
-  "Nexa Team tick next to team members everywhere.",
-  "Nexa AI fixed: it now runs on Nexa\u2019s server.",
-  "Apply to the Nexa Team right on the hiring page."
+  "Richer Liquid Glass: texture, brighter edges, light that follows your mouse.",
+  "Springy motion: messages drop in, windows open softly.",
+  "Smooth on every computer: lighter glass when a computer can\u2019t keep up."
  ],
  "quiet": false,
- "display": "1.7.4"
+ "display": "1.7.5"
 }

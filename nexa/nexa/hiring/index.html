@@ -436,7 +436,7 @@ $('#apForm').addEventListener('submit', async e => {
   try {
     const tok = (be.auth.idToken && await be.auth.idToken()) || (be.kind === 'local' && user ? 'local:' + user.uid : '');
     const r = await fetch(api(), { method: 'POST', headers: { 'content-type': 'application/json', ...(tok ? { authorization: 'Bearer ' + tok } : {}) }, body: JSON.stringify(d) });
-    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Something went wrong. Please try again.');
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || (r.status >= 500 ? 'The server is busy. Please try again in a minute.' : 'Couldn’t send it (error ' + r.status + '). Please try again.'));
     $('#apForm').hidden = true; $('#apAcc').hidden = true; $('#apDone').hidden = false;
     $('#apDone').innerHTML = `<div class="big">🎉</div><h3 class="serif" style="font-size:38px;margin:6px 0">Application sent!</h3><p class="mute" style="font-size:17px">Your reference is <b style="color:var(--text)">${esc(j.ref)}</b>. We’ll reply in your Nexa chat with @owner within 7 days.</p><a class="btn pri" href="/">Open Nexa</a>`;
     $('#apDone').scrollIntoView({ behavior: 'smooth', block: 'center' });
