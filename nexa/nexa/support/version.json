@@ -1,13 +1,10 @@
 {
- "version": "21.12",
+ "version": "21.13",
  "notes": [
-  "The Nexa menu is back on every page.",
-  "Names and @usernames on every message.",
-  "@everyone and #channels in groups.",
-  "Banner videos on profiles.",
-  "Apply to the Nexa Team inside Nexa.",
-  "Nexa AI fixed."
+  "Nexa Team tick next to people who work on Nexa.",
+  "Nexa AI answers more reliably.",
+  "New Nexa Team jobs: Community Guide and Web Developer."
  ],
  "quiet": false,
- "display": "1.7.2"
+ "display": "1.7.3"
 }
