@@ -10,8 +10,9 @@ import quicklogin from '../../server/quicklogin.mjs';
 import passkey from '../../server/passkey.mjs';
 import files from '../../server/files.mjs';
 import jobs from '../../server/jobs.mjs';
+import ai from '../../server/ai.mjs';
 
-const HANDLERS = { notify, owner, support, music, avatar, turn, quicklogin, passkey, files, jobs };
+const HANDLERS = { notify, owner, support, music, avatar, turn, quicklogin, passkey, files, jobs, ai };
 
 export async function onRequest(ctx) {
   const h = HANDLERS[ctx.params.fn];
