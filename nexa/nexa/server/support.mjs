@@ -7,6 +7,7 @@ import admin from './fbadmin.js';
 import { sendMail, smtpSettings, emailHtml } from './mail.mjs';
 import crypto from 'node:crypto';
 import { gemini } from './gemini.mjs';
+import { addSiteLogin, removeSiteLogin, SITE_OF_ROLE } from './team.mjs';
 import { Buffer } from 'node:buffer';
 import { deliver, sendAs, warnUser, setReply, startStaffChat, ensureStaffHandle, startPushJob, runPushJob } from './owner.mjs';
 
@@ -219,12 +220,17 @@ export default async (req) => {
           rec.removed = false; const salt = crypto.randomBytes(16).toString('hex');
           await ref.update({ hired, [`agents.${rec.id}`]: { salt, hash: hash(pw, salt), changed: now, v: 2, fails: 0, lockUntil: 0 } });
           login = { name: rec.name, password: pw, url: new URL('/support/', req.url).href };
+        } else if (SITE_OF_ROLE[role]) {
+          // Designers & video creators → Nexa Studio, web developers → Nexa Dev Hub
+          const l = await addSiteLogin(db, SITE_OF_ROLE[role], { uid: app.uid, name: app.name });
+          if (l) login = { name: l.name, password: l.password, site: l.site, url: new URL(l.path, req.url).href };
         }
       } else if (app.status === 'accepted') {
         // no longer on the team: tick and login removed
         await db.doc('users/' + app.uid).update({ team: admin.firestore.FieldValue.delete() }).catch(() => {});
         const hired = (sec.hired || []).map(h => h.uid === app.uid ? { ...h, removed: true } : h);
         await ref.update({ hired }).catch(() => {}); // their sessions stop working because they're no longer in the team list
+        await removeSiteLogin(db, app.uid).catch(() => {});
       }
     }
     return ok({ done: true, login });

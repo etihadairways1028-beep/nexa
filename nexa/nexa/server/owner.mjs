@@ -2,6 +2,7 @@
 // Locked three ways: (1) signed in as OWNER_EMAIL with a verified email, (2) the owner PIN,
 // (3) a 6-digit code from an authenticator app (2-step verification). 5 wrong tries = locked for 15 minutes.
 // Shows how many people use Nexa and who they are (name, @username, email) — never passwords.
+import { addSiteLogin, removeSiteLogin, siteOverview, siteDecide } from './team.mjs';
 import admin from './fbadmin.js';
 import { sendMail, mailReady, emailHtml } from './mail.mjs';
 import crypto from 'node:crypto';
@@ -323,13 +324,17 @@ export default async (req) => {
       await sr.update({ hired, [`agents.${rec.id}`]: { salt, hash: crypto.pbkdf2Sync('nexasupport', salt, 3000, 32, 'sha256').toString('hex'), changed: Date.now(), v: 2, fails: 0, lockUntil: 0 } });
       login = { site: 'Nexa Support', url: new URL('/support/', req.url).href, name: rec.name, password: 'nexasupport' };
     }
+    if (site === 'studio' || site === 'devhub') { const l = await addSiteLogin(db, site, { uid: hd.uid, name: p.name || h }); if (l) login = { site: l.site, url: new URL(l.path, req.url).href, name: l.name, password: l.password }; }
     return ok({ done: true, name: p.name || h, login });
   }
+  if (body.action === 'sites') return ok(await siteOverview(db));
+  if (body.action === 'siteSet') { try { return ok(await siteDecide(db, body)); } catch (e) { return json({ error: e.message }, 400); } }
   if (body.action === 'teamRemove') {
     const u = String(body.uid || ''); if (!/^[\w-]{1,128}$/.test(u)) return json({ error: 'Bad user' }, 400);
     await db.doc('users/' + u).update({ team: admin.firestore.FieldValue.delete() }).catch(() => {});
     const sr = db.doc('supportSecrets/main'), sec = (await sr.get()).data() || {};
     if ((sec.hired || []).some(h => h.uid === u)) await sr.update({ hired: sec.hired.map(h => h.uid === u ? { ...h, removed: true } : h) });
+    await removeSiteLogin(db, u).catch(() => {});
     return ok({ done: true });
   }
   if (body.action === 'inbox') {
