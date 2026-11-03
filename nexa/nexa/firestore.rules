@@ -19,7 +19,10 @@ service cloud.firestore {
       // searches return at most 20 people, so friends are found by @handle or name.
       allow get: if signedIn();
       allow list: if signedIn() && request.query.limit <= 20;
-      allow create, update, delete: if signedIn() && me() == uid;
+      // the Nexa Team tick and staff badge can only be given by Nexa (the server), never by the person themselves
+      allow create: if signedIn() && me() == uid && !('team' in request.resource.data) && !('staff' in request.resource.data);
+      allow update: if signedIn() && me() == uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['team', 'staff']);
+      allow delete: if signedIn() && me() == uid;
       // Private prefs (nicknames, blocks, chat backgrounds, theme) — only you.
       match /private/{doc} {
         allow read, write: if signedIn() && me() == uid;
@@ -101,7 +104,8 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'roles', 'lastJoin'])
             && onlySelfChange('members')
             && request.resource.data.roles.get(me(), 'member') == 'member'
-            && get(/databases/$(database)/documents/groupInvites/$(request.resource.data.lastJoin)).data.convId == cid)
+            && get(/databases/$(database)/documents/groupInvites/$(request.resource.data.lastJoin)).data.convId == cid
+            && get(/databases/$(database)/documents/groupInvites/$(request.resource.data.lastJoin)).data.get('mode', 'open') == 'open')
         // joining a community channel: only adds yourself, and only if you're in the community
         || (resource.data.type == 'channel'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])

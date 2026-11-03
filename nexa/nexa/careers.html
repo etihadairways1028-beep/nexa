@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Careers at Nexa — Join the Nexa Team</title>
 <link rel="canonical" href="https://www.nexaconnect.qd.je/hiring/">
-<meta name="description" content="Volunteer with Nexa: Support Team, Moderators, Designers & Video Creators and Testers. Remote, flexible hours.">
+<meta name="description" content="Volunteer with Nexa: Support &amp; Safety, Community Guides, Designers &amp; Video Creators, Web Developers and Testers. Remote, flexible hours.">
 <meta name="theme-color" content="#09090F">
 <link rel="icon" href="/favicon-v4.png">
 <link rel="preload" href="/nexa-serif.woff2" as="font" type="font/woff2" crossorigin>
@@ -182,13 +182,19 @@ body{background:#07070D}
 .rv{opacity:0;transform:translateY(18px)}
 .rv.in{opacity:1;transform:none;transition:opacity .6s ease,transform .6s cubic-bezier(.2,1,.3,1)}
 @media (max-width:760px){.qa{grid-template-columns:1fr}.apflow{grid-template-columns:1fr}}
+
+.roles5{grid-template-columns:repeat(2,1fr)}.roles5 .role:last-child{grid-column:1/-1}
+.qa{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.ticker{display:flex;gap:16px;align-items:center;margin-top:18px;padding:18px 22px;border-radius:22px;background:var(--glass);border:1px solid var(--gline);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%)}
+.tickdemo{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:rgba(255,255,255,.08);flex:none;filter:drop-shadow(0 0 10px rgba(183,148,255,.6))}
+@media (max-width:760px){.roles5 .role:last-child{grid-column:auto}}
 </style>
 </head>
 <body><div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <header class="nav"><div class="wrap">
   <a class="brand" href="/"><img src="/icon-192-v4.png" alt="">nexa<small>Careers</small></a>
   <span class="sp"></span>
-  <a class="link" href="#roles">Open roles</a><a class="link" href="#how">How it works</a><a class="link" href="#match">Role quiz</a><a class="link" href="#faq">FAQ</a>
+  <a class="link" href="#roles">Open roles</a><a class="link" href="#how">How it works</a><a class="link" href="#tools">Tools</a><a class="link" href="#match">Role quiz</a><a class="link" href="#faq">FAQ</a>
   <a class="btn sm pri" href="#apply">Apply</a>
 </div></header>
 
@@ -203,7 +209,7 @@ body{background:#07070D}
   </div>
   <aside class="heroCard" aria-label="At a glance">
     <div class="eyebrow">At a glance</div>
-    <div class="row"><span class="mute">Open roles</span><b>4</b></div>
+    <div class="row"><span class="mute">Open roles</span><b>5</b></div>
     <div class="row"><span class="mute">Time</span><b>From 1–2 hours a week</b></div>
     <div class="row"><span class="mute">Where</span><b>Online, in Nexa</b></div>
     <div class="row"><span class="mute">Apply</span><b>In Nexa, to Nexa Support</b></div>
@@ -222,53 +228,73 @@ body{background:#07070D}
 </div></section>
 
 <section class="blk" id="roles"><div class="wrap">
-  <div class="head"><div class="eyebrow">Open roles</div><h2 class="serif">Find where you fit.</h2><p>All roles are volunteer, remote and flexible. You can apply for more than one.</p></div>
-  <div class="grid2">
-    <article class="role" style="--c:linear-gradient(90deg,#7FB2FF,#8C97FF)">
-      <div class="top"><div><div class="eyebrow">Community</div><h3>Support Team</h3></div><span class="tag">2–5 h / week</span></div>
-      <p class="mute" style="margin:0">Be the friendly voice of Nexa. Answer questions from people who message <b>@support</b> and help them get unstuck.</p>
-      <div class="sub">What you’ll do</div>
-      <ul><li>Reply to help chats in Nexa Support, kindly and clearly</li><li>Explain features and walk people through problems</li><li>Pass on bugs and ideas to the team</li></ul>
-      <div class="sub">You’ll be great if you</div>
-      <ul><li>Are patient and write clearly</li><li>Know Nexa well, or want to learn it inside out</li></ul>
-      <div class="meta"><span>📍 Remote</span><span>🗣️ English</span><a class="btn sm" href="/?help=jobs&amp;role=support" data-role="support">Apply in Nexa →</a></div>
-    </article>
-    <article class="role" style="--c:linear-gradient(90deg,#FF7AB6,#B794FF)">
-      <div class="top"><div><div class="eyebrow">Safety</div><h3>Moderator</h3></div><span class="tag">2–5 h / week</span></div>
-      <p class="mute" style="margin:0">Keep Nexa kind. Review reports and flagged messages and make fair decisions using the Nexa Rules.</p>
-      <div class="sub">What you’ll do</div>
-      <ul><li>Review reports and flagged messages</li><li>Warn people, and suggest bans for serious cases</li><li>Spot patterns and help improve the rules</li></ul>
-      <div class="sub">You’ll be great if you</div>
-      <ul><li>Stay calm and fair, even when people aren’t</li><li>Can keep private information private</li></ul>
-      <div class="meta"><span>📍 Remote</span><span>🔒 Confidential</span><a class="btn sm" href="/?help=jobs&amp;role=moderator" data-role="moderator">Apply in Nexa →</a></div>
-    </article>
-    <article class="role" style="--c:linear-gradient(90deg,#FFB86B,#FFE27A)">
-      <div class="top"><div><div class="eyebrow">Creative</div><h3>Designer &amp; Video Creator</h3></div><span class="tag">Flexible</span></div>
-      <p class="mute" style="margin:0">Make Nexa look and feel amazing, inside the app and on social media.</p>
-      <div class="sub">What you’ll do</div>
-      <ul><li>Make short videos and posts for TikTok, Reels and YouTube</li><li>Design stickers, avatar outfits, backgrounds and festival looks</li><li>Give feedback on new screens before they ship</li></ul>
-      <div class="sub">You’ll be great if you</div>
-      <ul><li>Have an eye for design or editing (any app is fine)</li><li>Can share a few things you’ve made</li></ul>
-      <div class="meta"><span>📍 Remote</span><span>🎨 Portfolio welcome</span><a class="btn sm" href="/?help=jobs&amp;role=creative" data-role="creative">Apply in Nexa →</a></div>
-    </article>
-    <article class="role" style="--c:linear-gradient(90deg,#7BF0B8,#7FB2FF)">
-      <div class="top"><div><div class="eyebrow">Product</div><h3>Tester</h3></div><span class="tag">1–3 h / week</span></div>
-      <p class="mute" style="margin:0">Try every update on the Nexa test site first and help us catch problems before everyone else sees them.</p>
-      <div class="sub">What you’ll do</div>
-      <ul><li>Test new updates on your phone or computer</li><li>Report bugs with clear steps and screenshots</li><li>Share honest feedback on what feels good and what doesn’t</li></ul>
-      <div class="sub">You’ll be great if you</div>
-      <ul><li>Notice small details</li><li>Have an iPhone, Android, iPad or computer (any is great)</li></ul>
-      <div class="meta"><span>📍 Remote</span><span>📱 Any device</span><a class="btn sm" href="/?help=jobs&amp;role=tester" data-role="tester">Apply in Nexa →</a></div>
-    </article>
-  </div>
+<div class="head"><div class="eyebrow">Open roles</div><h2 class="serif">Find where you fit.</h2><p>Five volunteer roles, all remote and flexible. You can apply for more than one.</p></div>
+<div class="grid2 roles5">
+<article class="role" style="--c:linear-gradient(90deg,#7FB2FF,#8C97FF)">
+<div class="top"><div><div class="eyebrow">Safety & help</div><h3>Support &amp; Safety</h3></div><span class="tag">2–5 h / week</span></div>
+<p class="mute" style="margin:0">Be the friendly, fair voice of Nexa. Help people in Nexa Support, and keep Nexa safe by reviewing reports and flagged messages.</p>
+<div class="sub">What you’ll do</div>
+<ul><li>Reply to help chats in the Nexa Support website</li><li>Review flagged messages and reports, and warn when needed</li><li>Pass bugs and ideas on to the team</li></ul>
+<div class="sub">You’ll be great if you</div>
+<ul><li>Are patient, calm and fair</li><li>Can keep private information private</li></ul>
+<div class="meta"><span>📍 Remote</span><span>🎧 Nexa Support website</span><a class="btn sm" href="/?help=jobs&amp;role=support" data-role="support">Apply in Nexa →</a></div>
+</article>
+<article class="role" style="--c:linear-gradient(90deg,#7BF0B8,#2FD4B4)">
+<div class="top"><div><div class="eyebrow">Community</div><h3>Community Guide</h3></div><span class="tag">2–4 h / week</span></div>
+<p class="mute" style="margin:0">Look after Nexa’s groups and communities so they feel welcoming and alive.</p>
+<div class="sub">What you’ll do</div>
+<ul><li>Welcome new people and start conversations</li><li>Run small events, games nights and challenges</li><li>Spot problems early and hand them to Support &amp; Safety</li></ul>
+<div class="sub">You’ll be great if you</div>
+<ul><li>Love bringing people together</li><li>Are kind, upbeat and organised</li></ul>
+<div class="meta"><span>📍 Remote</span><span>🌱 Groups &amp; communities</span><a class="btn sm" href="/?help=jobs&amp;role=community" data-role="community">Apply in Nexa →</a></div>
+</article>
+<article class="role" style="--c:linear-gradient(90deg,#FFB86B,#FFE27A)">
+<div class="top"><div><div class="eyebrow">Creative</div><h3>Designer &amp; Video Creator</h3></div><span class="tag">Flexible</span></div>
+<p class="mute" style="margin:0">Make Nexa look and feel amazing, inside the app and on social media.</p>
+<div class="sub">What you’ll do</div>
+<ul><li>Make short videos in the Nexa Studio and plan when they go out</li><li>Design stickers, avatar outfits, backgrounds and festival looks</li><li>Give feedback on new screens before they ship</li></ul>
+<div class="sub">You’ll be great if you</div>
+<ul><li>Have an eye for design or editing (any app is fine)</li><li>Can share a few things you’ve made</li></ul>
+<div class="meta"><span>📍 Remote</span><span>🎬 Nexa Studio</span><a class="btn sm" href="/?help=jobs&amp;role=creative" data-role="creative">Apply in Nexa →</a></div>
+</article>
+<article class="role" style="--c:linear-gradient(90deg,#B794FF,#FF7AB6)">
+<div class="top"><div><div class="eyebrow">Engineering</div><h3>Web Developer</h3></div><span class="tag">3–6 h / week</span></div>
+<p class="mute" style="margin:0">Help build Nexa’s websites and team tools with HTML, CSS and JavaScript.</p>
+<div class="sub">What you’ll do</div>
+<ul><li>Build and polish pages like this one, the Studio and Nexa Support</li><li>Fix bugs testers find, and make things faster</li><li>Review each other’s work in the Nexa Dev Hub</li></ul>
+<div class="sub">You’ll be great if you</div>
+<ul><li>Know some HTML, CSS and JavaScript</li><li>Like making things that work on every phone</li></ul>
+<div class="meta"><span>📍 Remote</span><span>💻 Nexa Dev Hub</span><a class="btn sm" href="/?help=jobs&amp;role=webdev" data-role="webdev">Apply in Nexa →</a></div>
+</article>
+<article class="role" style="--c:linear-gradient(90deg,#FF7AB6,#FFB86B)">
+<div class="top"><div><div class="eyebrow">Product</div><h3>Tester</h3></div><span class="tag">1–3 h / week</span></div>
+<p class="mute" style="margin:0">Try every update on the Nexa test site first and catch problems before everyone else sees them.</p>
+<div class="sub">What you’ll do</div>
+<ul><li>Test new updates on your phone or computer</li><li>Report bugs with clear steps and screenshots</li><li>Share honest feedback on what feels good and what doesn’t</li></ul>
+<div class="sub">You’ll be great if you</div>
+<ul><li>Notice small details</li><li>Have an iPhone, Android, iPad or computer (any is great)</li></ul>
+<div class="meta"><span>📍 Remote</span><span>📱 Any device</span><a class="btn sm" href="/?help=jobs&amp;role=tester" data-role="tester">Apply in Nexa →</a></div>
+</article>
+</div>
+</div></section>
+
+<section class="blk" id="tools"><div class="wrap">
+<div class="head"><div class="eyebrow">Your tools</div><h2 class="serif">Each role gets its own <i class="pz">home.</i></h2><p>The Nexa Team works in its own places, so your normal Nexa chats stay yours.</p></div>
+<div class="grid4">
+<div class="card"><div class="ico">🎧</div><h3>Nexa Support</h3><p>Support &amp; Safety and Community Guides help people here, with their own login. Help never happens in normal chats.</p></div>
+<div class="card"><div class="ico">🎬</div><h3>Nexa Studio</h3><p>Designers and video creators make videos, plan posts and share designs for the team to approve.</p></div>
+<div class="card"><div class="ico">💻</div><h3>Nexa Dev Hub</h3><p>Web developers pick up tasks, share their work and get it reviewed.</p></div>
+<div class="card"><div class="ico">🧪</div><h3>Test site</h3><p>Testers try every update first and report what they find.</p></div>
+</div>
+<div class="ticker"><span class="tickdemo"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2l2.4 1.8 3-.2 1 2.8 2.6 1.6-.7 2.9 1.2 2.7-2.4 1.8-.6 3-3 .1L13.6 21 12 22l-1.6-1-2.9-.4-.6-3-2.4-1.8 1.2-2.7-.7-2.9 2.6-1.6 1-2.8 3 .2z" fill="url(#tg2)"/><defs><linearGradient id="tg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7FB2FF"/><stop offset=".5" stop-color="#B794FF"/><stop offset="1" stop-color="#FF7AB6"/></linearGradient></defs><path d="M7.8 12.3l2.8 2.8 5.6-5.8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span><div><b>The Nexa Team tick</b><div class="mute" style="font-size:15px">Everyone you chat with sees the tick next to your name, so they know you’re on the team.</div></div></div>
 </div></section>
 
 <section class="blk" id="match"><div class="wrap">
 <div class="head"><div class="eyebrow">Role quiz</div><h2 class="serif">Not sure which role? <i class="pz">Ask Nexa.</i></h2><p>Three quick questions. No sign-in needed for this bit.</p></div>
 <div class="quiz glassq" id="quiz">
-<div class="qq" data-q="0"><div class="qn">1 of 3</div><h3>On a free afternoon you’d rather…</h3><div class="qa"><button data-s="support">Help a friend fix their phone</button><button data-s="creative">Edit a video or draw something</button><button data-s="tester">Try a new game and find its glitches</button><button data-s="moderator">Sort out an argument in the group chat</button></div></div>
-<div class="qq" data-q="1" hidden><div class="qn">2 of 3</div><h3>Your friends say you’re…</h3><div class="qa"><button data-s="support">Patient</button><button data-s="moderator">Fair</button><button data-s="creative">Creative</button><button data-s="tester">Detail-obsessed</button></div></div>
-<div class="qq" data-q="2" hidden><div class="qn">3 of 3</div><h3>Which would make you proudest?</h3><div class="qa"><button data-s="support">“Thanks, that fixed it!”</button><button data-s="tester">A bug fixed because you spotted it</button><button data-s="creative">Your video on Nexa’s channel</button><button data-s="moderator">A group that feels safe again</button></div></div>
+<div class="qq" data-q="0"><div class="qn">1 of 3</div><h3>On a free afternoon you’d rather…</h3><div class="qa"><button data-s="support">Help a friend fix their phone</button><button data-s="creative">Edit a video or draw something</button><button data-s="tester">Try a new game and find its glitches</button><button data-s="webdev">Build a little website or game</button><button data-s="community">Plan a games night for the group</button></div></div>
+<div class="qq" data-q="1" hidden><div class="qn">2 of 3</div><h3>Your friends say you’re…</h3><div class="qa"><button data-s="support">Patient</button><button data-s="community">Fun to be around</button><button data-s="creative">Creative</button><button data-s="tester">Detail-obsessed</button><button data-s="webdev">A problem-solver</button></div></div>
+<div class="qq" data-q="2" hidden><div class="qn">3 of 3</div><h3>Which would make you proudest?</h3><div class="qa"><button data-s="support">“Thanks, that fixed it!”</button><button data-s="tester">A bug fixed because you spotted it</button><button data-s="creative">Your video on Nexa’s channel</button><button data-s="webdev">A page you built, live for everyone</button><button data-s="community">A group chat that’s buzzing</button></div></div>
 <div class="qres" id="qres" hidden><div class="qn">Your match</div><div class="qbig serif" id="qname"></div><p class="mute" id="qwhy"></p><div class="ctas"><a class="btn pri" id="qgo" href="/?help=jobs">Apply in Nexa →</a><button class="btn" id="qagain" type="button">Try again</button></div></div>
 <div class="qbar"><i id="qprog"></i></div>
 </div>
@@ -330,7 +356,7 @@ body{background:#07070D}
 <script>
 (() => {
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const R = { support: ['Support Team', 'You’re patient and you like helping people get unstuck. People who message Nexa Support would love you.'], moderator: ['Moderator', 'You’re calm and fair. You’d help keep every group on Nexa kind and safe.'], creative: ['Designer & Video Creator', 'You love making things look and feel amazing. Nexa’s videos, stickers and looks need you.'], tester: ['Tester', 'You notice the little things. You’d catch problems before anyone else sees them.'] };
+const R = { support: ['Support & Safety', 'You’re patient and fair. You’d help people who need Nexa Support, and keep Nexa safe.'], community: ['Community Guide', 'You bring people together. Nexa’s groups and communities would come alive with you.'], webdev: ['Web Developer', 'You like building things. You’d help make Nexa’s websites and tools.'], creative: ['Designer & Video Creator', 'You love making things look and feel amazing. Nexa’s videos, stickers and looks need you.'], tester: ['Tester', 'You notice the little things. You’d catch problems before anyone else sees them.'] };
 const pts = {}; let q = 0;
 const show = () => { $$('.qq').forEach((el, i) => el.hidden = i !== q); $('#qprog').style.width = (q / 3 * 100) + '%'; };
 $$('.qa button').forEach(b => b.addEventListener('click', () => {
