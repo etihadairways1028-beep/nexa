@@ -5,6 +5,7 @@
 import admin from './fbadmin.js';
 import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
+import { sendAs } from './owner.mjs';
 
 const ROLES = { support: 'Support & Safety', community: 'Community Guide', creative: 'Designer & Video Creator', webdev: 'Web Developer', tester: 'Tester', moderator: 'Support & Safety' };
 const AGES = ['13-15', '16-17', '18+'];
@@ -59,7 +60,24 @@ export default async (req, ctx = {}) => {
 
   const uid = who;
   const ref = /^NX-[A-Z0-9]{4,12}$/.test(String(b.ref || '')) ? String(b.ref) : 'NX-' + now.toString(36).toUpperCase().slice(-6) + crypto.randomBytes(2).toString('hex').toUpperCase();
-  const conv = /^[\w-]{1,128}$/.test(String(b.conv || '')) ? String(b.conv) : '';
+  let conv = /^[\w-]{1,128}$/.test(String(b.conv || '')) ? String(b.conv) : '';
+  const prof = (await db.doc('users/' + uid).get()).data() || {};
+  if (!a.handle) a.handle = String(prof.handle || '');
+  // sent from the hiring page: deliver it to @owner as a chat message from the applicant (the app does this itself)
+  if (!conv && b.fromWeb) {
+    try {
+      const owner = (await db.doc('handles/owner').get()).data()?.uid;
+      if (owner && owner !== uid) {
+        const cid = 'dm_' + [uid, owner].sort().join('__'), cr = db.doc('conversations/' + cid);
+        let c = (await cr.get()).data();
+        if (!c) { c = { type: 'dm', members: [uid, owner].sort(), createdAt: now, reads: {}, typing: {} }; await cr.set(c); }
+        const AGE_N = { '13-15': '13–15', '16-17': '16–17', '18+': '18+' }, HRS_N = { '1-2': '1–2 hours a week', '3-5': '3–5 hours a week', '6+': '6+ hours a week' };
+        const text = [`📋 Nexa Team application · ${ref}`, `Role: ${ROLES[a.role]}`, `Name: ${a.name}`, `Age: ${AGE_N[a.age]} · Time: ${HRS_N[a.hours]}`, a.email ? `Email: ${a.email}` : '', '', `Why: ${a.why}`, a.links ? `Links: ${a.links}` : '', '', `✓ Volunteer role${a.age !== '18+' ? ' · ✓ Parent/guardian OK' : ''} · ✓ Terms · sent from the hiring page`].filter((x, i, A) => x || (A[i - 1] && A[i - 1] !== '')).join('\n');
+        await sendAs(db, uid, cid, c, text, req);
+        conv = cid;
+      }
+    } catch (e) { /* the application is still saved for Nexa Support › Jobs */ }
+  }
   await db.collection('applications').add({ ...a, roleName: ROLES[a.role], uid, conv, parentOk: !!b.parent, ref, status: 'new', at: now });
   return json({ ok: true, ref });
 };
