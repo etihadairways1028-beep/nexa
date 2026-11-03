@@ -1,2 +1,10 @@
 # Invite links like /@anisha open the app
 /@*  /  200
+
+# Nexa team websites
+/studio/*  /videoeditor/  301
+/studio  /videoeditor/  301
+/designer/*  /videoeditor/  301
+/designer  /videoeditor/  301
+/devhub/*  /webdev/  301
+/devhub  /webdev/  301

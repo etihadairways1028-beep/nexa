@@ -8,10 +8,10 @@ const NOTES = ["The Nexa menu is back on every page.", "Names and @usernames on 
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '80';
+const CACHE = PREFIX + '81';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
-const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|hiring|__seen)(\/|$)|^\/(test\/)?(manifest\.webmanifest|careers\.html|terms\.html|privacy\.html)$/; // always straight from the server
+const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|hiring|videoeditor|webdev|designer|studio|devhub|team|__seen)(\/|$)|^\/(test\/)?(manifest\.webmanifest|careers\.html|terms\.html|privacy\.html)$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
