@@ -1,17 +1,18 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '21.15';
+const VERSION = '21.19';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
-const QUIET = false;
-const NOTES = ["Richer Liquid Glass: texture, brighter edges, light that follows your mouse.", "Springy motion: messages drop in, windows open softly.", "Smooth on every computer: lighter glass when a computer can’t keep up."];
+const QUIET = true;
+const DISPLAY = '1.8.2'; // the version people see (small update: last number, e.g. 1.7.6 · big update: 1.8.0)
+const NOTES = ["New see-through Liquid Glass in Nexa.", "Smoother, calmer motion everywhere.", "Join the Nexa Crew: apply for a role at nexaconnect.qd.je/crew."];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '83';
+const CACHE = PREFIX + '87';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
-const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|hiring|videoeditor|webdev|designer|studio|devhub|team|__seen)(\/|$)|^\/(test\/)?(manifest\.webmanifest|careers\.html|terms\.html|privacy\.html)$/; // always straight from the server
+const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|hiring|crew|videoeditor|webdev|designer|studio|devhub|team|__seen)(\/|$)|^\/(test\/)?(manifest\.webmanifest|careers\.html|glass4\.js|terms\.html|privacy\.html)$/; // always straight from the server
 self.addEventListener('install', e => e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
@@ -38,7 +39,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('message', e => {
   const d = e.data || {};
   if (d.type === 'clear' && d.tag) e.waitUntil(self.registration.getNotifications({ tag: d.tag }).then(ns => ns.forEach(n => n.close())));
-  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, notes: NOTES, quiet: QUIET, test: TEST });
+  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage({ version: VERSION, display: DISPLAY, notes: NOTES, quiet: QUIET, test: TEST });
   if (d.type === 'skipWaiting') self.skipWaiting();
   if (d.type === 'fest') festOff = !d.k;
 });

@@ -5,6 +5,7 @@ export const S = { tab: 'home', data: null, modal: null, ai: { open: false, msgs
 let CFG = null, root = null, lastJson = '', pollT = 0;
 const LS = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
 const skey = () => 'nexa.team.' + CFG.site;
+export const sessionTok = () => LS.get(skey()) || '';
 
 export const ic = n => ({
   home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -84,6 +85,21 @@ export function makeThumb(file) {
     else res('');
   });
 }
+// a small zip maker (no compression), so AI changes download as one file
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+export function makeZip(files) {
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  for (const f of files) {
+    const name = enc.encode(f.path), data = typeof f.code === 'string' ? enc.encode(f.code) : f.code, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    cen.push(new Uint8Array(c.buffer), name); off += 30 + name.length + data.length;
+  }
+  const cs = cen.reduce((a, b) => a + b.length, 0), e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
 export function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
 export const pickFile = (accept, multiple) => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.accept = accept || ''; i.multiple = !!multiple; i.onchange = () => res([...i.files]); i.click(); });
 
@@ -108,14 +124,16 @@ function paintChat() {
   if (near || !el.dataset.done) { el.scrollTop = el.scrollHeight; el.dataset.done = 1; }
 }
 export const linkify = s => s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
-export const md = s => esc(s).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => `<pre class="k-code"><code>${c}</code></pre>`).replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/^#{1,4} (.+)$/gm, '<b>$1</b>').replace(/^[-*] (.+)$/gm, '• $1').replace(/\n/g, '<br>').replace(/<pre class="k-code"><code>([\s\S]*?)<\/code><\/pre>/g, m => m.replace(/<br>/g, '\n'));
+export const md = s => { const raw = [...String(s).matchAll(/```(\w*)\n?([\s\S]*?)```/g)]; let k = 0; return esc(s).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => { const r = raw[k++] || [, l, c]; const i = (S.codes = S.codes || []).push({ lang: (r[1] || '').toLowerCase(), code: r[2] }) - 1; return `<div class="k-codewrap"><div class="k-codebar"><span>${esc(r[1] || 'code')}</span><button data-a="codeCopy" data-v="${i}">Copy</button><button data-a="codeDl" data-v="${i}">Download</button>${CFG?.codeAction ? CFG.codeAction(i, (r[1] || '').toLowerCase()) : ''}</div><pre class="k-code"><code>${c}</code></pre></div>`; }).replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/^#{1,4} (.+)$/gm, '<b>$1</b>').replace(/^[-*] (.+)$/gm, '• $1').replace(/\n/g, '<br>').replace(/<pre class="k-code"><code>([\s\S]*?)<\/code><\/pre>/g, m => m.replace(/<br>/g, '\n')).replace(/<\/div><br>/g, '</div>'); };
 
 // ---------- Nexa AI drawer
 function vAI() {
-  const A = S.ai; if (!A.open) return '';
-  return `<div class="k-ai glass" role="dialog" aria-label="Nexa AI"><div class="k-aihead"><span class="k-aiorb">${icon('spark', 18)}</span><div><b>Nexa AI</b><div class="mute small">${esc(CFG.aiHint)}</div></div><button class="k-x" data-a="aiClose" aria-label="Close">${icon('x', 18)}</button></div>
-  <div class="k-aistream" id="aistream">${A.msgs.length ? A.msgs.map(m => `<div class="k-aim ${m.role}">${m.role === 'user' ? esc(m.text) : md(m.text)}</div>`).join('') : `<div class="mute small" style="padding:4px 2px 10px">Try one:</div>${CFG.aiStarters.map(q => `<button class="k-starter" data-a="aiAsk" data-v="${esc(q)}">${esc(q)}</button>`).join('')}`}${A.busy ? '<div class="k-aim model"><span class="k-dots"><i></i><i></i><i></i></span></div>' : ''}</div>
-  <form class="k-comp" id="f-ai"><input class="k-in" id="aiq" placeholder="Ask Nexa AI" autocomplete="off"><button class="k-send" aria-label="Ask">${icon('send', 18)}</button></form></div>`;
+  const A = S.ai; if (!A.open) return ''; S.codes = [];
+  const msgs = A.msgs.map((m, i) => m.role === 'user' ? `<div class="k-aim user">${esc(m.text)}</div>` : `<div class="k-airow"><span class="k-aiav">${icon('spark', 14)}</span><div class="k-aim model">${md(m.text)}<div class="k-aitools"><button data-a="aiCopy" data-v="${i}" title="Copy">Copy</button><button data-a="aiAgain" data-v="${i}" title="Ask again">↻ Again</button></div></div></div>`).join('');
+  return `<div class="k-ai glass" role="dialog" aria-label="Nexa AI"><div class="k-aihead"><span class="k-aiorb big"><i></i>${icon('spark', 20)}</span><div><b style="font-size:16px">Nexa AI</b><div class="mute small">${esc(CFG.aiHint)}</div></div>${A.msgs.length ? `<button class="k-x" data-a="aiNew" title="New chat" aria-label="New chat">${icon('plus', 18)}</button>` : ''}<button class="k-x" data-a="aiClose" aria-label="Close">${icon('x', 18)}</button></div>
+  <div class="k-aistream" id="aistream">${A.msgs.length ? msgs : `<div class="k-aiwelcome"><span class="k-aiorb huge"><i></i>${icon('spark', 30)}</span><b>How can I help?</b><span class="mute small">${esc(CFG.aiWelcome || 'Ask anything. I know how Nexa works.')}</span></div><div class="k-starters">${CFG.aiStarters.map(q => `<button class="k-starter" data-a="aiAsk" data-v="${esc(q)}">${icon('spark', 14)}<span>${esc(q)}</span></button>`).join('')}</div>`}${A.busy ? '<div class="k-airow"><span class="k-aiav spin">' + icon('spark', 14) + '</span><div class="k-aim model think"><span class="k-shimmer">Thinking…</span></div></div>' : ''}</div>
+  <form class="k-aicomp" id="f-ai"><textarea class="k-in" id="aiq" rows="1" placeholder="Ask Nexa AI…" autocomplete="off"></textarea><button class="k-send" aria-label="Ask" ${A.busy ? 'disabled' : ''}>${icon('send', 18)}</button></form></div>
+  <div class="k-aiveil" data-a="aiClose"></div>`;
 }
 export async function askAI(q, opts = {}) {
   const A = S.ai; if (!opts.silent) { A.open = true; A.msgs.push({ role: 'user', text: q }); A.busy = true; render(); }
@@ -151,17 +169,24 @@ function vShell() {
   <main class="k-main"><div class="k-top"><span class="k-logo sm k-mob">${CFG.emoji}</span><b class="k-mob">${esc(tab.label)}</b><span style="flex:1"></span><button class="k-btn ai" data-a="aiOpen">${icon('spark', 18)} Nexa AI</button></div>
     <div class="k-page k-enter" data-key="${tab.id}">${tab.id === 'files' ? vFiles() : tab.id === 'chat' ? vChat() : tab.view(S)}</div></main>
   <nav class="k-tabbar glass">${CFG.tabs.filter(t => !t.desktopOnly).slice(0, 5).map(t => `<button class="${t.id === tab.id ? 'on' : ''}" data-a="tab" data-v="${t.id}">${icon(t.icon, 22)}<span>${esc(t.short || t.label)}</span></button>`).join('')}</nav>
-  ${vAI()}${S.modal ? `<div class="k-modal" data-a="modalBg"><div class="k-mcard glass" role="dialog">${S.modal.html()}</div></div>` : ''}</div>`;
+  ${S.ai.open ? '' : `<button class="k-fab" data-a="aiOpen" aria-label="Open Nexa AI"><span class="k-aiorb big"><i></i>${icon('spark', 22)}</span></button>`}${vAI()}${S.modal ? `<div class="k-modal" data-a="modalBg"><div class="k-mcard glass" role="dialog">${S.modal.html()}</div></div>` : ''}</div>`;
 }
 let lastTab = '';
+// things that were already on screen don't play their opening animation again on every refresh
+const STILL = ['.k-ai', '.k-aiveil', '.k-modal', '.k-fab'];
+const stillBefore = () => ({ had: STILL.filter(q => root.querySelector(q)), rows: root.querySelectorAll('.k-ai .k-airow').length });
+const stillAfter = b => { b.had.forEach(q => root.querySelectorAll(q).forEach(e => e.classList.add('k-still'))); if (b.had.includes('.k-ai')) [...root.querySelectorAll('.k-ai .k-airow')].slice(b.rows).forEach(e => e.classList.add('k-new')); };
 export function render() {
   if (!root) return;
+  const sb = stillBefore(); try { render0(); } finally { stillAfter(sb); }
+}
+function render0() {
   if (!LS.get(skey()) || !S.data) { root.innerHTML = vLogin(); if (!S.login) loadNames(); return; }
   const tab = CFG.tabs.find(t => t.id === S.tab) || CFG.tabs[0];
   if (tab.live && lastTab === tab.id && root.querySelector('.k-page')) {
     // a live tab (like the video editor) keeps its DOM: only refresh the overlays
-    root.querySelectorAll('.k-ai,.k-modal').forEach(e => e.remove());
-    root.querySelector('.k-shell').insertAdjacentHTML('beforeend', vAI() + (S.modal ? `<div class="k-modal" data-a="modalBg"><div class="k-mcard glass" role="dialog">${S.modal.html()}</div></div>` : ''));
+    root.querySelectorAll('.k-ai,.k-aiveil,.k-modal,.k-fab').forEach(e => e.remove());
+    root.querySelector('.k-shell').insertAdjacentHTML('beforeend', (S.ai.open ? '' : `<button class="k-fab" data-a="aiOpen" aria-label="Open Nexa AI"><span class="k-aiorb big"><i></i>${icon('spark', 22)}</span></button>`) + vAI() + (S.modal ? `<div class="k-modal" data-a="modalBg"><div class="k-mcard glass" role="dialog">${S.modal.html()}</div></div>` : ''));
     S.modal?.after && S.modal.after(); return;
   }
   const same = lastTab === tab.id; root.innerHTML = vShell(); if (same) root.querySelector('.k-page')?.classList.remove('k-enter');
@@ -203,12 +228,17 @@ const common = {
   aiOpen: () => { S.ai.open = !S.ai.open; render(); setTimeout(() => document.getElementById('aiq')?.focus(), 30); },
   aiClose: () => { S.ai.open = false; render(); },
   aiAsk: d => askAI(d.v),
+  aiNew: () => { S.ai.msgs = []; render(); setTimeout(() => document.getElementById('aiq')?.focus(), 30); },
+  aiCopy: async d => { try { await navigator.clipboard.writeText(S.ai.msgs[+d.v].text); toast('Copied'); } catch { toast('Couldn’t copy'); } },
+  aiAgain: d => { const i = +d.v, q = [...S.ai.msgs.slice(0, i)].reverse().find(m => m.role === 'user'); if (!q) return; S.ai.msgs = S.ai.msgs.slice(0, i - 1); askAI(q.text); },
   ff: d => { S.ff = d.v; render(); },
   upload: async () => { const fs = await pickFile(CFG.accept || '', true); for (const f of fs) await uploadFile(f, CFG.site).catch(e => toast(esc(e.message))); },
   openFile: d => fileModal(d.v),
   dlFile: async d => { const f = S.data.file.find(x => x.id === d.v); toast('Getting the file…', 0); try { download(await getBlob(f), f.name); toast('Downloaded'); } catch (e) { toast(esc(e.message)); } },
   delFile: async d => { if (!confirm('Delete this file for everyone?')) return; await api('del', { kind: 'file', id: d.v }); S.modal = null; await reload(true); toast('Deleted'); },
   close: () => closeModal(),
+  codeCopy: async d => { try { await navigator.clipboard.writeText(S.codes[+d.v].code); toast('Copied'); } catch { toast('Couldn’t copy'); } },
+  codeDl: d => { const c = S.codes[+d.v], ext = { html: 'html', css: 'css', js: 'js', javascript: 'js', json: 'json', py: 'py', python: 'py', ts: 'ts', mjs: 'mjs', md: 'md' }[c.lang] || 'txt'; download(new Blob([c.code], { type: 'text/plain' }), 'nexa-ai.' + ext); },
   modalBg: (d, e) => { if (e.target.classList.contains('k-modal')) closeModal(); },
 };
 async function onSubmit(e) {
@@ -235,6 +265,8 @@ export function boot(cfg) {
     fn(el.dataset, e, el);
   });
   root.addEventListener('submit', onSubmit);
+  root.addEventListener('keydown', e => { if (e.target.id === 'aiq' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form.requestSubmit(); } });
+  root.addEventListener('input', e => { if (e.target.id === 'aiq') { e.target.style.height = 'auto'; e.target.style.height = Math.min(160, e.target.scrollHeight) + 'px'; } });
   root.addEventListener('input', e => CFG.onInput && CFG.onInput(e));
   root.addEventListener('change', e => CFG.onChange && CFG.onChange(e));
   // drop files anywhere
@@ -292,7 +324,7 @@ label.k-lab{display:block;font-size:13px;color:var(--mute);margin:12px 0 6px;fon
 .k-navb:hover{background:rgba(255,255,255,.07)}.k-navb.on{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
 .k-badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:99px;background:var(--ac2);color:#1A0A12;font-size:12px;font-weight:800;display:grid;place-items:center}
 .k-sidefoot{margin-top:auto}.k-online{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}.k-on{position:relative}.k-on::after{content:"";position:absolute;right:0;bottom:0;width:9px;height:9px;border-radius:50%;background:#5BE3A4;border:2px solid #15151d}
-.k-main{flex:1;min-width:0;padding:12px 24px 40px}
+.k-main{flex:1;min-width:0;padding:12px 24px 100px}
 .k-top{display:flex;align-items:center;gap:10px;height:56px;position:sticky;top:0;z-index:5}
 .k-mob{display:none}.k-page{max-width:1180px}
 .k-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:6px 0 18px;flex-wrap:wrap}.k-head p{margin:4px 0 0}
@@ -331,6 +363,7 @@ label.k-lab{display:block;font-size:13px;color:var(--mute);margin:12px 0 6px;fon
 .k-aistream{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 .k-aim{padding:10px 14px;border-radius:16px;line-height:1.5;overflow-wrap:anywhere;font-size:14.5px}.k-aim.user{align-self:flex-end;background:rgba(140,151,255,.3);max-width:85%}.k-aim.model{background:rgba(255,255,255,.07);border:1px solid var(--line)}
 .k-starter{display:block;width:100%;text-align:left;padding:10px 14px;border-radius:14px;border:1px solid var(--line2);background:rgba(255,255,255,.05);cursor:pointer;margin-bottom:6px;font-size:14px}.k-starter:hover{background:rgba(255,255,255,.1)}
+.k-codewrap{margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid var(--line)}.k-codebar{display:flex;gap:6px;align-items:center;padding:6px 8px;background:rgba(255,255,255,.06);font-size:12px}.k-codebar span{flex:1;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.06em}.k-codebar button{height:26px;padding:0 10px;border-radius:99px;border:1px solid var(--line2);background:rgba(255,255,255,.08);cursor:pointer;font-size:12px;font-weight:700}.k-codewrap .k-code{border-radius:0;margin:0;max-height:320px}
 .k-code{background:rgba(0,0,0,.45);padding:10px 12px;border-radius:12px;overflow-x:auto;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre}code{font:13px ui-monospace,Menlo,Consolas,monospace;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:6px}.k-code code{background:none;padding:0}
 .k-dots{display:inline-flex;gap:4px}.k-dots i{width:7px;height:7px;border-radius:50%;background:#ccc;animation:kdot 1s infinite}.k-dots i:nth-child(2){animation-delay:.15s}.k-dots i:nth-child(3){animation-delay:.3s}@keyframes kdot{50%{opacity:.25;transform:translateY(-3px)}}
 /* modal */
@@ -349,5 +382,143 @@ label.k-lab{display:block;font-size:13px;color:var(--mute);margin:12px 0 6px;fon
   .k-chat{height:calc(100vh - 250px)}.k-ai{top:12px;bottom:12px;right:12px;width:calc(100vw - 24px)}
   .k-grid{grid-template-columns:repeat(2,1fr);gap:10px}
 }
+
+/* ===== Liquid Glass 2 ===== */
+.k-bg{background:radial-gradient(120% 90% at 50% 120%,#1a0f3d,#07051a 62%)!important}
+.k-bg i{filter:blur(40px)!important;opacity:.85!important}
+.k-bg i:nth-child(1){width:720px!important;height:720px!important;left:-220px!important;top:-260px!important;background:radial-gradient(circle at 45% 45%,#8a6bff,#5232e8 40%,rgba(60,20,180,0) 70%)!important}
+.k-bg i:nth-child(2){width:600px!important;height:600px!important;right:-160px!important;top:-170px!important;left:auto!important;background:radial-gradient(circle,#ff6aa8,#d2177d 42%,rgba(160,0,90,0) 70%)!important}
+.k-bg i:nth-child(3){width:820px!important;height:820px!important;left:30%!important;bottom:-560px!important;top:auto!important;background:radial-gradient(circle,#28e0bb,#0b9b8e 40%,rgba(0,90,90,0) 70%)!important;opacity:.6!important}
+.k-bg i:nth-child(4){width:220px;height:220px;left:54%;top:16%;background:radial-gradient(circle at 34% 30%,#fff3c4,#ffc24d 30%,#ff7a2f 62%,rgba(255,100,0,0) 72%);filter:blur(2px)!important;opacity:.7!important;animation-duration:30s}
+.k-bg i:nth-child(5){width:130px;height:130px;left:82%;top:62%;background:radial-gradient(circle at 34% 30%,#e0f3ff,#79b8ff 35%,#3a5bff 62%,rgba(0,0,255,0) 72%);filter:blur(1px)!important;opacity:.7!important;animation-duration:26s}
+.k-bg b{position:absolute;left:-10%;width:120%;top:58%;height:80px;transform:rotate(-9deg);border-radius:99px;background:linear-gradient(90deg,#ff5fa2,#ffa94d,#ffe066,#5ef2b5,#5aa8ff,#a98bff,#ff5fa2);opacity:.45;filter:blur(18px);animation:kribbon 18s ease-in-out infinite alternate}
+.k-bg s{position:absolute;inset:0;opacity:.08;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes kribbon{to{transform:rotate(-6deg) translateY(-30px)}}
+/* glass: tint + light + a bright rim that catches the light */
+.glass{isolation:isolate}
+.glass:not(.k-ai):not(.k-tabbar):not(.k-side){position:relative}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.2px;pointer-events:none;z-index:-1;background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(255,255,255,.12) 30%,rgba(255,255,255,0) 55%,rgba(160,190,255,.4) 78%,rgba(255,150,210,.75));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.glass{border-color:transparent!important}
+.k-lens .glass[data-klens]{backdrop-filter:var(--klens,none) blur(18px) saturate(185%) brightness(1.06)!important}
+/* motion: things arrive softly, one after another */
+.k-cards>*,.k-grid>*,.board>*{animation:kin .45s cubic-bezier(.22,1.3,.36,1) both}
+.k-cards>*:nth-child(2),.k-grid>*:nth-child(2),.board>*:nth-child(2){animation-delay:.04s}.k-cards>*:nth-child(3),.k-grid>*:nth-child(3),.board>*:nth-child(3){animation-delay:.08s}.k-cards>*:nth-child(4),.k-grid>*:nth-child(4),.board>*:nth-child(4){animation-delay:.12s}.k-cards>*:nth-child(n+5),.k-grid>*:nth-child(n+5),.board>*:nth-child(n+5){animation-delay:.16s}
+.k-page:not(.k-enter) .k-cards>*,.k-page:not(.k-enter) .k-grid>*,.k-page:not(.k-enter) .board>*{animation:none}
+.k-file,.k-card,.pcard,.tcard,.next{transition:transform .45s cubic-bezier(.22,1.3,.36,1),box-shadow .3s,background .3s}
+.k-file:hover,.k-card.bcard:hover{transform:translateY(-4px) scale(1.01)}
+.k-navb{transition:background .25s,transform .4s cubic-bezier(.22,1.3,.36,1)}.k-navb:active{transform:scale(.96)}
+.k-navb.on{background:linear-gradient(135deg,rgba(140,151,255,.28),rgba(255,143,177,.18))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 6px 18px -10px rgba(160,130,255,.8)!important}
+.k-btn.pri{background:linear-gradient(180deg,#fff,#e9e6f2);box-shadow:inset 0 -2px 0 rgba(0,0,0,.08),0 10px 26px -10px rgba(255,255,255,.55)}
+.k-btn.ai{position:relative;overflow:hidden}.k-btn.ai::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 48%,transparent 66%);transform:translateX(-120%);transition:transform .8s}.k-btn.ai:hover::after{transform:translateX(120%)}
+.k-in{background:rgba(0,0,0,.3);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+/* ===== Nexa AI, redesigned ===== */
+.k-ai{width:min(460px,calc(100vw - 32px))!important;top:16px!important;border-radius:28px!important;animation:kaiIn .45s cubic-bezier(.22,1.3,.36,1) both!important}
+@keyframes kaiIn{from{opacity:0;transform:translateX(30px) scale(.97)}}
+.k-aiveil{position:fixed;inset:0;z-index:39;background:rgba(5,5,14,.25);backdrop-filter:blur(2px);animation:kfade .25s}
+@media (min-width:1300px){.k-aiveil{display:none}}
+.k-aihead{padding:16px 16px 12px!important;border-bottom:1px solid rgba(255,255,255,.08)!important;gap:12px!important}
+.k-aiorb{position:relative;overflow:hidden;color:#fff!important;background:conic-gradient(from 210deg,#5b7cff,#b06cff,#ff6aa8,#ffb86b,#5ef2b5,#5b7cff)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 8px 24px -8px rgba(170,120,255,.9)}
+.k-aiorb i{position:absolute;inset:-30%;background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.55),transparent 40%);animation:korb 4s linear infinite;mix-blend-mode:overlay}
+.k-aiorb svg{position:relative}
+.k-aiorb.big{width:44px;height:44px;border-radius:15px}.k-aiorb.huge{width:72px;height:72px;border-radius:24px}
+@keyframes korb{to{transform:rotate(360deg)}}
+.k-aistream{padding:16px!important;gap:14px!important;scroll-behavior:smooth}
+.k-aiwelcome{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:22px 10px 10px}.k-aiwelcome b{font-size:20px}
+.k-starters{display:grid;gap:8px;margin-top:8px}
+.k-starter{display:flex!important;align-items:center;gap:10px;border-radius:16px!important;background:rgba(255,255,255,.06)!important;transition:transform .35s cubic-bezier(.22,1.3,.36,1),background .2s!important;animation:kin .45s cubic-bezier(.22,1.3,.36,1) both}
+.k-starter:nth-child(2){animation-delay:.05s}.k-starter:nth-child(3){animation-delay:.1s}.k-starter:nth-child(4){animation-delay:.15s}
+.k-starter:hover{transform:translateX(4px);background:rgba(255,255,255,.12)!important}.k-starter svg{color:#c9b8ff;flex:none}
+.k-airow{display:flex;gap:10px;align-items:flex-start;animation:kin .35s ease both}
+.k-aiav{width:28px;height:28px;border-radius:10px;flex:none;display:grid;place-items:center;color:#fff;background:conic-gradient(from 210deg,#5b7cff,#b06cff,#ff6aa8,#5b7cff);margin-top:2px}
+.k-aiav.spin{animation:korb 1.6s linear infinite}
+.k-aim.model{background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:18px 18px 18px 6px!important;flex:1;min-width:0}
+.k-aim.user{border-radius:18px 18px 6px 18px!important;background:linear-gradient(135deg,rgba(124,136,255,.85),rgba(176,112,255,.8))!important;color:#fff;animation:kin .3s ease both;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.k-aitools{display:flex;gap:6px;margin-top:8px;opacity:0;transition:opacity .2s}.k-airow:hover .k-aitools{opacity:1}
+.k-aitools button{height:24px;padding:0 9px;border-radius:99px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);font-size:11.5px;font-weight:700;cursor:pointer;color:inherit}
+.k-shimmer{background:linear-gradient(90deg,rgba(255,255,255,.35),#fff,rgba(255,255,255,.35));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:ksk 1.4s linear infinite;font-weight:700}
+.k-aicomp{display:flex;gap:8px;align-items:flex-end;margin:10px;padding:6px 6px 6px 14px;border-radius:24px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.k-aicomp .k-in{flex:1;border:0!important;background:none!important;box-shadow:none!important;resize:none;min-height:40px;max-height:160px;padding:10px 0;line-height:1.4;height:40px}
+.k-aicomp .k-send{background:conic-gradient(from 210deg,#5b7cff,#b06cff,#ff6aa8,#5b7cff);color:#fff}
+.k-fab{position:fixed;right:22px;bottom:22px;z-index:35;border:0;background:none;padding:0;cursor:pointer;border-radius:16px;animation:kin .5s cubic-bezier(.22,1.3,.36,1) both;transition:transform .4s cubic-bezier(.22,1.3,.36,1)}.k-fab:hover{transform:translateY(-3px) scale(1.06)}
+.k-fab .k-aiorb{width:56px;height:56px;border-radius:19px;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 14px 34px -10px rgba(170,120,255,1)}
+@media (max-width:860px){.k-fab{bottom:96px;right:16px}.k-fab .k-aiorb{width:50px;height:50px}.k-ai{top:12px!important}}
+@media (prefers-reduced-motion:reduce){.k-aiorb i,.k-bg b{animation:none}}
+
+/* ===== Liquid Glass 3: thicker glass, frost texture, light that follows you ===== */
+.glass::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+  background:radial-gradient(240px circle at var(--mx,-999px) var(--my,-999px),rgba(255,255,255,.14),rgba(255,255,255,.03) 45%,transparent 70%),
+  radial-gradient(120% 60% at 15% -5%,rgba(255,255,255,.20),rgba(255,255,255,0) 50%),
+  linear-gradient(115deg,transparent 40%,rgba(255,255,255,.05) 48%,rgba(255,255,255,.015) 53%,transparent 60%),
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.08),inset 8px 0 16px -14px rgba(255,140,220,.7),inset -8px 0 16px -14px rgba(90,220,255,.75),inset 0 -18px 30px -26px rgba(255,255,255,.4),inset 0 -3px 8px -4px rgba(0,0,0,.25)}
+.k-btn,.k-pill,.k-x,.ve-seg button,.ve-mini,.pg-tabs button,.k-starter,.k-aitools button,.k-codebar button{background:radial-gradient(160px circle at var(--mx,-999px) var(--my,-999px),rgba(255,255,255,.18),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04)),rgba(255,255,255,.05);border-color:rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.06),0 6px 16px -12px rgba(0,0,0,.7);backdrop-filter:blur(10px) saturate(160%);-webkit-backdrop-filter:blur(10px) saturate(160%)}
+.k-pill.on,.ve-seg button.on,.pg-tabs button.on{background:linear-gradient(180deg,#fff,#e8e5f2)!important;color:#0b0b12;box-shadow:inset 0 -2px 0 rgba(0,0,0,.08),0 6px 18px -8px rgba(255,255,255,.5)}
+.k-btn.ai{background:linear-gradient(135deg,rgba(124,136,255,.55),rgba(255,120,180,.45))!important;border-color:rgba(255,255,255,.3)}
+.k-btn.pri{background:linear-gradient(180deg,#fff,#e9e6f2)!important}
+.k-btn.danger{color:#FFB3BC}
+.k-in{background:linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,.22));border-color:rgba(255,255,255,.14);box-shadow:inset 0 2px 4px rgba(0,0,0,.3),inset 0 -1px 0 rgba(255,255,255,.06)}
+.k-in:focus{border-color:rgba(160,170,255,.8);box-shadow:inset 0 2px 4px rgba(0,0,0,.3),0 0 0 4px rgba(140,151,255,.2),0 0 30px -6px rgba(140,151,255,.6)}
+.k-file .k-thumb,.ve-clip img,.ve-canvaswrap canvas{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 10px 24px -14px rgba(0,0,0,.8)}
+.ve-clip{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+
+/* ===== Liquid Glass 4: calm, smooth motion (no wobble, no squash, nothing replays) ===== */
+@keyframes kin{from{opacity:0;transform:translateY(10px)}}
+@keyframes kopen{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes kaiIn{from{opacity:0;transform:translateX(26px)}}
+@keyframes kfade{from{opacity:0}}
+.k-enter{animation:kin .55s var(--g4-out,cubic-bezier(.16,1,.3,1)) both}
+.k-cards>*,.k-grid>*,.board>*{animation:kin .6s var(--g4-out,cubic-bezier(.16,1,.3,1)) both}
+.k-mcard{animation:kopen .5s var(--g4-out,cubic-bezier(.16,1,.3,1)) both!important}
+.k-modal{animation:kfade .25s ease both}
+.k-ai{animation:kaiIn .5s var(--g4-out,cubic-bezier(.16,1,.3,1)) both!important}
+.k-aiveil{animation:kfade .3s ease both}
+.k-fab{animation:kin .6s var(--g4-out,cubic-bezier(.16,1,.3,1)) both;transition:transform .55s var(--g4-spring,ease)}
+.k-starter{animation:kin .5s var(--g4-out,cubic-bezier(.16,1,.3,1)) both;transition:transform .55s var(--g4-spring,ease),background .25s!important}
+.k-airow,.k-aim.user{animation:kin .45s var(--g4-out,cubic-bezier(.16,1,.3,1)) both}
+.k-still,.k-still .k-mcard,.k-still .k-starter,.k-still .k-airow:not(.k-new),.k-still .k-airow:not(.k-new) .k-aim{animation:none!important}
+.k-btn{transition:transform .55s var(--g4-spring,ease),background .25s,border-color .25s,filter .25s}
+.k-btn:active,.k-navb:active,.k-pill:active{transform:scale(.965)!important;transition-duration:.12s!important}
+.k-file,.k-card,.pcard,.tcard,.next{transition:transform .6s var(--g4-spring,ease),box-shadow .35s ease,background .3s ease}
+.k-file:hover,.k-card.bcard:hover{transform:translateY(-3px)!important}
+@media (hover:hover){.k-starter:hover{transform:translateY(-1px)!important}.k-fab:hover{transform:translateY(-2px)}}
+.k-navb{transition:background .3s ease,color .3s ease,transform .5s var(--g4-spring,ease)!important}
+.k-bg b{will-change:transform}
+.k-aiorb i{animation-duration:6s}
+.glass::before{transition:opacity .5s ease}
+@media (hover:hover){.k-card.glass:not(:hover)::before,.k-file.glass:not(:hover)::before{opacity:.8}}
+.k-toast{transition:transform .5s var(--g4-spring,ease),opacity .3s ease!important}
+
+.k-lite .k-btn,.k-lite .k-pill,.k-lite .k-x,.k-lite .ve-seg button,.k-lite .ve-mini,.k-lite .pg-tabs button,.k-lite .k-starter{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.k-lite .glass{backdrop-filter:blur(10px) saturate(150%)!important;-webkit-backdrop-filter:blur(10px) saturate(150%)!important}
+.k-lite .k-bg i,.k-lite .k-bg b,.k-lite .k-aiorb i{animation:none!important}
 </style>`);
-document.body.insertAdjacentHTML('afterbegin', '<div class="k-bg" aria-hidden="true"><i></i><i></i><i></i></div>');
+if (!document.getElementById('g4css') && !document.querySelector('script[src="/glass4.js"]')) { const g = document.createElement('script'); g.src = '/glass4.js'; document.head.append(g); }
+document.body.insertAdjacentHTML('afterbegin', '<div class="k-bg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><b></b><s></s></div>');
+// ---- slower computers: same look, lighter work
+if ((navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('k-lite');
+// ---- light that follows the mouse across glass
+if (matchMedia('(hover: hover) and (pointer: fine)').matches) { let el = null, raf = 0, x = 0, y = 0; addEventListener('pointermove', e => { const t = e.target.closest && e.target.closest('.glass,.k-btn'); if (t !== el) { el && el.style.removeProperty('--mx'); el = t; } x = e.clientX; y = e.clientY; if (el && !raf) raf = requestAnimationFrame(() => { raf = 0; if (!el) return; const r = el.getBoundingClientRect(); el.style.setProperty('--mx', (x - r.left) + 'px'); el.style.setProperty('--my', (y - r.top) + 'px'); }); }, { passive: true }); }
+// ---- real liquid-glass lens: the edges of big glass panels bend what's behind them (Chrome/Edge on computers; others get the normal frosted glass)
+(() => {
+  const ok = /Chrome|Edg\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent) && matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches && (navigator.hardwareConcurrency || 8) > 4;
+  if (!ok) return; document.documentElement.classList.add('k-lens');
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); defs.setAttribute('width', '0'); defs.setAttribute('height', '0'); defs.style.position = 'absolute'; document.body.append(defs);
+  let n = 0; const done = new WeakMap();
+  const lens = el => {
+    const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight); if (w < 60 || h < 40 || w * h > 2.2e6) return;
+    const key = w + 'x' + h; if (done.get(el) === key) return; done.set(el, key);
+    const r = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 20, h / 2, w / 2), band = Math.min(34, Math.max(12, Math.min(w, h) * .34));
+    const c = document.createElement('canvas'), sc = .5; c.width = Math.ceil(w * sc); c.height = Math.ceil(h * sc); const x = c.getContext('2d'), im = x.createImageData(c.width, c.height), d = im.data;
+    for (let jj = 0; jj < c.height; jj++) for (let ii = 0; ii < c.width; ii++) { const i2 = ii / sc, j2 = jj / sc; const cx0 = Math.min(Math.max(i2, r), w - r), cy0 = Math.min(Math.max(j2, r), h - r); let nx = 0, ny = 0, dist;
+      if ((i2 < r || i2 > w - r) && (j2 < r || j2 > h - r)) { const dx = i2 - cx0, dy = j2 - cy0, L = Math.hypot(dx, dy) || 1; dist = r - L; nx = dx / L; ny = dy / L; }
+      else { const m = Math.min(i2, w - i2, j2, h - j2); dist = m; nx = m === i2 ? -1 : m === w - i2 ? 1 : 0; ny = m === j2 ? -1 : m === h - j2 ? 1 : 0; }
+      const k = Math.max(0, 1 - dist / band), s3 = k * k * k, p = (jj * c.width + ii) * 4; d[p] = 128 + nx * s3 * 127; d[p + 1] = 128 + ny * s3 * 127; d[p + 2] = 128; d[p + 3] = 255; }
+    x.putImageData(im, 0, 0); const id = 'klens' + (n++), amt = Math.min(60, band * 2.1);
+    defs.insertAdjacentHTML('beforeend', `<filter id="${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feImage href="${c.toDataURL()}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="m"/><feDisplacementMap in="SourceGraphic" in2="m" scale="${amt}" xChannelSelector="R" yChannelSelector="G" result="d1"/><feColorMatrix in="d1" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="R"/><feDisplacementMap in="SourceGraphic" in2="m" scale="${amt * 1.1}" xChannelSelector="R" yChannelSelector="G" result="d2"/><feColorMatrix in="d2" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="G"/><feDisplacementMap in="SourceGraphic" in2="m" scale="${amt * 1.2}" xChannelSelector="R" yChannelSelector="G" result="d3"/><feColorMatrix in="d3" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="B"/><feBlend in="R" in2="G" mode="screen" result="rg"/><feBlend in="rg" in2="B" mode="screen"/></filter>`);
+    el.style.setProperty('--klens', `url(#${id})`);
+  };
+  const ro = new ResizeObserver(es => es.forEach(e => lens(e.target)));
+  const scan = () => document.querySelectorAll('.k-side,.k-chat,.k-ai,.k-mcard,.k-lcard,.k-tabbar,.pg-ai,.ve-ai,.ve-stage,.ve-col,.k-card.glass,.k-file.glass,.col.glass,.pg-ed,.pg-out,.k-empty.glass').forEach(el => { if (!el.dataset.klens) { el.dataset.klens = 1; ro.observe(el); } });
+  new MutationObserver(() => { clearTimeout(scan.t); scan.t = setTimeout(scan, 120); }).observe(document.body, { childList: true, subtree: true });
+  scan();
+})();

@@ -148,6 +148,7 @@ html,body{background:#06071a!important}
 /* skeleton while the first data loads */
 .sx-skel{border-radius:22px;min-height:120px;background:linear-gradient(100deg,rgba(255,255,255,.05) 30%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 70%);background-size:300% 100%;animation:sxsk 1.2s linear infinite}
 @keyframes sxsk{to{background-position:-150% 0}}
+.sx-ait .chip{font-size:12.5px}.sx-aicard{align-items:flex-start;gap:10px;font-size:14px}
 </style></head>
 <body><div class="sx-bg" aria-hidden="true"><i class="o1"></i><i class="o2"></i><i class="o3"></i><i class="o4"></i><i class="o5"></i><span class="sx-ring r1"></span><span class="sx-ring r2"></span><span class="sx-grain"></span></div>
 <div id="app"><div class="sx-gate"><div class="modal glass sx-gatebox"><b>Nexa Support</b><div class="mute small">Loading…</div></div></div></div>
@@ -160,7 +161,7 @@ let app = null; async function fbApp() { if (!app) { const F = await import(base
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} } };
-const TABS = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['reports', 'Reports'], ['jobs', 'Jobs'], ['people', 'People'], ['stats', 'Stats'], ['updates', 'Updates'], ['settings', 'Settings']];
+const TABS = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['reports', 'Reports'], ['jobs', 'Crew'], ['people', 'People'], ['stats', 'Stats'], ['updates', 'Updates'], ['settings', 'Settings']];
 const hashTab = () => { const h = location.hash.replace('#', ''); return h === 'inbox' ? 'chats' : TABS.some(t => t[0] === h) ? h : 'home'; };
 const S = { step: 'loading', err: '', okMsg: '', busy: false, session: store.get('nexa.support.session') || '', agent: JSON.parse(store.get('nexa.support.agent') || 'null'), tab: hashTab(), cid: '', drafts: {}, sound: store.get('nexa.support.sound') !== '0', desk: store.get('nexa.support.desk') === '1', flagFilter: 'open', repFilter: 'open', q: '', people: [], agents: [] };
 const fn = CONFIG.supportEndpoint || '/api/support';
@@ -193,7 +194,7 @@ const TEMPLATES = [['Welcome', 'Welcome to Nexa! 🎉 We\'re so happy you\'re he
 // ================= Nexa Support 3.0 — built from the same parts as the Nexa app =================
 const I = { home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>', chats: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>', flags: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>', reports: '<path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="M9 12h6M9 16h4"/>', jobs: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M3 13h18"/>', people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5"/>', stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', updates: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>', settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>', search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', plus: '<path d="M12 5v14M5 12h14"/>', lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', swap: '<path d="M7 7h13l-3-3M17 17H4l3 3"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>', ban: '<circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/>', send: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>', smile: '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>', photo: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>', spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/>', check: '<path d="M5 12l5 5 9-11"/>', checks: '<path d="M2 12l5 5 9-11M9 17l2 2 9-11"/>', back: '<path d="M15 18l-6-6 6-6"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>', note: '<path d="M5 3h10l4 4v14H5z"/><path d="M9 12h6M9 16h6"/>', user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>', warn: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17h.01"/>', zap: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' };
 const ic = (k, sz = 20, sw = 1.9) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || ''}</svg>`;
-const TAB_SUB = { home: 'Everything that needs the team, in one place.', chats: 'Help chats from the Help button in Nexa.', flags: 'Messages Nexa caught with swearing, slurs or threats.', reports: 'When someone taps Report in Nexa.', jobs: 'Nexa Team applications. New ones also arrive as messages to @owner.', people: 'Find anyone to message, warn or ban.', stats: 'How Nexa and the team are doing over the last 14 days.', updates: 'Who is on the newest Nexa.', settings: 'Alerts, auto-reply, email and your password.' };
+const TAB_SUB = { home: 'Everything that needs the team, in one place.', chats: 'Help chats from the Help button in Nexa.', flags: 'Messages Nexa caught with swearing, slurs or threats.', reports: 'When someone taps Report in Nexa.', jobs: 'Nexa Crew applications. New ones also arrive as messages to @owner.', people: 'Find anyone to message, warn or ban.', stats: 'How Nexa and the team are doing over the last 14 days.', updates: 'Who is on the newest Nexa.', settings: 'Alerts, auto-reply, email and your password.' };
 const festK = (() => { try { const k = JSON.parse(localStorage.getItem('nexa.festIconK') || '""'); return /^(halloween|diwali|christmas)$/.test(k) ? k : ''; } catch { return ''; } })();
 const LOGO = `/icon-192-${festK || 'v4'}.png`;
 const logo = (sz = 36) => `<img class="sx-logo" src="${LOGO}" alt="Nexa" width="${sz}" height="${sz}" style="width:${sz}px;height:${sz}px">`;
@@ -219,7 +220,7 @@ function topbar() { return ''; }
 function vShell(body) {
   if (S._shownTab !== S.tab) { S._shownTab = S.tab; S.animTab = S.tab; S.animAt = Date.now(); document.documentElement.classList.remove('sx-calm'); clearTimeout(S._calmT); S._calmT = setTimeout(() => document.documentElement.classList.add('sx-calm'), 8000); }
   const nav = TABS.map(([k, l]) => { const n = badgeN(k); return `<button class="nav ${S.tab === k ? 'on' : ''}" data-tab="${k}" title="${l}">${ic(k)}<span class="lbl">${l}</span>${n ? `<span class="badge">${n > 99 ? '99+' : n}</span>` : ''}</button>`; }).join('');
-  const mb = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['jobs', 'Jobs'], ['settings', 'More']].map(([k, l]) => { const n = k === 'flags' ? (badgeN('flags') || 0) + (badgeN('reports') || 0) : badgeN(k); const on = S.tab === k || (k === 'flags' && S.tab === 'reports') || (k === 'settings' && ['people', 'stats', 'updates', 'settings'].includes(S.tab)); return `<button class="${on ? 'on' : ''}" data-tab="${k}">${ic(k, 22)}${l}${n ? `<span class="badge">${n}</span>` : ''}</button>`; }).join('');
+  const mb = [['home', 'Home'], ['chats', 'Chats'], ['flags', 'Flags'], ['jobs', 'Crew'], ['settings', 'More']].map(([k, l]) => { const n = k === 'flags' ? (badgeN('flags') || 0) + (badgeN('reports') || 0) : badgeN(k); const on = S.tab === k || (k === 'flags' && S.tab === 'reports') || (k === 'settings' && ['people', 'stats', 'updates', 'settings'].includes(S.tab)); return `<button class="${on ? 'on' : ''}" data-tab="${k}">${ic(k, 22)}${l}${n ? `<span class="badge">${n}</span>` : ''}</button>`; }).join('');
   const title = (TABS.find(t => t[0] === S.tab) || [])[1] || 'Home';
   const team = (S.dash?.team || []).map(a => `<span class="sx-tm" title="${esc(a.name)} · ${a.online ? 'online now' : 'away'}">${agentAv(a, 30, true)}</span>`).join('');
   const sec = S.lastLoad ? Math.max(0, Math.round((Date.now() - S.lastLoad) / 1000)) : null;
@@ -315,6 +316,8 @@ function vChats() {
     <div class="composer-wrap">
       ${sug ? `<div class="suggs">${sug.loading ? `<span class="chip">${ic('spark', 14)} Thinking…</span>` : sug.err ? `<span class="chip">${esc(sug.err)}</span>` : sug.items.map((x, i) => `<button class="chip" data-sugg="${i}">${esc(x)}</button>`).join('')}<button class="ibtn sm" id="suggX" aria-label="Close">${ic('x', 14)}</button></div>` : ''}
       ${S.emoji ? `<div class="sx-emoji glass">${EMOJI.map(e => `<button data-emo="${e}">${e}</button>`).join('')}</div>` : ''}
+      ${S.aiCard?.cid === cur.id ? `<div class="ctx glass sx-aicard"><span class="grow" style="white-space:pre-wrap;line-height:1.5">${S.aiCard.loading ? ic('spark', 14) + ' Nexa AI is thinking…' : esc(S.aiCard.text)}</span><button class="ibtn sm" id="aiCardX" aria-label="Close">${ic('x', 14)}</button></div>` : ''}
+      <div class="sx-qr sx-ait"><button class="chip" data-aitool="sum">${ic('spark', 13)} Sum up the chat</button><button class="chip" data-aitool="improve">${ic('spark', 13)} Make my reply better</button><button class="chip" data-aitool="trans">🌍 Translate their message</button><button class="chip" data-aitool="theirlang">🌍 Reply in their language</button><button class="chip" data-aitool="calm">💙 Calm, kind reply</button></div>
       <div class="sx-qr">${TEMPLATES.map(([k], i) => `<button class="chip" data-tpl="${i}">${esc(k)}</button>`).join('')}${mine.map((r, i) => `<button class="chip" data-myr="${i}" title="${esc(r)}">⭐ ${esc(r.slice(0, 20))}${r.length > 20 ? '…' : ''}<span class="sx-x" data-myrdel="${i}" title="Remove">✕</span></button>`).join('')}<button class="chip" id="saveReply" title="Save what you typed as a quick reply" style="color:var(--ok)">+ Save reply</button></div>
       ${S.photo ? `<div class="ctx glass"><img src="${S.photo}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px"><span class="grow">Photo ready to send</span><button class="ibtn sm" id="photoX" aria-label="Remove photo">${ic('x', 14)}</button></div>` : ''}
       <form class="composer glass" id="f-reply"><label class="ibtn" style="cursor:pointer;border:0" title="Send a photo" aria-label="Send a photo">${ic('photo')}<input type="file" accept="image/*" id="sxPhoto" class="sr"></label><button type="button" class="ibtn ${S.emoji ? 'on' : ''}" style="border:0" id="emoBtn" aria-label="Emoji">${ic('smile')}</button><textarea id="rtext" rows="1" placeholder="Reply as ${esc(S.agent?.name || '')}…" aria-label="Reply">${esc(S.drafts[cur.id] || '')}</textarea><button type="button" class="ibtn" style="border:0;color:var(--ac)" id="suggBtn" title="Suggest replies with Nexa AI" aria-label="Suggest replies">${ic('spark')}</button><button class="send" aria-label="Send" ${S.sendingReply ? 'disabled' : ''}>${ic('send', 20, 2)}</button></form>
@@ -386,7 +389,7 @@ function vJobs() {
       <div class="mute small">${esc(a.ref || '')} · ${ago(a.at)} · age ${esc(a.age)}${a.age !== '18+' ? (a.parentOk ? ' (parent OK ✓)' : '') : ''} · ${esc(a.hours)} h/week${a.where ? ' · ' + esc(a.where) : ''}</div></div></div><span class="pill on">${esc(a.roleName || a.role)}</span></div>
       <div class="sx-quote">${esc(a.why)}</div>${a.links ? `<div class="sx-quote mute">Experience / links: ${esc(a.links)}</div>` : ''}${a.note ? `<div class="mute small">Note: ${esc(a.note)} — ${esc(a.handledBy || '')}</div>` : ''}
       <div class="row" style="gap:6px;flex-wrap:wrap">${JOB_ST.filter(([k]) => k !== (a.status || 'new')).map(([k, l]) => `<button class="btn sm ${k === 'accepted' ? 'pri' : k === 'declined' ? 'danger' : ''}" data-app="${a.id}" data-st="${k}">${k === 'accepted' ? '✅ ' : k === 'declined' ? '✖ ' : k === 'talking' ? '💬 ' : ''}${l}</button>`).join('')}
-      ${a.uid ? `<button class="btn sm" data-chat="${a.uid}" data-name="${esc(a.name)}">${ic('send', 14)} Message on Nexa</button>` : ''}${a.email ? `<a class="btn sm" href="mailto:${esc(a.email)}?subject=${encodeURIComponent('Your Nexa Team application (' + (a.roleName || '') + ')')}">Email</a>` : ''}</div></div>`).join('') : `<div class="empty"><span style="font-size:34px">📭</span><b>No ${f === 'new' ? 'new ' : ''}applications here</b></div>`}</div></section>`;
+      ${a.uid ? `<button class="btn sm" data-chat="${a.uid}" data-name="${esc(a.name)}">${ic('send', 14)} Message on Nexa</button>` : ''}${a.email ? `<a class="btn sm" href="mailto:${esc(a.email)}?subject=${encodeURIComponent('Your Nexa Crew application (' + (a.roleName || '') + ')')}">Email</a>` : ''}</div></div>`).join('') : `<div class="empty"><span style="font-size:34px">📭</span><b>No ${f === 'new' ? 'new ' : ''}applications here</b></div>`}</div></section>`;
 }
 function vPeople() {
   return `<section class="panel glass card"><form id="f-search" class="row" style="gap:8px"><label class="search" style="max-width:none">${ic('search', 16)}<input id="pq" placeholder="Name or @username" value="${esc(S.q)}" autocomplete="off"></label><button class="btn pri">Search</button></form>
@@ -618,6 +621,8 @@ document.addEventListener('click', async e => {
   if (t.id === 'emoBtn') { S.emoji = !S.emoji; return renderKeep(); }
   if (d.emo) { const ta = $('#rtext'); if (ta) { const p = ta.selectionStart ?? ta.value.length; ta.value = ta.value.slice(0, p) + d.emo + ta.value.slice(p); S.drafts[S.cid] = ta.value; ta.focus(); ta.setSelectionRange(p + d.emo.length, p + d.emo.length); } return; }
   if (t.id === 'suggBtn') { return suggestReplies(); }
+  if (t.id === 'aiCardX') { S.aiCard = null; return renderKeep(); }
+  if (d.aitool) { return aiTool(d.aitool); }
   if (d.sugg != null) { const ta = $('#rtext'); const v = S.sugg?.items?.[+d.sugg]; if (ta && v) { ta.value = v; S.drafts[S.cid] = v; ta.focus(); } return; }
   if (t.id === 'suggX') { S.sugg = null; return renderKeep(); }
   if (t.id === 'photoX') { S.photo = ''; return renderKeep(); }
@@ -682,6 +687,30 @@ function shrinkImg(file) { return new Promise((res, rej) => { if (!/^image\//.te
 // ✨ Nexa AI suggests replies (same Gemini models as the Nexa app)
 const AI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
 let aiX = null;
+
+// ---------- Nexa AI helpers for the support team
+async function aiTool(kind) {
+  const cid = S.cid, t = S.thread; if (!cid || !t) return; const ta = $('#rtext'), draft = (ta?.value || '').trim();
+  const convo = t.msgs.slice(-20).map(m => (m.mine ? 'Nexa Support' : 'User') + ': ' + (m.text || m.label || (m.imgs?.length ? '[photo]' : ''))).join('\n');
+  const lastUser = [...t.msgs].reverse().find(m => !m.mine && m.text)?.text || '';
+  const P = {
+    sum: `Sum up this Nexa Support chat in 3 short bullet points: what the person needs, what has been done, and what to do next.\n\n${convo}`,
+    improve: draft ? `Rewrite this Nexa Support reply so it is friendly, clear, short and correct. Simple words. Keep the meaning. Reply with ONLY the new reply.\n\nChat so far:\n${convo}\n\nMy reply:\n${draft}` : '',
+    trans: lastUser ? `Translate this message to simple English. If it is already English, say what it means in plain words. Reply with ONLY the translation.\n\n${lastUser}` : '',
+    theirlang: draft && lastUser ? `Translate my reply into the same language the user writes in (look at their message). Keep it friendly. Reply with ONLY the translated reply.\n\nTheir message: ${lastUser}\n\nMy reply: ${draft}` : '',
+    calm: `The person may be upset. Write one calm, kind, helpful reply from Nexa Support (2-3 short sentences, no blame, say what we'll do next). Reply with ONLY the reply.\n\n${convo}`,
+  }[kind];
+  if (!P) { S.flash = kind === 'improve' || kind === 'theirlang' ? 'Type a reply first.' : 'There’s no message from them yet.'; return renderKeep(); }
+  const toBox = kind === 'improve' || kind === 'theirlang' || kind === 'calm';
+  if (!toBox) { S.aiCard = { cid, loading: true }; renderKeep(); }
+  try {
+    const txt = ((await api('ai', { prompt: P })).text || '').trim().replace(/^"|"$/g, '');
+    if (!txt) throw new Error('Nexa AI didn’t answer.');
+    if (S.cid !== cid) return;
+    if (toBox) { const b = $('#rtext'); if (b) { b.value = txt; S.drafts[cid] = txt; b.focus(); } S.flash = '✨ Check it, then press send.'; renderKeep(); }
+    else { S.aiCard = { cid, text: txt }; renderKeep(); }
+  } catch (e) { S.aiCard = { cid, text: e.code === 'nokey' ? 'Nexa AI isn’t switched on yet (Cloudflare › Bindings › Workers AI named AI).' : 'Nexa AI: ' + String(e.message || e).slice(0, 120) }; renderKeep(); }
+}
 async function suggestReplies() {
   const cid = S.cid, t = S.thread; if (!cid || !t) return;
   S.sugg = { cid, loading: true }; renderKeep();
@@ -689,7 +718,7 @@ async function suggestReplies() {
     const convo = t.msgs.slice(-12).map(m => (m.mine ? 'Nexa Support' : 'User') + ': ' + (m.text || m.label || (m.imgs?.length ? '[photo]' : ''))).join('\n');
     const prompt = `Write 3 different short, friendly, clear replies Nexa Support could send next. Simple words, at most 2 sentences each, never ask for passwords. Reply ONLY as a JSON array of 3 strings.\n\nChat:\n${convo}`;
     let txt = '', last;
-    // 1) Nexa AI on the server (works for everyone once GEMINI_API_KEY is set in Cloudflare)
+    // 1) Nexa AI on the server (Cloudflare Workers AI, or a Claude / Gemini key)
     try { txt = (await api('ai', { prompt })).text || ''; } catch (e) { last = e; }
     // 2) otherwise the in-browser Firebase AI, like the app
     if (!txt && CONFIG.firebase?.apiKey && !/YOUR_KEY/.test(CONFIG.firebase.apiKey)) {
@@ -704,5 +733,6 @@ async function suggestReplies() {
 }
 // keep it fresh: every 15 seconds while open (every minute in the background)
 setInterval(() => { if (S.step !== 'app') return; tick++; const vis = document.visibilityState === 'visible'; if (vis || tick % 4 === 0) loadAll(); if (vis && S.tab === 'chats' && S.cid) loadThread(); }, 15000);
-</script></body></html>
+</script><script src="/glass4.js" data-lens=".side.glass,.top.glass,.convs.glass,.chat.glass,.panel.glass,.modal.glass,.tabbar.glass,.sx-kpi"></script>
+</body></html>
 

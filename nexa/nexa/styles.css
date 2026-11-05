@@ -3601,3 +3601,104 @@ h1.pname .teamtick{vertical-align:2px;margin-left:8px}
 :root[data-smooth="1"][data-lq="1"]:not([data-theme="light"]):not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) .them .bub:not(.rows .bub){background:var(--lq-hi2),color-mix(in srgb,var(--ground,#0e1022) 78%,#fff)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 0 .5px rgba(255,255,255,.12)!important}
 :root[data-smooth="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) :is(.btn,.ibtn,.pill,.send,.chip,.atile,.item){transition-duration:.18s!important}
 @media (prefers-reduced-motion:reduce){:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______) *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ================= Nexa 1.8.1: Liquid Glass 4 motion — calm and smooth: no squash, no wobble, no sideways jiggle ================= */
+:root{--g4-out:cubic-bezier(.16,1,.3,1);--g4-spring:cubic-bezier(.3,1.12,.5,1)}
+@supports (transition-timing-function:linear(0,1)){:root{--g4-spring:linear(0,.006,.025 2.8%,.101 6.1%,.539 18.9%,.721 25.3%,.849 31.5%,.937 38.1%,.968 41.8%,.991 45.7%,1.006 50.1%,1.015 55%,1.017 63.9%,1.001 85.9%,1)}}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________){--lq-ease:var(--g4-out)}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) #stream .m.anim .bub{animation:g4Bub .42s var(--g4-out) both}
+@keyframes g4Bub{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) .overlay.anim .modal{animation:g4Open .46s var(--g4-out) both!important}
+@keyframes g4Open{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) :is(.menu,.bgpop,.mentionpop,.picker){animation:g4Pop .26s var(--g4-out) both}
+@keyframes g4Pop{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:none}}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) :is(.btn,.ibtn,.pill,.send,.chip,.atile,.tabbar button){transition:transform .55s var(--g4-spring),box-shadow .25s ease,background-color .25s ease!important}
+@media (hover:hover){:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) :is(.btn,.ibtn,.pill,.send,.chip,.atile):hover{transform:translateY(-1px);filter:none}}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) :is(.btn,.ibtn,.pill,.send,.chip,.atile,.tabbar button):active{transform:scale(.965)!important;transition:transform .12s var(--g4-out)!important}
+:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) :is(.item,.nav){transition:background-color .25s ease,box-shadow .25s ease}
+@media (hover:hover){:root[data-lq="1"]:not(#_):not(#__):not(#___):not(#____):not(#_____):not(#______):not(#_______):not(#________) .item:hover{transform:none}}
+
+/* ================= Nexa 1.8.2: Liquid Glass 5 — real see-through glass in the main app ================= */
+/* soft colour light behind everything, so the glass has something to glow with (no live blur on the light itself) */
+.g5-orbs{display:none;position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;--g5a:#6a5cff;--g5b:#ff5fa8;--g5c:#20d6c4;--g5d:#ffb04a}
+:root:not([data-theme="light"]) .g5-orbs{display:block}
+:root[data-fest="diwali"] .g5-orbs{--g5a:#7a4dff;--g5b:#ff4f8b;--g5c:#ff9d2e;--g5d:#ffd36b}
+:root[data-fest="halloween"] .g5-orbs{--g5a:#7b3cff;--g5b:#ff7a1a;--g5c:#2fd47a;--g5d:#ffb347}
+:root[data-fest="christmas"] .g5-orbs{--g5a:#3c6bff;--g5b:#ff3d5a;--g5c:#22c58b;--g5d:#ffd36b}
+.g5-orbs i{position:absolute;border-radius:50%;mix-blend-mode:screen;will-change:transform;animation:g5drift 46s ease-in-out infinite alternate}
+.g5-orbs .o1{width:64vmax;height:64vmax;left:-22vmax;top:-26vmax;background:radial-gradient(closest-side,var(--g5a),transparent);opacity:.55}
+.g5-orbs .o2{width:54vmax;height:54vmax;right:-18vmax;top:-8vmax;background:radial-gradient(closest-side,var(--g5b),transparent);opacity:.42;animation-duration:52s;animation-delay:-14s}
+.g5-orbs .o3{width:58vmax;height:58vmax;left:18vmax;bottom:-34vmax;background:radial-gradient(closest-side,var(--g5c),transparent);opacity:.34;animation-duration:60s;animation-delay:-24s}
+.g5-orbs .o4{width:30vmax;height:30vmax;right:6vmax;bottom:-6vmax;background:radial-gradient(closest-side,var(--g5d),transparent);opacity:.26;animation-duration:44s;animation-delay:-8s}
+.g5-orbs .o5{width:40vmax;height:40vmax;left:34vmax;top:30vmax;background:radial-gradient(closest-side,var(--g5a),transparent);opacity:.22;animation-duration:56s;animation-delay:-30s}
+.g5-orbs b{position:absolute;inset:0;opacity:.06;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes g5drift{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(5vmax,4vmax,0) scale(1.1)}}
+:root[data-smooth="1"] .g5-orbs i{animation:none}
+@media (prefers-reduced-motion:reduce){.g5-orbs i{animation:none}}
+
+/* big glass: clear tint, frosted blur, bright top edge, pink/blue light on the sides, light that follows the mouse */
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){
+  background:radial-gradient(280px circle at var(--mx,-999px) var(--my,-999px),rgba(255,255,255,.10),rgba(255,255,255,.02) 45%,transparent 70%),
+    radial-gradient(130% 55% at 18% -8%,rgba(255,255,255,.15),rgba(255,255,255,.03) 42%,transparent 62%),
+    linear-gradient(162deg,rgba(255,255,255,.09),rgba(255,255,255,.02) 42%,rgba(255,255,255,.055)),
+    rgba(14,12,36,.40)!important;
+  backdrop-filter:blur(26px) saturate(190%) brightness(1.04)!important;-webkit-backdrop-filter:blur(26px) saturate(190%) brightness(1.04)!important;
+  border-color:rgba(255,255,255,.09)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.05),inset 1px 0 0 rgba(255,255,255,.07),inset -1px 0 0 rgba(255,255,255,.04),inset 12px 0 26px -22px rgba(255,140,220,.6),inset -12px 0 26px -22px rgba(90,210,255,.6),0 28px 64px -34px rgba(0,0,0,.7)!important}
+/* glass inside glass stays light */
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:linear-gradient(162deg,rgba(255,255,255,.08),rgba(255,255,255,.025))!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.06),0 10px 26px -18px rgba(0,0,0,.6)!important}
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) .chathead{background:linear-gradient(180deg,rgba(255,255,255,.05),transparent)!important;border-bottom:1px solid rgba(255,255,255,.07)!important;backdrop-filter:none!important}
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) .composer.glass{background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03)),rgba(10,9,28,.35)!important}
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) :is(.inp,.search,input.inp,textarea.inp){background:rgba(0,0,0,.22)!important;border-color:rgba(255,255,255,.10)!important;box-shadow:inset 0 2px 5px rgba(0,0,0,.25),inset 0 -1px 0 rgba(255,255,255,.05)!important}
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) .item.on{background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.05))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.06)!important}
+@media (hover:hover){:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) .item:not(.on):hover{background:rgba(255,255,255,.05)!important}}
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) :is(.ibtn,.btn:not(.pri):not(.danger):not(.fc-go),.chip,.pill):not(.festcard *):not(.dash-hero *){background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04))!important;border-color:rgba(255,255,255,.12)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 12px -8px rgba(0,0,0,.6)!important}
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) .them .bub:not(.rows .bub){background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.05))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 6px 16px -10px rgba(0,0,0,.5)!important}
+/* slower computers: same see-through look, no live blur (the light behind is soft, so it still looks like glass) */
+:root:not([data-theme="light"]):not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58)[data-smooth="1"] :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:radial-gradient(130% 55% at 18% -8%,rgba(255,255,255,.13),rgba(255,255,255,.02) 42%,transparent 62%),linear-gradient(162deg,rgba(255,255,255,.08),rgba(255,255,255,.02) 42%,rgba(255,255,255,.05)),rgba(14,12,36,.50)!important}
+/* light mode: white frosted glass */
+:root[data-theme="light"]:not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:radial-gradient(130% 55% at 18% -8%,rgba(255,255,255,.9),rgba(255,255,255,.4) 45%,transparent 65%),rgba(255,255,255,.55)!important;backdrop-filter:blur(24px) saturate(180%)!important;-webkit-backdrop-filter:blur(24px) saturate(180%)!important;border-color:rgba(255,255,255,.7)!important;box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 rgba(0,0,0,.04),0 20px 50px -30px rgba(40,30,90,.35)!important}
+:root[data-theme="light"]:not(#g50):not(#g51):not(#g52):not(#g53):not(#g54):not(#g55):not(#g56):not(#g57):not(#g58)[data-smooth="1"] :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){backdrop-filter:none!important;background:rgba(255,255,255,.82)!important}
+
+/* ===== Liquid Glass 5 styles: Crystal (clear, bright) and Smoke (dark, sleek) ===== */
+:root[data-g5s="crystal"] .g5-orbs .o1{opacity:.85}:root[data-g5s="crystal"] .g5-orbs .o2{opacity:.7}:root[data-g5s="crystal"] .g5-orbs .o3{opacity:.6}:root[data-g5s="crystal"] .g5-orbs .o4{opacity:.5}:root[data-g5s="crystal"] .g5-orbs .o5{opacity:.45}
+:root[data-g5s="crystal"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06) 30%,rgba(255,255,255,.04) 70%,rgba(255,255,255,.09)),rgba(255,255,255,.03)!important;backdrop-filter:blur(14px) saturate(200%) brightness(1.1)!important;-webkit-backdrop-filter:blur(14px) saturate(200%) brightness(1.1)!important;border:1px solid rgba(255,255,255,.22)!important;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -1px 0 rgba(255,255,255,.18),inset 0 0 22px rgba(255,255,255,.06),inset 0 -24px 40px -30px rgba(255,255,255,.35),0 18px 44px -24px rgba(0,0,0,.55)!important}
+:root[data-g5s="crystal"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:rgba(255,255,255,.07)!important;border-color:rgba(255,255,255,.16)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)!important}
+:root[data-g5s="crystal"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) .composer.glass{background:rgba(255,255,255,.08)!important}
+:root[data-g5s="crystal"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69)[data-smooth="1"] :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.07)),rgba(30,26,70,.35)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+:root[data-g5s="smoke"] .g5-orbs{display:none!important}
+:root[data-g5s="smoke"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015) 40%,rgba(255,255,255,.03)),rgba(12,12,16,.62)!important;backdrop-filter:blur(30px) saturate(140%)!important;-webkit-backdrop-filter:blur(30px) saturate(140%)!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 60px -30px rgba(0,0,0,.8)!important}
+:root[data-g5s="smoke"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *) :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){background:rgba(255,255,255,.04)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.06)!important}
+:root[data-g5s="smoke"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) .composer.glass{background:rgba(255,255,255,.04)!important}
+:root[data-g5s="smoke"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69) :is(.ibtn,.btn:not(.pri):not(.danger):not(.fc-go),.chip,.pill):not(.festcard *){background:rgba(255,255,255,.06)!important;border-color:rgba(255,255,255,.08)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)!important}
+:root[data-g5s="smoke"]:not([data-theme="light"]):not(#g60):not(#g61):not(#g62):not(#g63):not(#g64):not(#g65):not(#g66):not(#g67):not(#g68):not(#g69)[data-smooth="1"] :is(.glass,.card,.panel):not(.festcard):not(.dash-hero):not(.festcard *){backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(18,18,24,.92)!important}
+/* glass picker in Settings */
+.g5pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+.g5opt{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit;text-align:left;cursor:pointer;transition:transform .5s var(--g4-spring,ease),border-color .2s,background .2s}
+.g5opt:active{transform:scale(.97)}
+.g5opt.on{border-color:var(--ac,#8c97ff);box-shadow:0 0 0 3px color-mix(in oklab,var(--ac,#8c97ff) 30%,transparent)}
+.g5sw{position:relative;display:block;width:100%;height:56px;border-radius:12px;overflow:hidden;margin-bottom:4px}
+.g5sw i{position:absolute;inset:12px 18px;border-radius:10px}
+.g5sw-crystal{background:radial-gradient(circle at 20% 20%,#8a6bff,transparent 60%),radial-gradient(circle at 85% 80%,#ff5fa8,transparent 60%),#2a1c55}
+.g5sw-crystal i{background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.08));border:1px solid rgba(255,255,255,.4);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8);backdrop-filter:blur(6px)}
+.g5sw-smoke{background:linear-gradient(135deg,#17171d,#0b0b0f)}
+.g5sw-smoke i{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+.g5sw-aurora{background:radial-gradient(circle at 25% 30%,#6a5cff,transparent 60%),radial-gradient(circle at 80% 75%,#20d6c4,transparent 60%),#120f2c}
+.g5sw-aurora i{background:rgba(14,12,36,.45);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 8px 0 14px -10px rgba(255,140,220,.7),inset -8px 0 14px -10px rgba(90,210,255,.7)}
+@media (max-width:520px){.g5pick{grid-template-columns:1fr}.g5opt{flex-direction:row;align-items:center;gap:10px}.g5sw{width:64px;height:44px;flex:none;margin:0}.g5opt .mute{display:none}}
+
+/* ================= Nexa 1.8.2: one calm motion for every look (Classic, Aurora Glass, Liquid Glass and the new looks) ================= */
+:root{--spring:cubic-bezier(.16,1,.3,1)}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .m.anim{animation:g4Bub .42s cubic-bezier(.16,1,.3,1) both}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .m.anim .bub{animation:none}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .overlay.anim{animation:fade .25s ease both}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .overlay.anim :is(.modal,.palette){animation:g4Open .46s cubic-bezier(.16,1,.3,1) both!important}
+@media (max-width:700px){:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .overlay.anim .modal{animation:g5Sheet .5s cubic-bezier(.16,1,.3,1) both!important}}
+@keyframes g5Sheet{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) :is(.menu,.bgpop,.mentionpop,.picker){animation:g4Pop .26s cubic-bezier(.16,1,.3,1) both}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) :is(.btn,.ibtn,.pill,.send,.chip,.atile,.tabbar button){transition:transform .55s var(--g4-spring,cubic-bezier(.16,1,.3,1)),box-shadow .25s ease,background-color .25s ease,color .25s ease!important}
+@media (hover:hover){:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) :is(.btn,.ibtn,.pill,.chip,.atile):hover{transform:translateY(-1px);filter:none}}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) :is(.btn,.ibtn,.pill,.send,.chip,.atile,.tabbar button,.item):active{transform:scale(.965)!important;transition:transform .12s cubic-bezier(.16,1,.3,1)!important;filter:none!important}
+:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .item{transition:background-color .25s ease,box-shadow .25s ease}
+@media (hover:hover){:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) .item:hover{transform:none}}
+@media (prefers-reduced-motion:reduce){:root:not(#g70):not(#g71):not(#g72):not(#g73):not(#g74):not(#g75):not(#g76):not(#g77):not(#g78):not(#g79) *{animation-duration:.01ms!important;transition-duration:.01ms!important}}

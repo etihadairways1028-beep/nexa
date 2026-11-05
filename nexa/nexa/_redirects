@@ -8,3 +8,10 @@
 /designer  /videoeditor/  301
 /devhub/*  /webdev/  301
 /devhub  /webdev/  301
+
+# Nexa Crew (community program) lives at /crew/
+/crew  /hiring/  200
+/crew/  /hiring/  200
+/crew/*  /hiring/:splat  200
+/careers  /crew/  301
+/careers.html  /crew/  301

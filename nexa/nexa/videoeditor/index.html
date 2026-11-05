@@ -10,6 +10,8 @@
 <link rel="icon" href="/favicon-v4.png">
 <style>
 /* video editor */
+.ve-stk{display:flex;gap:3px;flex-wrap:wrap;margin:2px 0 4px}.ve-stk button{width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);cursor:pointer;font-size:14px;padding:0;line-height:1}.ve-stk button.on{background:rgba(140,151,255,.45);border-color:#fff}
+.ve-ai{display:flex;gap:10px;align-items:center;padding:10px 10px 10px 12px;border-radius:999px;margin-bottom:14px}.ve-ai .k-in{flex:1;border-radius:999px}
 .ve{display:grid;grid-template-columns:300px minmax(0,1fr) 300px;gap:14px;align-items:start}
 .ve-col{padding:14px;display:flex;flex-direction:column;gap:10px}
 .ve-stage{padding:14px;display:flex;flex-direction:column;align-items:center;gap:12px;position:sticky;top:64px}
@@ -58,7 +60,7 @@ input[type=range]{width:100%;accent-color:#9AA2FF}
 <body>
 <div id="app"></div>
 <script type="module">
-import { boot, S, api, esc, icon, toast, ago, size, avatar, render, reload, openModal, closeModal, askAI, uploadFile, getBlob, makeThumb, download, pickFile, vComments } from '/team/kit.js';
+import { boot, S, api, esc, icon, toast, ago, size, avatar, render, reload, openModal, closeModal, askAI, uploadFile, getBlob, makeThumb, download, pickFile, vComments, sessionTok } from '/team/kit.js';
 
 const ST = [['idea', 'Ideas'], ['making', 'Making'], ['review', 'Waiting for owner'], ['changes', 'Needs changes'], ['approved', 'Approved'], ['published', 'Published']];
 const STN = Object.fromEntries(ST);
@@ -120,7 +122,7 @@ function postModal(p) {
 }
 
 // ================= VIDEO EDITOR
-const E = { clips: [], aspect: '9:16', fit: 'cover', filter: 'none', imgDur: 3, text: { t: '', sub: '', pos: 'bottom', style: 'glass', color: '#FFFFFF', size: 1, secs: 0 }, brand: { mark: true, intro: false, outro: true }, music: null, vol: 1, mvol: .5, t: 0, playing: false, rec: null };
+const E = { beat: 'none', bvol: .55, trans: 'zoom', clips: [], aspect: '9:16', fit: 'cover', filter: 'none', imgDur: 3, text: { t: '', sub: '', pos: 'bottom', style: 'glass', color: '#FFFFFF', size: 1, secs: 0 }, brand: { mark: true, intro: false, outro: true }, music: null, vol: 1, mvol: .5, t: 0, playing: false, rec: null };
 const RES = { '9:16': [720, 1280], '16:9': [1280, 720], '1:1': [960, 960], '4:5': [864, 1080] };
 let cv, cx, actx, mixDest, rafId = 0, segIdx = -1, lastWall = 0, uid = 0;
 const segs = () => { const L = []; let t = 0; const add = (kind, dur, clip) => { L.push({ kind, dur, clip, start: t }); t += dur; };
@@ -157,8 +159,17 @@ function drawMedia(el, w, h, W, H, fit) {
 const FILTERS = { none: 'none', bright: 'brightness(1.1) saturate(1.2)', warm: 'sepia(.22) saturate(1.25) brightness(1.03)', cool: 'hue-rotate(-10deg) saturate(1.15) brightness(1.02)', mono: 'grayscale(1) contrast(1.12)', dream: 'saturate(1.4) contrast(.95) brightness(1.08)' };
 function rr(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
 function wrapLines(text, maxW) { const out = []; String(text).split('\n').forEach(par => { let line = ''; par.split(' ').forEach(w => { const t = line ? line + ' ' + w : w; if (cx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }); out.push(line); }); return out; }
-function drawText(W, H) {
-  const T = E.text; if (!T.t && !T.sub) return;
+function drawText(W, H, T = E.text, lt = 99) {
+  if (!T.t && !T.sub) return;
+  if (T.style === 'pop') { // TikTok-style: words pop in one at a time, the current word in yellow
+    const words = String(T.t || '').split(/\s+/).filter(Boolean), fs = Math.round(Math.min(W, H) * .085 * T.size), per = .2, cy0 = T.pos === 'top' ? H * .2 : T.pos === 'middle' ? H / 2 : H * .78;
+    cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = `900 ${fs}px "Nexa Sans",system-ui,sans-serif`; cx.lineJoin = 'round';
+    const n = Math.min(words.length, Math.floor(lt / per) + 1), shown = words.slice(Math.max(0, n - 3), n);
+    const line = shown.join(' ').toUpperCase(); let x = W / 2 - cx.measureText(line).width / 2;
+    shown.forEach((w, i) => { const W2 = w.toUpperCase(), ww = cx.measureText(W2).width, isNew = i === shown.length - 1, z = isNew ? Math.min(1.12, .6 + (lt - (n - 1) * per) / per * .6) : 1; cx.save(); cx.translate(x + ww / 2, cy0); cx.scale(z, z); cx.lineWidth = fs * .18; cx.strokeStyle = '#000'; cx.strokeText(W2, 0, 0); cx.fillStyle = isNew ? '#FFE066' : '#fff'; cx.fillText(W2, 0, 0); cx.restore(); x += ww + cx.measureText(' ').width; });
+    if (T.sub && lt > words.length * per) { cx.font = `700 ${Math.round(fs * .45)}px "Nexa Sans",system-ui,sans-serif`; cx.lineWidth = fs * .1; cx.strokeText(T.sub, W / 2, cy0 + fs * 1.1); cx.fillStyle = '#fff'; cx.fillText(T.sub, W / 2, cy0 + fs * 1.1); }
+    cx.restore(); return;
+  }
   const fs = Math.round(Math.min(W, H) * .075 * T.size), sfs = Math.round(fs * .52), pad = fs * .55;
   cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'middle';
   const big = T.style === 'bold' ? `900 ${fs}px "Nexa Sans",system-ui,sans-serif` : T.style === 'serif' ? `400 ${Math.round(fs * 1.15)}px "Nexa Serif",Georgia,serif` : `800 ${fs}px "Nexa Sans",system-ui,sans-serif`;
@@ -176,6 +187,99 @@ function drawText(W, H) {
   cx.font = `600 ${sfs}px "Nexa Sans",system-ui,sans-serif`; cx.fillStyle = 'rgba(255,255,255,.88)'; y += (slh - lh) / 2;
   SL.forEach(l => { cx.fillText(l, W / 2, y); y += slh; }); cx.restore();
 }
+// ---------- Nexa motion backgrounds: ready-made clips, no recording needed
+const MOTIONS = [['list', 'What’s new list'], ['kinetic', 'Big words'], ['meme', 'Meme'], ['emoji', 'Emoji rain'], ['countdown', 'Countdown'], ['confetti', 'Confetti'], ['phone', 'Phone + Nexa'], ['chat', 'Nexa chat'], ['spot', 'Spotlight'], ['aurora', 'Aurora glow'], ['glass', 'Glass bubbles'], ['waves', 'Waves'], ['grid', 'Tech grid'], ['logo', 'Nexa logo']];
+const OWN_TEXT = ['kinetic', 'meme', 'countdown', 'list']; // these draw their own words
+const LOGO = new Image(); LOGO.src = '/icon-512-v4.png';
+const CHAT_LINES = [['them', 'who’s free tonight? 👀'], ['me', 'me!! movie or games?'], ['them', 'games 🎮 I’ll start a call'], ['me', 'on Nexa in 2 mins'], ['them', 'see you there ✨']];
+function drawMotion(c, lt, dur, W, H) {
+  const s = Math.min(W, H), k = lt / Math.max(.1, dur), t = lt;
+  const bg = cx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#070b1e'); bg.addColorStop(1, '#120a26'); cx.fillStyle = bg; cx.fillRect(0, 0, W, H);
+  const blob = (x, y, r, col) => { const g = cx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); cx.fillStyle = g; cx.fillRect(0, 0, W, H); };
+  const glassRR = (x, y, w, h, r, a = .16) => { rr(x, y, w, h, r); const g = cx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, `rgba(255,255,255,${a + .08})`); g.addColorStop(1, `rgba(255,255,255,${a * .4})`); cx.fillStyle = g; cx.fill(); cx.lineWidth = Math.max(1.5, s * .003); cx.strokeStyle = 'rgba(255,255,255,.45)'; cx.stroke(); };
+  const m = c.mtype;
+  if (m === 'aurora' || m === 'chat' || m === 'logo') { blob(W * (.25 + .1 * Math.sin(t * .7)), H * .3, s * .8, 'rgba(110,91,255,.75)'); blob(W * (.8 + .08 * Math.cos(t * .6)), H * (.25 + .05 * Math.sin(t)), s * .7, 'rgba(255,95,162,.55)'); blob(W * .5, H * (.85 + .04 * Math.sin(t * .8)), s * .9, 'rgba(25,211,176,.45)'); }
+  if (m === 'glass') {
+    blob(W * .3, H * .3, s * .9, 'rgba(60,120,255,.6)'); blob(W * .8, H * .8, s * .8, 'rgba(255,100,170,.45)');
+    for (let i = 0; i < 9; i++) { const r = s * (.06 + (i % 4) * .035), x = W * ((i * .37 + .1 + .03 * Math.sin(t + i)) % 1), y = H - ((t * s * (.05 + i % 3 * .03) + i * H / 9) % (H + r * 2)) + r; cx.save(); cx.beginPath(); cx.arc(x, y, r, 0, 7); const g = cx.createRadialGradient(x - r * .4, y - r * .4, r * .1, x, y, r); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(.5, 'rgba(255,255,255,.10)'); g.addColorStop(1, 'rgba(255,255,255,.22)'); cx.fillStyle = g; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = 'rgba(255,255,255,.5)'; cx.stroke(); cx.restore(); }
+  }
+  if (m === 'waves') { for (let j = 0; j < 4; j++) { cx.beginPath(); cx.moveTo(0, H); for (let x = 0; x <= W; x += 8) cx.lineTo(x, H * (.55 + j * .1) + Math.sin(x / W * 6 + t * (1 + j * .3) + j) * s * .04); cx.lineTo(W, H); cx.closePath(); const g = cx.createLinearGradient(0, H * .5, 0, H); g.addColorStop(0, ['rgba(140,151,255,.55)', 'rgba(90,200,255,.45)', 'rgba(255,143,177,.4)', 'rgba(25,211,176,.4)'][j]); g.addColorStop(1, 'rgba(10,10,30,.2)'); cx.fillStyle = g; cx.fill(); } }
+  if (m === 'grid') {
+    blob(W * .5, H * .2, s * .9, 'rgba(60,140,255,.45)'); cx.save(); cx.strokeStyle = 'rgba(120,180,255,.35)'; cx.lineWidth = 1.5; const hz = H * .45;
+    for (let i = -12; i <= 12; i++) { cx.beginPath(); cx.moveTo(W / 2 + i * s * .02, hz); cx.lineTo(W / 2 + i * s * .25, H); cx.stroke(); }
+    for (let i = 0; i < 14; i++) { const p = ((i + t * .8) % 14) / 14, y = hz + (H - hz) * p * p; cx.globalAlpha = p; cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke(); } cx.restore();
+  }
+  if (m === 'chat') { // Nexa chat bubbles popping in, one by one
+    const lines = c.lines || CHAT_LINES, per = Math.max(.35, (dur - .4) / lines.length), shown = Math.min(lines.length, Math.floor(lt / per) + 1), fs = s * .045;
+    glassRR(W * .07, H * .12, W * .86, H * .76, s * .06, .1);
+    cx.save(); cx.textAlign = 'left'; cx.font = `800 ${Math.round(fs * 1.05)}px "Nexa Sans",system-ui,sans-serif`; cx.fillStyle = '#fff'; cx.textBaseline = 'middle'; cx.fillText('Squad', W * .13, H * .17);
+    let y = H * .24; cx.font = `600 ${Math.round(fs)}px "Nexa Sans",system-ui,sans-serif`;
+    for (let i = 0; i < shown; i++) { const [who, txt] = lines[i], a = Math.min(1, (lt - i * per) / .25), w = cx.measureText(txt).width + fs * 1.6, h = fs * 2.1, x = who === 'me' ? W * .87 - w : W * .13;
+      cx.save(); cx.globalAlpha = a; cx.translate(0, (1 - a) * fs); rr(x, y, w, h, h / 2);
+      if (who === 'me') { const g = cx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, '#5B7CFF'); g.addColorStop(1, '#B06CFF'); cx.fillStyle = g; cx.fill(); } else { cx.fillStyle = 'rgba(255,255,255,.16)'; cx.fill(); cx.strokeStyle = 'rgba(255,255,255,.35)'; cx.lineWidth = 1.5; cx.stroke(); }
+      cx.fillStyle = '#fff'; cx.fillText(txt, x + fs * .8, y + h / 2 + 1); cx.restore(); y += h + fs * .6; }
+    cx.restore();
+  }
+
+  const ease = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3), pop = x => { x = Math.min(1, Math.max(0, x)); return x < .6 ? ease(x / .6) * 1.15 : 1.15 - .15 * ease((x - .6) / .4); };
+  const rnd = i => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  if (m === 'kinetic' || m === 'countdown' || m === 'spot' || m === 'meme' || m === 'emoji' || m === 'confetti' || m === 'phone') { blob(W * (.2 + .1 * Math.sin(t)), H * .25, s * .9, 'rgba(70,90,255,.6)'); blob(W * .85, H * .75, s * .8, 'rgba(255,80,140,.45)'); }
+  if (m === 'kinetic') { // words punch in one by one, the newest one highlighted
+    const words = String(c.text || 'Your words here').split(/\s+/).filter(Boolean).slice(0, 8), per = Math.max(.22, (dur * .7) / words.length), fs = s * (words.length > 5 ? .11 : .14);
+    cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = `900 ${Math.round(fs)}px "Nexa Sans",system-ui,sans-serif`;
+    const shown = words.filter((_, i) => lt >= i * per); const lines = []; let line = ''; shown.forEach(w => { const tt = line ? line + ' ' + w : w; if (cx.measureText(tt.toUpperCase()).width > W * .84 && line) { lines.push(line); line = w; } else line = tt; }); if (line) lines.push(line);
+    let wi = 0; const y0 = H / 2 - (lines.length - 1) * fs * .6;
+    lines.forEach((ln, li) => { const ws = ln.split(' '); let x = W / 2 - (cx.measureText(ln.toUpperCase()).width + (ln.split(' ').length - 1) * fs * .12) / 2; ws.forEach(w => { const i = wi++, a = pop((lt - i * per) / .3), ww = cx.measureText(w.toUpperCase() + ' ').width, cxw = x + cx.measureText(w.toUpperCase()).width / 2;
+      cx.save(); cx.translate(cxw, y0 + li * fs * 1.2); cx.scale(a, a); cx.lineWidth = fs * .14; cx.strokeStyle = 'rgba(0,0,0,.55)'; cx.strokeText(w.toUpperCase(), 0, 0); cx.fillStyle = i === shown.length - 1 ? '#FFE066' : '#fff'; cx.fillText(w.toUpperCase(), 0, 0); cx.restore(); x += ww + fs * .12; }); });
+    if (c.sub && lt > words.length * per) { cx.globalAlpha = Math.min(1, (lt - words.length * per) / .3); cx.font = `700 ${Math.round(fs * .38)}px "Nexa Sans",system-ui,sans-serif`; cx.fillStyle = 'rgba(255,255,255,.9)'; cx.fillText(c.sub, W / 2, y0 + lines.length * fs * 1.2 + fs * .2); }
+    cx.restore();
+  }
+  if (m === 'meme') { const fs = s * .1; cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'top'; cx.font = `900 ${Math.round(fs)}px Impact,"Arial Black","Nexa Sans",sans-serif`; cx.lineWidth = fs * .16; cx.strokeStyle = '#000'; cx.fillStyle = '#fff'; const sh = (txt, y, base) => { if (!txt) return; cx.textBaseline = base; wrapLines(String(txt).toUpperCase(), W * .9).forEach((l, i, A) => { const yy = base === 'top' ? y + i * fs * 1.05 : y - (A.length - 1 - i) * fs * 1.05; cx.strokeText(l, W / 2, yy); cx.fillText(l, W / 2, yy); }); };
+    const a = ease(lt / .3); cx.globalAlpha = a; sh(c.text || 'When the group chat', H * .06, 'top'); cx.globalAlpha = Math.min(1, Math.max(0, (lt - .6) / .25)); sh(c.sub || 'finally plans something', H * .94, 'bottom'); cx.restore();
+    cx.save(); cx.font = `${Math.round(s * .3)}px system-ui`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.translate(W / 2, H / 2); cx.rotate(Math.sin(t * 3) * .08); cx.scale(pop(lt / .5), pop(lt / .5)); cx.fillText(c.emoji || '😂', 0, 0); cx.restore(); }
+  if (m === 'emoji' || m === 'confetti') {
+    const E2 = (c.emoji || '😂 🔥 💬 🎮 ✨ 💜 👀 🎉').split(/\s+/).filter(Boolean);
+    for (let i = 0; i < (m === 'emoji' ? 26 : 90); i++) { const sp = .25 + rnd(i) * .5, x = W * rnd(i + 7) + Math.sin(t * 2 + i) * s * .03, y = ((t * sp + rnd(i + 3)) % 1.15) * H * 1.1 - s * .1;
+      cx.save(); cx.translate(x, y); cx.rotate(t * (rnd(i + 9) - .5) * 4);
+      if (m === 'emoji') { cx.font = `${Math.round(s * (.06 + rnd(i + 5) * .06))}px system-ui`; cx.textAlign = 'center'; cx.fillText(E2[i % E2.length], 0, 0); }
+      else { cx.fillStyle = ['#FF5FA2', '#FFD23F', '#5EF2B5', '#5AA8FF', '#A98BFF', '#fff'][i % 6]; cx.fillRect(-s * .008, -s * .016, s * .016, s * .032); }
+      cx.restore(); }
+  }
+  if (m === 'countdown') { const n = 3 - Math.floor(lt / (Math.min(dur, 3.6) / 3.6 * 1.2)), k2 = (lt % 1.2) / 1.2; cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    if (n >= 1) { cx.lineWidth = s * .02; cx.strokeStyle = 'rgba(255,255,255,.25)'; cx.beginPath(); cx.arc(W / 2, H / 2, s * .28, 0, 7); cx.stroke(); cx.strokeStyle = '#FFE066'; cx.beginPath(); cx.arc(W / 2, H / 2, s * .28, -Math.PI / 2, -Math.PI / 2 + k2 * Math.PI * 2); cx.stroke(); const z = pop(k2 / .35); cx.translate(W / 2, H / 2); cx.scale(z, z); cx.font = `900 ${Math.round(s * .3)}px "Nexa Sans",system-ui`; cx.fillStyle = '#fff'; cx.fillText(String(n), 0, 0); }
+    else { const z = pop((lt - 3.6) / .4); cx.translate(W / 2, H / 2); cx.scale(z, z); cx.font = `900 ${Math.round(s * .12)}px "Nexa Sans",system-ui`; cx.fillStyle = '#FFE066'; cx.fillText((c.text || 'GO!').toUpperCase(), 0, 0); }
+    cx.restore(); }
+  if (m === 'spot') { for (let i = 0; i < 3; i++) { const ang = Math.sin(t * .8 + i * 2) * .5, x0 = W * (.2 + i * .3); cx.save(); cx.translate(x0, -s * .05); cx.rotate(ang); const g = cx.createLinearGradient(0, 0, 0, H * 1.2); g.addColorStop(0, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); cx.fillStyle = g; cx.beginPath(); cx.moveTo(-s * .02, 0); cx.lineTo(s * .02, 0); cx.lineTo(s * .22, H * 1.2); cx.lineTo(-s * .22, H * 1.2); cx.closePath(); cx.fill(); cx.restore(); }
+    for (let i = 0; i < 30; i++) { const a = (Math.sin(t * 3 + i) + 1) / 2; cx.fillStyle = `rgba(255,240,200,${a * .8})`; cx.beginPath(); cx.arc(W * rnd(i), H * rnd(i + 40), s * .004 * (1 + a), 0, 7); cx.fill(); } }
+  if (m === 'phone') { // a phone showing Nexa, messages scrolling in + a notification
+    const pw = Math.min(W * .62, H * .36), ph = pw * 2.05, px = W / 2 - pw / 2, py = H / 2 - ph / 2 + (1 - ease(lt / .6)) * H * .2, fs = pw * .055;
+    cx.save(); cx.shadowColor = 'rgba(0,0,0,.6)'; cx.shadowBlur = s * .06; rr(px, py, pw, ph, pw * .13); cx.fillStyle = '#0c0e1c'; cx.fill(); cx.restore();
+    rr(px, py, pw, ph, pw * .13); cx.lineWidth = pw * .025; cx.strokeStyle = '#2b2f45'; cx.stroke();
+    cx.save(); rr(px + pw * .04, py + pw * .04, pw * .92, ph - pw * .08, pw * .1); cx.clip(); const sg = cx.createLinearGradient(0, py, 0, py + ph); sg.addColorStop(0, '#1b1f4a'); sg.addColorStop(1, '#2a1240'); cx.fillStyle = sg; cx.fillRect(px, py, pw, ph);
+    cx.textBaseline = 'middle'; cx.textAlign = 'left'; cx.fillStyle = '#fff'; cx.font = `800 ${Math.round(fs * 1.3)}px "Nexa Sans",system-ui`; cx.fillText(c.text && lt < 99 ? 'Squad' : 'Squad', px + pw * .1, py + pw * .2);
+    const lines = c.lines || CHAT_LINES, per = Math.max(.35, (dur - .8) / lines.length); let y = py + pw * .36; cx.font = `600 ${Math.round(fs)}px "Nexa Sans",system-ui`;
+    lines.forEach(([who, txt], i) => { const a = ease((lt - .5 - i * per) / .25); if (a <= 0) return; const w = Math.min(pw * .78, cx.measureText(txt).width + fs * 1.6), h = fs * 2.2, x = who === 'me' ? px + pw * .9 - w : px + pw * .1; cx.save(); cx.globalAlpha = a; cx.translate(0, (1 - a) * fs); rr(x, y, w, h, h / 2); if (who === 'me') { const g = cx.createLinearGradient(x, y, x + w, y); g.addColorStop(0, '#5B7CFF'); g.addColorStop(1, '#B06CFF'); cx.fillStyle = g; } else cx.fillStyle = 'rgba(255,255,255,.15)'; cx.fill(); cx.fillStyle = '#fff'; cx.fillText(txt, x + fs * .8, y + h / 2); cx.restore(); y += h + fs * .5; });
+    cx.restore();
+    const na = ease((lt - .3) / .35) * (lt < dur - .4 ? 1 : ease((dur - lt) / .4)); if (na > 0) { const nw = W * .8, nh = s * .11, nx = W / 2 - nw / 2, ny = H * .06 + (1 - na) * -s * .2; cx.save(); cx.globalAlpha = na; rr(nx, ny, nw, nh, nh * .35); cx.fillStyle = 'rgba(255,255,255,.18)'; cx.fill(); cx.strokeStyle = 'rgba(255,255,255,.5)'; cx.lineWidth = 2; cx.stroke(); if (LOGO.complete && LOGO.naturalWidth) { cx.save(); rr(nx + nh * .18, ny + nh * .18, nh * .64, nh * .64, nh * .16); cx.clip(); cx.drawImage(LOGO, nx + nh * .18, ny + nh * .18, nh * .64, nh * .64); cx.restore(); } cx.fillStyle = '#fff'; cx.textBaseline = 'middle'; cx.textAlign = 'left'; cx.font = `800 ${Math.round(nh * .26)}px "Nexa Sans",system-ui`; cx.fillText('Nexa', nx + nh, ny + nh * .34); cx.font = `600 ${Math.round(nh * .24)}px "Nexa Sans",system-ui`; cx.fillStyle = 'rgba(255,255,255,.85)'; cx.fillText(c.sub || 'Jay: you coming? 👀', nx + nh, ny + nh * .68); cx.restore(); }
+  }
+
+  if (m === 'list') { // a glass card with items ticking in, one by one: great for "What's new in Nexa"
+    const items = String(c.sub || 'Chat themes|Stickers|Faster everywhere|New games').split(/\||\n/).map(x => x.trim()).filter(Boolean).slice(0, 6), fs = s * .055, per = Math.max(.3, (dur - .8) / items.length);
+    blob(W * .3, H * .3, s * .9, 'rgba(70,110,255,.6)'); blob(W * .8, H * .8, s * .8, 'rgba(255,90,160,.45)');
+    const cw = W * .84, chh = fs * 2.2 * items.length + fs * 4.2, cx0 = W / 2 - cw / 2, cy0 = H / 2 - chh / 2 + (1 - ease(lt / .5)) * s * .1;
+    glassRR(cx0, cy0, cw, chh, s * .05, .12);
+    cx.save(); cx.textBaseline = 'middle'; cx.textAlign = 'left'; cx.fillStyle = '#fff'; cx.font = `900 ${Math.round(fs * 1.25)}px "Nexa Sans",system-ui`; cx.fillText(c.text || 'What’s new in Nexa', cx0 + fs * 1.2, cy0 + fs * 1.9);
+    items.forEach((it, i) => { const a = ease((lt - .5 - i * per) / .3); if (a <= 0) return; const y = cy0 + fs * 4 + i * fs * 2.2; cx.globalAlpha = a; cx.save(); cx.translate((1 - a) * fs * 2, 0);
+      cx.beginPath(); cx.arc(cx0 + fs * 1.8, y, fs * .62, 0, 7); const g = cx.createLinearGradient(cx0 + fs, y - fs, cx0 + fs * 2.5, y + fs); g.addColorStop(0, '#5B7CFF'); g.addColorStop(1, '#B06CFF'); cx.fillStyle = g; cx.fill();
+      cx.strokeStyle = '#fff'; cx.lineWidth = fs * .16; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(cx0 + fs * 1.5, y); cx.lineTo(cx0 + fs * 1.75, y + fs * .25); cx.lineTo(cx0 + fs * 2.15, y - fs * .25); cx.stroke();
+      cx.fillStyle = '#fff'; cx.font = `700 ${Math.round(fs)}px "Nexa Sans",system-ui`; cx.fillText(it, cx0 + fs * 3, y); cx.restore(); });
+    cx.restore();
+  }
+  if (m === 'logo') { const a = Math.min(1, lt / .6), z = .7 + .3 * (1 - Math.pow(1 - a, 3)), L = s * .38 * z; cx.save(); cx.globalAlpha = a; cx.shadowColor = 'rgba(90,150,255,.9)'; cx.shadowBlur = s * .08; rr(W / 2 - L / 2, H * .42 - L / 2, L, L, L * .22); cx.clip(); if (LOGO.complete && LOGO.naturalWidth) cx.drawImage(LOGO, W / 2 - L / 2, H * .42 - L / 2, L, L); cx.restore();
+    cx.save(); cx.globalAlpha = Math.max(0, Math.min(1, (lt - .4) / .5)); cx.textAlign = 'center'; cx.fillStyle = '#fff'; cx.font = `800 ${Math.round(s * .11)}px "Nexa Sans",system-ui,sans-serif`; cx.fillText('nexa', W / 2, H * .42 + L * .72); cx.restore(); }
+}
+const motionThumb = c => { const t = document.createElement('canvas'); t.width = 120; t.height = 160; const keep = cx; cx = t.getContext('2d'); try { cx.save(); cx.scale(120 / 720, 160 / 1280); drawMotion(c, Math.min(1.2, c.dur * .6), c.dur, 720, 1280); cx.restore(); } catch {} cx = keep; return t.toDataURL('image/jpeg', .7); };
+function addMotion(mtype, o = {}) { const c = { id: ++uid, kind: 'motion', mtype, name: (MOTIONS.find(m => m[0] === mtype) || [, 'Background'])[1], dur: o.dur || 3, text: o.text || '', sub: o.sub || '' }; c.thumb = motionThumb(c); E.clips.push(c); paintSide(); seek(E.t); return c; }
 function drawCard(kind, lt, dur, W, H) {
   const g = cx.createLinearGradient(0, 0, W, H); const k = lt / dur; g.addColorStop(0, `hsl(${245 + k * 30} 70% 22%)`); g.addColorStop(1, `hsl(${330 + k * 20} 70% 18%)`); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
   [[.25, .3, '#6E5BFF'], [.8, .2, '#FF6FA8'], [.5, .85, '#2FC8A8']].forEach(([x, y, c], i) => { const r = Math.min(W, H) * (.45 + .05 * Math.sin(lt * 2 + i)); const rg = cx.createRadialGradient(W * x, H * y, 0, W * x, H * y, r); rg.addColorStop(0, c + '88'); rg.addColorStop(1, c + '00'); cx.fillStyle = rg; cx.fillRect(0, 0, W, H); });
@@ -193,19 +297,31 @@ function drawMark(W, H) {
 }
 function frame() {
   if (!cx) return; const [W, H] = RES[E.aspect]; const [s] = segAt(E.t);
-  cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H);
+  cx.textAlign = 'left'; cx.textBaseline = 'alphabetic'; cx.globalAlpha = 1; cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H);
   if (!s) { cx.fillStyle = 'rgba(255,255,255,.5)'; cx.textAlign = 'center'; cx.font = `600 ${Math.round(W * .04)}px "Nexa Sans",sans-serif`; cx.fillText('Add a video or picture to start', W / 2, H / 2); return; }
   const lt = E.t - s.start;
   if (s.kind === 'intro' || s.kind === 'outro') drawCard(s.kind, lt, s.dur, W, H);
   else {
     const c = s.clip; cx.save(); cx.filter = FILTERS[E.filter] || 'none';
-    if (s.kind === 'image') { const z = 1 + .06 * (lt / s.dur); cx.translate(W / 2, H / 2); cx.scale(z, z); cx.translate(-W / 2, -H / 2); } // gentle zoom on pictures
-    drawMedia(c.el, c.w, c.h, W, H, E.fit); cx.restore();
-    const first = segs().find(x => x.kind === 'video' || x.kind === 'image');
-    if (!E.text.secs || (first && E.t - first.start < E.text.secs)) drawText(W, H);
+    const tr = E.trans || 'zoom', tk = Math.min(1, lt / .35), te = 1 - Math.pow(1 - tk, 3); // transition into this clip
+    if (tk < 1 && tr === 'zoom') { const z = 1.18 - .18 * te; cx.translate(W / 2, H / 2); cx.scale(z, z); cx.translate(-W / 2, -H / 2); }
+    if (tk < 1 && tr === 'slide') cx.translate(W * (1 - te) * .35, 0);
+    if (tk < 1 && tr === 'whip') { cx.translate(-W * (1 - te) * .6, 0); cx.filter = (cx.filter === 'none' ? '' : cx.filter + ' ') + `blur(${(1 - te) * 14}px)`; }
+    if (s.kind === 'motion') drawMotion(c, lt, s.dur, W, H);
+    else { if (s.kind === 'image') { const z = 1 + .06 * (lt / s.dur); cx.translate(W / 2, H / 2); cx.scale(z, z); cx.translate(-W / 2, -H / 2); } // gentle zoom on pictures
+      drawMedia(c.el, c.w, c.h, W, H, E.fit); }
+    cx.restore();
+    if (s.kind === 'motion' && OWN_TEXT.includes(c.mtype)) { /* the template draws its own words */ }
+    else if (c.text || (c.sub && c.mtype !== 'phone')) { const a = E.text.style === 'pop' ? 1 : Math.min(1, lt / .3); cx.save(); cx.globalAlpha = a; cx.translate(0, (1 - a) * 18); drawText(W, H, { ...E.text, t: c.text, sub: c.mtype === 'phone' ? '' : (c.sub || '') }, lt); cx.restore(); } // this clip's own words
+    else { const first = segs().find(x => x.kind !== 'intro' && x.kind !== 'outro');
+      if (!E.text.secs || (first && E.t - first.start < E.text.secs)) drawText(W, H); }
+    if (c.sticker) { const sz = Math.min(W, H) * .16, a = Math.min(1, lt / .3), b2 = 1 + Math.sin(lt * 6) * .06 * a, pos = { tl: [.2, .16], tr: [.8, .16], bl: [.2, .84], br: [.8, .84], c: [.5, .5] }[c.spos || 'tr']; cx.save(); cx.translate(W * pos[0], H * pos[1]); cx.rotate(Math.sin(lt * 3) * .12); cx.scale(b2 * (a < 1 ? .5 + a * .5 : 1), b2 * (a < 1 ? .5 + a * .5 : 1)); cx.font = `${Math.round(sz)}px system-ui,"Apple Color Emoji","Segoe UI Emoji"`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.shadowColor = 'rgba(0,0,0,.4)'; cx.shadowBlur = sz * .15; cx.fillText(c.sticker, 0, 0); cx.restore(); }
     if (E.brand.mark) drawMark(W, H);
   }
-  if (lt < .25) { cx.fillStyle = `rgba(0,0,0,${(1 - lt / .25) * .7})`; cx.fillRect(0, 0, W, H); } // soft cut
+  const tr2 = E.trans || 'zoom';
+  if (tr2 === 'flash' && lt < .22) { cx.fillStyle = `rgba(255,255,255,${(1 - lt / .22) * .85})`; cx.fillRect(0, 0, W, H); }
+  else if (tr2 !== 'cut' && lt < .25) { cx.fillStyle = `rgba(0,0,0,${(1 - lt / .25) * (tr2 === 'fade' ? .9 : .45)})`; cx.fillRect(0, 0, W, H); } // soft cut
+  if (E.bar) { const k3 = E.t / (total() || 1), bh = Math.max(6, H * .006); cx.fillStyle = 'rgba(255,255,255,.25)'; cx.fillRect(0, H - bh, W, bh); const g = cx.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#5B7CFF'); g.addColorStop(1, '#FF6AA8'); cx.fillStyle = g; cx.fillRect(0, H - bh, W * k3, bh); }
   const tt = document.getElementById('vetime'); if (tt) tt.textContent = fmt(E.t) + ' / ' + fmt(total());
   const sk = document.getElementById('veseek'); if (sk && document.activeElement !== sk) { sk.max = total() || 1; sk.value = E.t; }
 }
@@ -216,9 +332,10 @@ function play() {
   ensureAudio(); actx?.state === 'suspended' && actx.resume();
   if (E.t >= total() - .05) E.t = 0; E.playing = true; const [s, i] = segAt(E.t); segIdx = i; startSeg(s);
   if (E.music) { E.music.el.currentTime = E.t % (E.music.el.duration || 1e9); E.music.el.play().catch(() => {}); }
+  beatPlay();
   lastWall = performance.now(); cancelAnimationFrame(rafId); rafId = requestAnimationFrame(loop); paintPlay();
 }
-function pause() { E.playing = false; cancelAnimationFrame(rafId); stopAll(); paintPlay(); if (E.rec) finishRec(); }
+function pause() { E.playing = false; cancelAnimationFrame(rafId); stopAll(); beatStop(); paintPlay(); if (E.rec) finishRec(); }
 function loop(now) {
   if (!E.playing) return; const dt = Math.min(.1, (now - lastWall) / 1000); lastWall = now;
   const L = segs(), s = L[segIdx];
@@ -231,7 +348,7 @@ function loop(now) {
 function next(L) { segIdx++; if (segIdx >= L.length) { E.t = total(); frame(); return pause(); } E.t = L[segIdx].start; startSeg(L[segIdx]); }
 function seek(t) {
   E.t = Math.max(0, Math.min(t, total())); const [s, i] = segAt(E.t); segIdx = i;
-  if (E.playing) { stopAll(); startSeg(s); if (E.music) { E.music.el.currentTime = E.t % (E.music.el.duration || 1e9); E.music.el.play().catch(() => {}); } }
+  if (E.playing) { stopAll(); startSeg(s); beatPlay(); if (E.music) { E.music.el.currentTime = E.t % (E.music.el.duration || 1e9); E.music.el.play().catch(() => {}); } }
   else if (s && s.kind === 'video') { s.clip.el.currentTime = s.clip.a + (E.t - s.start); s.clip.el.onseeked = () => { s.clip.el.onseeked = null; frame(); }; }
   frame(); paintStrip();
 }
@@ -239,6 +356,30 @@ function paintPlay() { const b = document.getElementById('veplay'); if (b) b.inn
 function paintStrip() { const el = document.getElementById('vestrip'); if (!el) return; const L = segs(), T = total() || 1, [, cur] = segAt(E.t); el.innerHTML = L.map((s, i) => `<span class="${s.kind === 'intro' || s.kind === 'outro' ? 'brand' : ''} ${i === cur ? 'on' : ''}" style="flex:${s.dur / T}" data-a="veJump" data-v="${s.start}" title="${esc(s.clip?.name || s.kind)}">${esc(s.clip?.name || (s.kind === 'intro' ? 'Intro' : 'Outro'))}</span>`).join(''); }
 function setupCanvas() { const [W, H] = RES[E.aspect]; cv.width = W; cv.height = H; frame(); }
 
+// ---------- Nexa beats: free music made right here (no files, no copyright problems)
+const BEATS = { none: ['No beat'], hype: ['Hype', 128], chill: ['Chill', 96], lofi: ['Lo-fi', 82], epic: ['Epic', 110] };
+let beatT = 0, beatOut = null, noiseBuf = null, beatStart = 0, beatStep = 0;
+function beatBus() { if (!actx) return null; if (!beatOut) { beatOut = actx.createGain(); const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000; beatOut.connect(lp); lp.connect(actx.destination); lp.connect(mixDest); beatOut._lp = lp; } beatOut.gain.value = E.bvol ?? .55; beatOut._lp.frequency.value = E.beat === 'lofi' ? 1600 : 20000; return beatOut; }
+function noise() { if (noiseBuf) return noiseBuf; noiseBuf = actx.createBuffer(1, actx.sampleRate * .5, actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return noiseBuf; }
+function hit(kind, t, f = 0) {
+  const out = beatBus(); if (!out) return; const g = actx.createGain(); g.connect(out);
+  if (kind === 'kick') { const o = actx.createOscillator(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + .14); g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(g); o.start(t); o.stop(t + .32); }
+  else if (kind === 'snare' || kind === 'hat' || kind === 'clap') { const n = actx.createBufferSource(); n.buffer = noise(); const hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = kind === 'hat' ? 7000 : 1200; n.connect(hp); hp.connect(g); const len = kind === 'hat' ? .04 : .16; g.gain.setValueAtTime(kind === 'hat' ? .25 : .55, t); g.gain.exponentialRampToValueAtTime(.001, t + len); n.start(t); n.stop(t + len + .02); }
+  else if (kind === 'bass') { const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; o.connect(lp); lp.connect(g); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .28); o.start(t); o.stop(t + .3); }
+  else if (kind === 'pad') { [1, 1.26, 1.5].forEach(r => { const o = actx.createOscillator(); o.type = 'triangle'; o.frequency.value = f * r; o.connect(g); o.start(t); o.stop(t + 1.9); }); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.07, t + .25); g.gain.exponentialRampToValueAtTime(.001, t + 1.85); }
+  else if (kind === 'lead') { const o = actx.createOscillator(); o.type = 'square'; o.frequency.value = f; const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; o.connect(lp); lp.connect(g); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.06, t + .01); g.gain.exponentialRampToValueAtTime(.001, t + .18); o.start(t); o.stop(t + .2); }
+}
+const PROG = [[220, 174.6, 261.6, 196], [220, 196, 174.6, 196]]; // A minor-ish chords: Am F C G
+function beatStepAt(st, t) {
+  const b = E.beat, bar = Math.floor(st / 16) % 4, s16 = st % 16, root = PROG[b === 'epic' ? 1 : 0][bar];
+  if (b === 'hype') { if (s16 % 4 === 0) hit('kick', t); if (s16 === 4 || s16 === 12) hit('clap', t); if (s16 % 2 === 0) hit('hat', t); if ([0, 3, 6, 10, 14].includes(s16)) hit('bass', t, root / 2); if ([0, 3, 6, 8, 11, 14].includes(s16) && bar % 2) hit('lead', t, root * 2 * [1, 1.5, 1.26, 2, 1.5, 1.26][[0, 3, 6, 8, 11, 14].indexOf(s16)]); }
+  if (b === 'chill') { if (s16 === 0 || s16 === 10) hit('kick', t); if (s16 === 4 || s16 === 12) hit('snare', t); if (s16 % 2 === 0) hit('hat', t); if (s16 === 0) hit('pad', t, root); if (s16 === 0 || s16 === 8) hit('bass', t, root / 2); }
+  if (b === 'lofi') { const sw = s16 % 2 ? .03 : 0; if (s16 === 0 || s16 === 7 || s16 === 10) hit('kick', t + sw); if (s16 === 4 || s16 === 12) hit('snare', t + sw); if (s16 % 2 === 0) hit('hat', t + sw); if (s16 === 0) hit('pad', t, root); }
+  if (b === 'epic') { if (s16 === 0 || s16 === 8 || (bar === 3 && s16 % 2 === 0)) hit('kick', t); if (s16 === 8) hit('snare', t); if (s16 === 0) hit('pad', t, root); if (s16 % 4 === 0) hit('bass', t, root / 2); }
+}
+function beatPlay() { beatStop(); if (!actx || !E.beat || E.beat === 'none') return; const bpm = BEATS[E.beat][1], sp = 60 / bpm / 4; beatStart = actx.currentTime + .05 - (E.t % (sp * 64)); beatStep = Math.ceil((actx.currentTime + .05 - beatStart) / sp);
+  const tick = () => { const ahead = actx.currentTime + .15; while (beatStart + beatStep * sp < ahead) { beatStepAt(beatStep, beatStart + beatStep * sp); beatStep++; } }; tick(); beatT = setInterval(tick, 50); }
+function beatStop() { clearInterval(beatT); beatT = 0; }
 // export: records the canvas + sound while it plays from the start
 function pickMime() { const C = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']; return C.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || ''; }
 function exportVideo() {
@@ -265,20 +406,27 @@ function doneModal(blob, type) {
 }
 function paintSide() {
   const el = document.getElementById('veclips'); if (el) el.innerHTML = E.clips.length ? E.clips.map((c, i) => `<div class="ve-clip"><img src="${esc(c.thumb || '')}" alt=""><div style="flex:1;min-width:0"><div class="nm">${esc(c.name)}</div>
-    ${c.kind === 'video' ? `<div class="tr">Start <input type="number" step=".1" min="0" max="${c.dur.toFixed(1)}" value="${c.a.toFixed(1)}" data-clip="${c.id}" data-k="a" class="k-in" style="height:30px;padding:0 6px;width:62px"> End <input type="number" step=".1" min="0" max="${c.dur.toFixed(1)}" value="${c.b.toFixed(1)}" data-clip="${c.id}" data-k="b" class="k-in" style="height:30px;padding:0 6px;width:62px"></div>` : `<div class="tr">Show for <input type="number" step=".5" min="1" max="20" value="${c.dur}" data-clip="${c.id}" data-k="dur" class="k-in" style="height:30px;padding:0 6px;width:56px"> s</div>`}
+    ${c.kind === 'motion' ? `<div class="tr"><select class="k-in k-sel" data-clip="${c.id}" data-k="mtype" style="height:30px;padding:0 26px 0 8px;width:auto;font-size:12px">${MOTIONS.map(([k, l]) => `<option value="${k}" ${k === c.mtype ? 'selected' : ''}>${l}</option>`).join('')}</select> <input type="number" step=".5" min="1" max="20" value="${c.dur}" data-clip="${c.id}" data-k="dur" class="k-in" style="height:30px;padding:0 6px;width:56px"> s</div>` : ''}
+    <input class="k-in" data-clip="${c.id}" data-k="text" value="${esc(c.text || '')}" placeholder="Words on this clip (optional)" style="height:32px;font-size:13px;margin:4px 0">
+    ${c.kind === 'motion' && ['list', 'meme', 'kinetic', 'phone'].includes(c.mtype) ? `<input class="k-in" data-clip="${c.id}" data-k="sub" value="${esc(c.sub || '')}" placeholder="${c.mtype === 'list' ? 'Items, split with | e.g. Themes|Stickers|Games' : c.mtype === 'meme' ? 'Bottom line' : c.mtype === 'phone' ? 'Notification text' : 'Small line'}" style="height:32px;font-size:13px;margin:0 0 4px">` : ''}
+    <div class="ve-stk">${['', '😂', '🔥', '💜', '👀', '🎮', '✨', '💬', '🎉'].map(e2 => `<button class="${(c.sticker || '') === e2 ? 'on' : ''}" data-a="veStk" data-v="${c.id}" data-e="${e2}" title="${e2 ? 'Sticker' : 'No sticker'}">${e2 || '∅'}</button>`).join('')}</div>
+    ${c.kind === 'motion' ? '' : c.kind === 'video' ? `<div class="tr">Start <input type="number" step=".1" min="0" max="${c.dur.toFixed(1)}" value="${c.a.toFixed(1)}" data-clip="${c.id}" data-k="a" class="k-in" style="height:30px;padding:0 6px;width:62px"> End <input type="number" step=".1" min="0" max="${c.dur.toFixed(1)}" value="${c.b.toFixed(1)}" data-clip="${c.id}" data-k="b" class="k-in" style="height:30px;padding:0 6px;width:62px"></div>` : `<div class="tr">Show for <input type="number" step=".5" min="1" max="20" value="${c.dur}" data-clip="${c.id}" data-k="dur" class="k-in" style="height:30px;padding:0 6px;width:56px"> s</div>`}
     <div class="k-row" style="gap:4px;margin-top:4px"><button class="ve-mini" data-a="veMove" data-v="${c.id}" data-d="-1" ${i ? '' : 'disabled'} title="Move up">↑</button><button class="ve-mini" data-a="veMove" data-v="${c.id}" data-d="1" ${i < E.clips.length - 1 ? '' : 'disabled'} title="Move down">↓</button>${c.kind === 'video' ? `<button class="ve-mini" data-a="veMute" data-v="${c.id}" title="Sound on/off">${c.mute ? '🔇' : '🔊'}</button>` : ''}<button class="ve-mini" data-a="veDel" data-v="${c.id}" title="Remove">${icon('trash', 15)}</button></div></div></div>`).join('')
-    : `<div class="ve-drop">Drop videos or pictures here<br><span class="small">MP4, MOV, JPG, PNG · up to 40 MB to save</span></div>`;
+    : `<div class="ve-drop"><b>No clips yet</b><br>Press <b>✨ Make it with AI</b>, find a free video, add a Nexa background, or drop your own videos and pictures here.</div>`;
   const m = document.getElementById('vemusic'); if (m) m.innerHTML = E.music ? `<div class="ve-clip" style="align-items:center"><span style="font-size:22px">🎵</span><div style="flex:1;min-width:0"><div class="nm">${esc(E.music.name)}</div><input type="range" min="0" max="1" step=".05" value="${E.mvol}" data-ve="mvol" aria-label="Music volume"></div><button class="ve-mini" data-a="veNoMusic">${icon('x', 14)}</button></div>` : `<button class="k-btn sm" data-a="veMusic">${icon('music', 16)} Add music</button>`;
   paintStrip(); frame();
 }
 const seg = (k, opts, cur) => `<div class="ve-seg">${opts.map(([v, l]) => `<button class="${String(cur) === String(v) ? 'on' : ''}" data-a="veSet" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
 function vEditor() {
   const T = E.text;
-  return `<div class="k-head"><div><h1 class="k-h1">Video editor</h1><p class="mute">Put clips together, add text and Nexa branding, then save it for TikTok, YouTube or Instagram.</p></div>
-    <div class="k-row"><button class="k-btn" data-a="aiIdeas">${icon('spark', 18)} Ideas</button><button class="k-btn pri" data-a="veExport">${icon('dl', 18)} Save video</button></div></div>
+  return `<div class="k-head"><div><h1 class="k-h1">Video editor</h1><p class="mute">Tell Nexa AI what you want, or build it yourself. No filming needed: use free videos and Nexa backgrounds.</p></div>
+    <div class="k-row"><button class="k-btn" data-a="aiIdeas">${icon('spark', 18)} Ideas</button><button class="k-btn" data-a="veRemix" title="Make a fresh version with AI">${icon('spark', 18)} Remix</button><button class="k-btn" data-a="veThumb" title="Save this frame as the cover picture">${icon('img', 18)} Cover</button><button class="k-btn pri" data-a="veExport">${icon('dl', 18)} Save video</button></div></div>
+  <form class="glass ve-ai" id="f-veai"><span class="k-aiorb" style="width:40px;height:40px">${icon('spark', 18)}</span><input class="k-in" id="veq" placeholder="Make it with AI, e.g. “15-second TikTok showing Nexa group chats”" autocomplete="off"><button class="k-btn ai" ${S.veBusy ? 'disabled' : ''}>${S.veBusy ? 'Making…' : '✨ Make it'}</button></form>
   <div class="ve">
-    <section class="glass ve-col ve-left"><div class="ve-h">${icon('film', 16)} Clips</div><div class="k-row"><button class="k-btn sm" data-a="veAdd">${icon('plus', 16)} From computer</button><button class="k-btn sm" data-a="veFromStudio">${icon('folder', 16)} From Studio</button></div><div id="veclips" style="display:flex;flex-direction:column;gap:8px"></div>
-      <div class="ve-h">${icon('music', 16)} Music</div><div id="vemusic"></div>
+    <section class="glass ve-col ve-left"><div class="ve-h">${icon('film', 16)} Clips</div><div class="k-row"><button class="k-btn sm ai" data-a="veStock">${icon('eye', 16)} Find free videos</button><button class="k-btn sm" data-a="veBgs">${icon('spark', 16)} Nexa templates</button><button class="k-btn sm" data-a="veAdd">${icon('plus', 16)} From computer</button><button class="k-btn sm" data-a="veFromStudio">${icon('folder', 16)} From Studio</button></div><div id="veclips" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="ve-h">${icon('music', 16)} Music</div>${seg('beat', Object.entries(BEATS).map(([k, v]) => [k, v[0]]), E.beat)}
+      <label class="ve-tog">Beat volume<input type="range" min="0" max="1" step=".05" value="${E.bvol}" data-ve="bvol" style="width:130px;height:auto;appearance:auto;background:none"></label><div id="vemusic"></div>
+      <div class="ve-h">${icon('film', 16)} Transitions</div>${seg('trans', [['zoom', 'Zoom'], ['slide', 'Slide'], ['whip', 'Whip'], ['flash', 'Flash'], ['fade', 'Fade'], ['cut', 'Cut']], E.trans)}
       <label class="ve-tog">Video sound<input type="range" min="0" max="1.5" step=".05" value="${E.vol}" data-ve="vol" style="width:130px;height:auto;appearance:auto;background:none" aria-label="Video volume"></label></section>
     <section class="glass ve-stage"><div class="ve-canvaswrap"><canvas id="vecv" aria-label="Video preview"></canvas></div>
       <div class="ve-strip" id="vestrip"></div>
@@ -286,7 +434,7 @@ function vEditor() {
       <div class="k-row">${seg('aspect', [['9:16', '9:16 TikTok'], ['16:9', '16:9 YouTube'], ['1:1', '1:1'], ['4:5', '4:5 Insta']], E.aspect)}</div></section>
     <section class="glass ve-col"><div class="ve-h">${icon('text', 16)} Text</div>
       <input class="k-in" data-ve="t" value="${esc(T.t)}" placeholder="Big title, e.g. Meet Nexa 1.8" maxlength="120"><input class="k-in" data-ve="sub" value="${esc(T.sub)}" placeholder="Small line under it (optional)" maxlength="160">
-      ${seg('style', [['glass', 'Glass'], ['bold', 'Bold'], ['caption', 'Caption'], ['prism', 'Prism'], ['serif', 'Elegant']], T.style)}
+      ${seg('style', [['pop', 'Pop (TikTok)'], ['glass', 'Glass'], ['bold', 'Bold'], ['caption', 'Caption'], ['prism', 'Prism'], ['serif', 'Elegant']], T.style)}
       ${seg('pos', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], T.pos)}
       <div class="ve-colors">${['#FFFFFF', '#FFE27A', '#FF8FB1', '#8C97FF', '#7BF0B8', '#0B0B12'].map(c => `<button style="background:${c}" class="${T.color === c ? 'on' : ''}" data-a="veSet" data-k="color" data-v="${c}" aria-label="Colour ${c}"></button>`).join('')}</div>
       <label class="ve-tog">Size<input type="range" min=".6" max="1.6" step=".05" value="${T.size}" data-ve="size" style="width:140px;height:auto;appearance:auto;background:none"></label>
@@ -296,7 +444,8 @@ function vEditor() {
       <div class="ve-h">nexa Branding</div>
       <label class="ve-tog">Nexa logo in the corner<input type="checkbox" data-vb="mark" ${E.brand.mark ? 'checked' : ''}></label>
       <label class="ve-tog">Nexa intro (2s)<input type="checkbox" data-vb="intro" ${E.brand.intro ? 'checked' : ''}></label>
-      <label class="ve-tog">"Try Nexa" ending (2.5s)<input type="checkbox" data-vb="outro" ${E.brand.outro ? 'checked' : ''}></label></section>
+      <label class="ve-tog">"Try Nexa" ending (2.5s)<input type="checkbox" data-vb="outro" ${E.brand.outro ? 'checked' : ''}></label>
+      <label class="ve-tog">Progress bar at the bottom<input type="checkbox" data-vb="bar" ${E.bar ? 'checked' : ''}></label></section>
   </div>`;
 }
 function mountEditor(el) {
@@ -305,12 +454,39 @@ function mountEditor(el) {
   document.fonts?.ready.then(frame);
 }
 
+// ---------- free stock videos & photos
+function vStock() {
+  const T = S.stock || {};
+  return `<div class="k-mhead"><b>Find free videos &amp; photos</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div>
+  <form id="f-stock" class="k-row" style="margin:4px 0 10px"><input class="k-in" id="stq" value="${esc(T.q || '')}" placeholder="Search, e.g. friends laughing, city night, gaming" style="flex:1"><button class="k-btn pri">Search</button></form>
+  <div class="k-pills">${[['video', '🎬 Videos'], ['photo', '🖼 Photos']].map(([k, l]) => `<button class="k-pill ${T.kind === k ? 'on' : ''}" data-a="stKind" data-v="${k}">${l}</button>`).join('')}</div>
+  ${T.list == null ? '<div class="k-note">Searching… <span class="k-dots"><i></i><i></i><i></i></span></div>' : T.err ? `<div class="k-note"><b>Free videos need a free key (2 minutes, once).</b><ol style="margin:8px 0 0;padding-left:20px;line-height:1.7"><li>Owner: make a free account at <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> and copy the key</li><li>Cloudflare › Pages › nexa › Settings › Variables and secrets › Add <b>PEXELS_API_KEY</b></li><li>Upload any file to GitHub so the site rebuilds</li></ol><div class="mute small" style="margin-top:8px">${esc(T.err)}</div><div style="margin-top:10px"><button class="k-btn sm" data-a="veBgs">Use Nexa templates for now</button></div></div>` : T.list.length ? `<div class="k-grid">${T.list.map((x, i) => `<button class="k-file glass" data-a="stAdd" data-v="${i}"><span class="k-thumb"><img src="${esc(x.thumb || '')}" alt="" loading="lazy" referrerpolicy="no-referrer">${x.kind === 'video' ? `<span class="k-play">${icon('play', 16)}</span>` : ''}</span><span class="mute small">${x.dur ? Math.round(x.dur) + 's · ' : ''}${esc(x.by || '')} · ${esc(x.src)}</span></button>`).join('')}</div><p class="mute small">Free to use from ${[...new Set(T.list.map(x => x.src))].join(' & ')}.</p>` : '<div class="k-note">Nothing found. Try other words.</div>'}`;
+}
+async function stockSearch(q) { S.stock = { ...(S.stock || {}), q: q || S.stock?.q || 'friends', list: null, err: '' }; render(); try { const r = await api('stock', { q: S.stock.q, kind: S.stock.kind || 'video' }); S.stock.list = r.list; } catch (e) { S.stock.list = []; S.stock.err = e.message; } if (S.modal) render(); return S.stock.list; }
+// ---------- ✨ Make it with AI: a plan → scenes (Nexa backgrounds + free videos) with words on each
+async function makeWithAI(q, remix) {
+  if (S.veBusy) return; if (!remix) S.lastPrompt = q; S.veBusy = 1; const b = document.querySelector('#f-veai button'); if (b) { b.disabled = true; b.textContent = 'Making…'; } toast(`${icon('spark', 16)} Nexa AI is planning your video…`, 0);
+  try {
+    const { plan } = await api('aiVideo', { prompt: q });
+    let stock = []; if (plan.scenes.some(x => x.bg === 'stock')) { try { stock = (await api('stock', { q: plan.search[0] || q, kind: 'video' })).list || []; } catch { stock = []; } }
+    if (E.clips.length && !remix && !confirm('Replace your current clips with the AI video?')) { S.veBusy = 0; if (b) { b.disabled = false; b.textContent = '✨ Make it'; } toast(''); return; }
+    pause(); E.clips = []; E.brand.outro = true; E.text.t = ''; E.text.sub = ''; let si = 0;
+    if (plan.music && BEATS[plan.music]) E.beat = plan.music; if (plan.transition) E.trans = plan.transition; if (plan.captions === 'pop' || !plan.captions) E.text.style = 'pop';
+    for (const sc of plan.scenes) {
+      if (sc.bg === 'stock' && stock[si]) { const x = stock[si++]; try { const r = await fetch(`/api/team?site=studio&session=${encodeURIComponent(sessionTok())}&stock=${encodeURIComponent(x.url)}`); if (!r.ok) throw 0; await addMedia(new File([await r.blob()], 'stock.mp4', { type: 'video/mp4' })); const c = E.clips[E.clips.length - 1]; c.b = Math.min(c.dur, sc.dur); c.text = sc.text; c.sub = sc.sub; continue; } catch {} }
+      const mc = addMotion(sc.bg === 'stock' ? 'kinetic' : sc.bg, { dur: sc.dur, text: sc.text, sub: sc.sub }); if (sc.emoji) { mc.emoji = sc.emoji; mc.thumb = motionThumb(mc); } if (sc.sticker) mc.sticker = sc.sticker;
+    }
+    S.aiCaption = plan.caption; [['beat', E.beat], ['trans', E.trans], ['style', E.text.style]].forEach(([k, v]) => document.querySelectorAll(`[data-a="veSet"][data-k="${k}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === v))); paintSide(); seek(0); toast(`✨ Done! ${plan.scenes.length} scenes. Press play, change anything, then Save video.`, 5000);
+    if (plan.caption) S.ai.msgs.push({ role: 'model', text: '**Caption for your post:**\n' + plan.caption });
+  } catch (e) { toast(esc(e.code === 'nokey' ? 'Nexa AI isn’t switched on yet (Cloudflare › Bindings › Workers AI named AI).' : e.message), 6000); }
+  S.veBusy = 0; const b2 = document.querySelector('#f-veai button'); if (b2) { b2.disabled = false; b2.textContent = '✨ Make it'; }
+}
 // ================= SITE
 boot({
   site: 'studio', name: 'Nexa Studio', emoji: '🎬', tagline: 'For the Nexa designers and video creators.',
   filesHint: 'Videos, designs and pictures for the team. The owner can see them too.', chatHint: 'Share ideas and work in progress.',
   aiHint: 'Ideas, hooks, captions, hashtags', accept: 'video/*,image/*,application/pdf,.psd,.fig,.ai,.svg',
-  aiStarters: ['Give me 5 TikTok ideas to show off Nexa', 'Write a catchy caption with hashtags for a Nexa launch video', 'What should we post this week? Make a 7-day plan', 'Give me 3 hooks for the first 2 seconds of a video'],
+  aiStarters: ['Plan a 15-second TikTok about Nexa group chats', 'Write a catchy caption with hashtags for a Nexa launch video', 'What should we post this week? Make a 7-day plan', 'Give me 3 hooks for the first 2 seconds of a video'],
   tabs: [
     { id: 'home', label: 'Home', icon: 'home', view: vHome },
     { id: 'editor', label: 'Video editor', short: 'Editor', icon: 'film', view: vEditor, mount: mountEditor, live: true },
@@ -321,17 +497,26 @@ boot({
   fileActions: f => /^(video|image)\//.test(f.type) ? `<button class="k-btn" data-a="useFile" data-v="${f.id}">${icon('film', 18)} Use in video editor</button><button class="k-btn" data-a="postFile" data-v="${f.id}">${icon('cal', 18)} Plan a post</button>` : '',
   onDrop: fs => { if (S.tab !== 'editor') return false; fs.forEach(f => addMedia(f).catch(() => {})); return true; },
   onInput: e => {
-    const t = e.target, k = t.dataset.ve; if (!k) return;
+    const t = e.target;
+    if (t.dataset.clip && (t.dataset.k === 'text' || t.dataset.k === 'sub')) { const c = E.clips.find(x => x.id === +t.dataset.clip); if (c) { c[t.dataset.k] = t.value; if (c.kind === 'motion') c.thumb = c.thumb; if (!E.playing) seek(E.t); } return; }
+    if (t.id === 'stq') return;
+    const k = t.dataset.ve; if (!k) return;
     if (k === 'vol' || k === 'mvol') { E[k] = +t.value; setVol(); return; }
+    if (k === 'bvol') { E.bvol = +t.value; if (beatOut) beatOut.gain.value = E.bvol; return; }
     E.text[k] = k === 'size' ? +t.value : t.value; if (!E.playing) frame();
   },
   onChange: e => {
     const t = e.target;
+    if (t.dataset.vb === 'bar') { E.bar = t.checked; frame(); return; }
     if (t.dataset.vb) { E.brand[t.dataset.vb] = t.checked; seek(E.t); return; }
+    if (t.dataset.clip && (t.dataset.k === 'text' || t.dataset.k === 'sub')) return;
+    if (t.dataset.clip && t.dataset.k === 'mtype') { const c = E.clips.find(x => x.id === +t.dataset.clip); if (c) { c.mtype = t.value; c.name = (MOTIONS.find(m => m[0] === t.value) || [, 'Background'])[1]; c.thumb = motionThumb(c); paintSide(); seek(E.t); } return; }
     if (t.dataset.clip) { const c = E.clips.find(x => x.id === +t.dataset.clip); if (!c) return; let v = +t.value || 0; if (t.dataset.k === 'a') c.a = Math.max(0, Math.min(v, c.b - .2)); else if (t.dataset.k === 'b') c.b = Math.max(c.a + .2, Math.min(v, c.dur)); else c.dur = Math.max(1, Math.min(20, v)); paintSide(); seek(E.t); }
   },
   onTab: t => { if (t !== 'editor' && E.playing && !E.rec) pause(); },
   onSubmit: async (f, e) => {
+    if (f.id === 'f-veai') { const q = document.getElementById('veq').value.trim(); if (q) makeWithAI(q); return; }
+    if (f.id === 'f-stock') { stockSearch(document.getElementById('stq').value.trim()); return; }
     if (f.id !== 'f-post') return;
     const go = (e.submitter && e.submitter.name === 'go' && e.submitter.value) || 'save', id = f.dataset.id;
     const cur = id ? (S.data.post || []).find(p => p.id === id) : null;
@@ -348,9 +533,17 @@ boot({
     delPost: async d => { if (!confirm('Delete this post?')) return; await api('del', { kind: 'post', id: d.v }); closeModal(); reload(true); },
     aiCaption: async () => { const f = document.getElementById('f-post'); toast('✨ Writing…', 0); try { const t = await askAI(`Write one short, catchy social media caption (max 2 sentences, plus 4-6 hashtags) for a Nexa post titled "${f.title.value || 'Nexa'}". Platforms: ${[...S.plats].join(', ') || 'TikTok, Instagram'}. ${f.text.value ? 'Notes: ' + f.text.value : ''} Reply with only the caption.`, { silent: true }); f.text.value = t.trim(); toast('✨ Done'); } catch (e) { toast(esc(e.message), 5000); } },
     aiIdeas: () => askAI(`I'm making a Nexa video${E.text.t ? ' called "' + E.text.t + '"' : ''}${E.clips.length ? ' with clips: ' + E.clips.map(c => c.name).join(', ') : ''}. Give me 5 short on-screen title ideas, 3 hooks for the first 2 seconds, and a caption with hashtags.`),
+    veStk: d => { const c = E.clips.find(x => x.id === +d.v); if (!c) return; c.sticker = d.e || ''; paintSide(); seek(E.t); },
+    veRemix: () => { const q = S.lastPrompt || E.clips.map(c => c.text).filter(Boolean).join(', ') || 'a fun video about Nexa'; makeWithAI(q + ' (make a different, funnier version with new jokes)', true); },
+    veThumb: () => { if (!cv) return; cv.toBlob(b => { download(b, (E.clips.find(c => c.text)?.text || 'nexa').replace(/[^\w -]+/g, '').replace(/\s+/g, '-').slice(0, 30).toLowerCase() + '-cover.png'); toast('Cover picture saved'); }, 'image/png'); },
+    veBgs: () => openModal(() => `<div class="k-mhead"><b>Nexa templates</b><button class="k-x" data-a="close">${icon('x', 18)}</button></div><p class="mute small">Ready-made animated scenes. No filming. Add one, then type your words.</p><div class="k-grid">${MOTIONS.map(([k, l]) => `<button class="k-file glass" data-a="veAddBg" data-v="${k}"><span class="k-thumb" style="aspect-ratio:3/4"><img src="${motionThumb({ mtype: k, dur: 3 })}" alt=""></span><span class="k-fname">${l}</span></button>`).join('')}</div>`),
+    veAddBg: d => { closeModal(); if (S.tab !== 'editor') { S.tab = 'editor'; render(); } addMotion(d.v, { dur: 3 }); toast('Background added'); },
+    veStock: () => { S.stock = S.stock || { q: '', kind: 'video', list: null }; openModal(vStock); if (S.stock.list == null) stockSearch(S.stock.q || 'friends phone'); },
+    stKind: d => { S.stock.kind = d.v; stockSearch(S.stock.q); },
+    stAdd: async d => { const x = S.stock.list[+d.v]; toast('Getting it… (big videos can take a moment)', 0); try { const r = await fetch(`/api/team?site=studio&session=${encodeURIComponent(sessionTok())}&stock=${encodeURIComponent(x.url)}`); if (!r.ok) throw new Error('Couldn’t get that one. Try another.'); const b = await r.blob(); const type = x.kind === 'photo' ? (b.type.startsWith('image/') ? b.type : 'image/jpeg') : 'video/mp4'; closeModal(); if (S.tab !== 'editor') { S.tab = 'editor'; render(); } await addMedia(new File([b], (S.stock.q || 'stock').slice(0, 20) + (x.kind === 'photo' ? '.jpg' : '.mp4'), { type })); const c = E.clips[E.clips.length - 1]; if (c && c.kind === 'video') { c.b = Math.min(c.dur, 6); paintSide(); seek(E.t); } } catch (e) { toast(esc(e.message)); } },
     vePlay: () => E.playing ? pause() : play(),
     veJump: d => seek(+d.v + .01),
-    veSet: d => { if (['aspect', 'filter', 'fit'].includes(d.k)) E[d.k] = d.v; else E.text[d.k] = d.k === 'secs' ? +d.v : d.v; if (d.k === 'aspect') setupCanvas(); document.querySelectorAll(`[data-a="veSet"][data-k="${d.k}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === d.v)); frame(); },
+    veSet: d => { if (d.k === 'beat') { E.beat = d.v; ensureAudio(); if (E.playing) beatPlay(); else if (d.v !== 'none') { actx?.state === 'suspended' && actx.resume(); const keep = E.t; beatPlay(); setTimeout(() => { if (!E.playing) beatStop(); }, 2200); E.t = keep; } } else if (d.k === 'trans') E.trans = d.v; else if (['aspect', 'filter', 'fit'].includes(d.k)) E[d.k] = d.v; else E.text[d.k] = d.k === 'secs' ? +d.v : d.v; if (d.k === 'aspect') setupCanvas(); document.querySelectorAll(`[data-a="veSet"][data-k="${d.k}"]`).forEach(b => b.classList.toggle('on', b.dataset.v === d.v)); frame(); },
     veAdd: async () => { const fs = await pickFile('video/*,image/*', true); for (const f of fs) await addMedia(f).catch(() => {}); },
     veMusic: async () => { const [f] = await pickFile('audio/*'); if (f) addMedia(f); },
     veNoMusic: () => { E.music?.el.pause(); E.music = null; paintSide(); },
@@ -362,7 +555,7 @@ boot({
     veExport: exportVideo,
     veCancel: () => { if (E.rec) { E.rec._cancel = true; } pause(); },
     veDl: () => { download(S.lastExport.blob, S.lastExport.name); toast('Downloaded'); },
-    veSave: async () => { const x = S.lastExport; S.modal = null; render(); try { const id = await uploadFile(x.file, 'video', { dur: total() }); if (id && confirm('Saved to Studio. Plan a post with this video now?')) { S.tab = 'plan'; render(); postModal({ title: E.text.t || '', status: 'making', fileId: id, platforms: [] }); } } catch (e) { toast(esc(e.message)); } },
+    veSave: async () => { const x = S.lastExport; S.modal = null; render(); try { const id = await uploadFile(x.file, 'video', { dur: total() }); if (id && confirm('Saved to Studio. Plan a post with this video now?')) { S.tab = 'plan'; render(); postModal({ title: E.text.t || E.clips.find(c => c.text)?.text || '', text: S.aiCaption || '', status: 'making', fileId: id, platforms: [] }); } } catch (e) { toast(esc(e.message)); } },
   },
 });
 addEventListener('beforeunload', e => { if (E.clips.length) { e.preventDefault(); e.returnValue = ''; } });

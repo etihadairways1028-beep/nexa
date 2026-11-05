@@ -325,7 +325,7 @@ export default async (req) => {
       await sr.update({ hired, [`agents.${rec.id}`]: { salt, hash: crypto.pbkdf2Sync('nexasupport', salt, 3000, 32, 'sha256').toString('hex'), changed: Date.now(), v: 2, fails: 0, lockUntil: 0 } });
       login = { site: 'Nexa Support', url: new URL('/support/', req.url).href, name: rec.name, password: 'nexasupport' };
     }
-    if (!body.tickOnly && (site === 'studio' || site === 'devhub')) { const l = await addSiteLogin(db, site, { uid: hd.uid, name: p.name || h }); if (l) login = { site: l.site, url: new URL(l.path, req.url).href, name: l.name, password: l.password }; }
+    if (!body.tickOnly && (site === 'studio' || site === 'devhub' || site === 'tester')) { const l = await addSiteLogin(db, site === 'tester' ? 'devhub' : site, { uid: hd.uid, name: p.name || h, role: ROLE }); if (l) login = { site: l.site, url: new URL(l.path, req.url).href, name: l.name, password: l.password }; }
     return ok({ done: true, name: p.name || h, login });
   }
   if (body.action === 'sites') return ok(await siteOverview(db));

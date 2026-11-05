@@ -222,7 +222,7 @@ export default async (req) => {
           login = { name: rec.name, password: pw, url: new URL('/support/', req.url).href };
         } else if (SITE_OF_ROLE[role]) {
           // Designers & video creators → Nexa Studio, web developers → Nexa Dev Hub
-          const l = await addSiteLogin(db, SITE_OF_ROLE[role], { uid: app.uid, name: app.name });
+          const l = await addSiteLogin(db, SITE_OF_ROLE[role], { uid: app.uid, name: app.name, role });
           if (l) login = { name: l.name, password: l.password, site: l.site, url: new URL(l.path, req.url).href };
         }
       } else if (app.status === 'accepted') {

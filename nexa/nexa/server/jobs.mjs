@@ -31,11 +31,17 @@ export default async (req, ctx = {}) => {
   let who = '';
   const tm = (req.headers.get('authorization') || '').match(/^Bearer (.+)$/);
   if (tm) { if (TEST() && tm[1].startsWith('local:')) who = tm[1].slice(6); else { try { init(); who = (await admin.auth().verifyIdToken(tm[1])).uid; } catch {} } }
-  if (!who) return json({ error: 'Please apply from your Nexa account: open Nexa, then ••• › Join the Nexa Team.' }, 401);
+  if (!who) return json({ error: 'Please apply from your Nexa account: open Nexa, then ••• › Join the Nexa Crew.' }, 401);
+  // your own applications and where they're at (for the hiring page)
+  if (b.action === 'mine') {
+    try { init(); } catch { return json({ list: [] }); }
+    const qs = await admin.firestore().collection('applications').where('uid', '==', who).limit(20).get().catch(() => ({ docs: [] }));
+    return json({ list: qs.docs.map(d => d.data()).sort((x, y) => (y.at || 0) - (x.at || 0)).slice(0, 6).map(a => ({ ref: a.ref, role: a.roleName || a.role, status: a.status || 'new', at: a.at })) });
+  }
 
   const a = {
     name: clip(b.name, 80), email: clip(b.email, 120).toLowerCase(), handle: clip(b.handle, 30).replace(/^@/, '').toLowerCase(),
-    age: clip(b.age, 8), role: clip(b.role, 20), hours: clip(b.hours, 8), why: clip(b.why, 1500), links: clip(b.links, 600), where: clip(b.where, 60),
+    age: clip(b.age, 8), role: clip(b.role, 20), hours: clip(b.hours, 8), why: clip(b.why, 1500), links: clip(b.links, 600), extra: clip(b.extra, 800), where: clip(b.where, 60),
   };
   const bad = m => json({ error: m }, 400);
   if (a.name.length < 2) return bad('Please add your name.');
@@ -46,7 +52,7 @@ export default async (req, ctx = {}) => {
   if (!HOURS.includes(a.hours)) return bad('Please pick how much time you have.');
   if (a.why.length < 30) return bad('Tell us a little more about why you want to join (at least a couple of sentences).');
   if (!b.agree || !b.volunteer) return bad('Please tick the boxes at the end of the form.');
-  if (a.age !== '18+' && !b.parent) return bad('If you’re under 18, please tick the box to confirm a parent or guardian is OK with you volunteering.');
+  if (a.age !== '18+' && !b.parent) return bad('If you’re under 18, please tick the box to confirm a parent or guardian is OK with you joining.');
 
   try { init(); } catch (e) { return json({ error: 'Applications are closed for a moment. Please try again later.' }, 503); }
   const db = admin.firestore(), now = Date.now(), day = new Date().toISOString().slice(0, 10);
@@ -73,7 +79,7 @@ export default async (req, ctx = {}) => {
       const cr = db.doc('conversations/' + conv);
       if (!(await cr.get()).exists) await cr.set({ type: 'dm', members: [uid, owner].sort(), createdAt: now, reads: {}, typing: {} });
       const AGE_N = { '13-15': '13–15', '16-17': '16–17', '18+': '18+' }, HRS_N = { '1-2': '1–2 hours a week', '3-5': '3–5 hours a week', '6+': '6+ hours a week' };
-      const text = [`📋 Nexa Team application · ${ref}`, `Role: ${ROLES[a.role]}`, `Name: ${a.name}`, `Age: ${AGE_N[a.age]} · Time: ${HRS_N[a.hours]}`, a.email ? `Email: ${a.email}` : '', '', `Why: ${a.why}`, a.links ? `Links: ${a.links}` : '', '', `✓ Volunteer role${a.age !== '18+' ? ' · ✓ Parent/guardian OK' : ''} · ✓ Terms · sent from the hiring page`].filter((x, i, A) => x || (A[i - 1] && A[i - 1] !== '')).join('\n');
+      const text = [`📋 Nexa Crew application · ${ref}`, `Role: ${ROLES[a.role]}`, `Name: ${a.name}`, `Age: ${AGE_N[a.age]} · Time: ${HRS_N[a.hours]}`, a.email ? `Email: ${a.email}` : '', '', `Why: ${a.why}`, a.extra ? `About the role: ${a.extra}` : '', a.links ? `Links: ${a.links}` : '', '', `✓ Community program, not a job${a.age !== '18+' ? ' · ✓ Parent/guardian OK' : ''} · ✓ Terms · sent from the hiring page`].filter((x, i, A) => x || (A[i - 1] && A[i - 1] !== '')).join('\n');
       await db.collection(`conversations/${conv}/messages`).add({ from: uid, at: now, text });
       await cr.update({ last: { text: text.slice(0, 140), from: uid, at: now, exp: 0 }, ['reads.' + uid]: now });
     } catch (e) { /* the application is still saved for Nexa Support › Jobs */ }

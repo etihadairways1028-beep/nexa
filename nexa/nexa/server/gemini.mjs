@@ -45,19 +45,34 @@ async function geminiOnly({ system, contents, prompt, search, maxTokens = 1400 }
 //  2) Claude (Anthropic): add ANTHROPIC_API_KEY in Settings › Variables and secrets
 //  3) Google Gemini: add GEMINI_API_KEY in Settings › Variables and secrets
 const textOf = conv => conv.map(c => ({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts.filter(p => p.text).map(p => p.text).join('\n') })).filter(m => m.content);
-const CF_MODELS = ['@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct'];
-let cfPref = 0;
-async function workersAI({ system, conv, maxTokens }) {
-  const AI = ENV().AI, messages = [...(system ? [{ role: 'system', content: String(system).slice(0, 20000) }] : []), ...textOf(conv)];
+// strongest first; if one isn't available on this account, the next one is used
+const CF_CHAT = ['@cf/openai/gpt-oss-120b', '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct'];
+const CF_CODE = ['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen2.5-coder-32b-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-4-scout-17b-16e-instruct'];
+const bad = new Set(); // models this account can't use (skipped until the server restarts)
+const cfText = r => {
+  if (!r) return ''; if (typeof r === 'string') return r;
+  if (typeof r.response === 'string') return r.response; if (r.response && typeof r.response === 'object') return cfText(r.response);
+  if (typeof r.output_text === 'string') return r.output_text;
+  const ch = r.choices?.[0]?.message?.content; if (typeof ch === 'string') return ch;
+  if (Array.isArray(r.output)) { const hasMsg = r.output.some(o => o && o.type === 'message'); return r.output.filter(o => o && (hasMsg ? o.type === 'message' : o.type !== 'reasoning' && o.content)).flatMap(o => Array.isArray(o.content) ? o.content : [o.content]).map(c => typeof c === 'string' ? c : (c && (c.text || c.output_text)) || '').join(''); }
+  if (r.result) return cfText(r.result);
+  return '';
+};
+async function workersAI({ system, conv, maxTokens, code }) {
+  const AI = ENV().AI, msgs = textOf(conv), messages = [...(system ? [{ role: 'system', content: String(system).slice(0, 24000) }] : []), ...msgs];
   let last;
-  for (let i = 0; i < CF_MODELS.length; i++) {
-    const m = CF_MODELS[(cfPref + i) % CF_MODELS.length];
-    try { const r = await AI.run(m, { messages, max_tokens: maxTokens }); const text = String(r?.response ?? r?.result?.response ?? '').trim(); if (text) { cfPref = (cfPref + i) % CF_MODELS.length; return { text, model: m }; } last = err('Nexa AI didn’t answer. Try asking differently.', 'empty', 422); }
-    catch (e) { const msg = String(e?.message || e); if (/limit|quota|neuron|429/i.test(msg)) throw err('Nexa AI used up today’s free Cloudflare AI. Try again tomorrow.', 'quota', 429); last = err('Cloudflare AI (' + m + '): ' + msg.slice(0, 120), 'model', 502); }
+  for (const m of (code ? CF_CODE : CF_CHAT)) {
+    if (bad.has(m)) continue;
+    const big = /gpt-oss/.test(m);
+    const tries = big ? [{ messages, max_tokens: Math.max(maxTokens, 4000), reasoning: { effort: code ? 'medium' : 'low' } }, { instructions: system || undefined, input: msgs.map(x => ({ role: x.role, content: x.content })), max_output_tokens: Math.max(maxTokens, 4000), reasoning: { effort: code ? 'medium' : 'low' } }] : [{ messages, max_tokens: maxTokens }];
+    for (const body of tries) {
+      try { const r = await AI.run(m, body); const text = cfText(r).replace(/^[\s\S]*?<\/think>/, '').trim(); if (text) return { text, model: m }; last = err('Nexa AI didn’t answer. Try asking differently.', 'empty', 422); }
+      catch (e) { const msg = String(e?.message || e); if (/limit|quota|neuron|429/i.test(msg)) throw err('Nexa AI used up today’s free Cloudflare AI. Try again tomorrow.', 'quota', 429); if (/not found|no such model|unknown model|5007|not exist/i.test(msg)) { bad.add(m); last = err('Model ' + m + ' isn’t available', 'model', 502); break; } last = err('Cloudflare AI (' + m + '): ' + msg.slice(0, 120), 'model', 502); }
+    }
   }
-  throw last;
+  throw last || err('Nexa AI didn’t answer.', 'empty', 502);
 }
-const CLAUDE_MODELS = ['claude-haiku-4-5', 'claude-sonnet-4-5'];
+const CLAUDE_MODELS = ['claude-sonnet-4-5', 'claude-haiku-4-5'];
 async function claude({ system, conv, maxTokens }) {
   const key = keyOf('ANTHROPIC_API_KEY'); let last;
   const messages = textOf(conv); if (!messages.length || messages[0].role !== 'user') messages.unshift({ role: 'user', content: '(start)' });
@@ -72,14 +87,15 @@ async function claude({ system, conv, maxTokens }) {
   throw last;
 }
 export async function gemini(opts) {
-  const { system, contents, prompt, maxTokens = 1400 } = opts;
+  const { system, contents, prompt, maxTokens = 1400, code } = opts;
   const conv = Array.isArray(contents) && contents.length
     ? contents.slice(-24).map(c => ({ role: c.role === 'model' ? 'model' : 'user', parts: cleanParts(c.parts) })).filter(c => c.parts.length)
     : [{ role: 'user', parts: cleanParts(prompt) }];
   if (!conv.length) throw err('Ask something first.', 'empty', 400);
   const tries = [];
-  if (ENV().AI) tries.push(() => workersAI({ system, conv, maxTokens }));
+  // Claude first when its key is set (strongest), then Cloudflare's free AI, then Gemini
   if (keyOf('ANTHROPIC_API_KEY')) tries.push(() => claude({ system, conv, maxTokens }));
+  if (ENV().AI) tries.push(() => workersAI({ system, conv, maxTokens, code }));
   if (keyOf('GEMINI_API_KEY')) tries.push(() => geminiOnly(opts));
   if (!tries.length) throw err('Nexa AI isn’t switched on yet. In Cloudflare add a Workers AI binding called AI (free), or a Claude / Gemini key.', 'nokey', 503);
   let last;

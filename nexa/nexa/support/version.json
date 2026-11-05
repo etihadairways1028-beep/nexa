@@ -1,10 +1,10 @@
 {
- "version": "21.15",
+ "version": "21.19",
  "notes": [
-  "Richer Liquid Glass: texture, brighter edges, light that follows your mouse.",
-  "Springy motion: messages drop in, windows open softly.",
-  "Smooth on every computer: lighter glass when a computer can\u2019t keep up."
+  "New see-through Liquid Glass in Nexa.",
+  "Smoother, calmer motion everywhere.",
+  "Join the Nexa Crew: apply for a role at nexaconnect.qd.je/crew."
  ],
- "quiet": false,
- "display": "1.7.5"
+ "quiet": true,
+ "display": "1.8.2"
 }
