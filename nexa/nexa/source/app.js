@@ -4708,7 +4708,7 @@ function vExplore() {
     ${sec('events', 'Public events', evs.length ? evs.slice(0, tab === 'all' ? 3 : 8).map(e => `<button class="evrow" data-a="eventOpen" data-v="${e.id}"><span class="evthumb" style="${evThumb(e)}"></span><span class="grow" style="min-width:0;text-align:left"><b class="ellip" style="display:block">${esc(e.title)}</b><span class="mute small" style="display:block">${new Date(e.date + 'T00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}${e.time ? ' · ' + esc(e.time) : ''}</span><span class="mute small">by ${esc(dname(e.creator))} · ${(e.attendees || []).length} going</span></span><span class="btn sm pri" style="pointer-events:none">Join</span></button>`).join('') : '', 'No public events coming up. Make yours public when you create one.')}
     ${sec('communities', 'Communities to join', comms.length ? comms.slice(0, tab === 'all' ? 3 : 8).map(c => `<div class="item"><span class="av group" style="width:44px;height:44px;font-size:15px;--grad:${solidFor(c.id)}">${esc(initials(c.name))}</span><span class="grow" style="min-width:0"><b class="ellip" style="display:block">${esc(c.name)}</b><span class="mute small ellip" style="display:block">${c.members.length} member${c.members.length === 1 ? '' : 's'}${c.desc ? ' · ' + esc(c.desc) : ''}</span></span><button class="btn sm pri" data-a="commJoinPublic" data-v="${c.id}">Join</button></div>`).join('') : '', 'No public communities yet. Owners can turn on "Show in Explore" in their community\'s About tab.')}
     ${sec('live', 'Live now', lives.length ? lives.map(({ r, who }) => `<button class="item" data-a="roomJoinId" data-v="${r.id}"><span class="stack">${who.slice(0, 3).map(u => av(u, 30)).join('')}</span><span class="grow"><b class="ellip" style="display:block">${esc(r.name || 'Room')}</b><span class="mute small">${who.length} talking</span></span><span class="btn sm" style="pointer-events:none">Join</span></button>`).join('') : '', 'No one is in a voice room right now. Start a hangout from Home.')}
-    ${tab === 'all' || tab === 'games' ? `<section class="panel glass card"><div class="row spread"><h2 class="h2">Play now</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="arcadeOpen">vs Nexa</button></div><div class="ng-big"><button class="ng-bigtile city" data-a="cityOpen"><span>🏙️</span><b>Nexa City</b><i>Build your own city, from a village to a megacity.</i></button><button class="ng-bigtile racer" data-a="racerOpen"><span>🏎️</span><b>Nexa Racer</b><i>Dodge cars, grab coins, beat your best.</i></button></div><div class="agrid">${SOLO_GAMES.map(([k, l, c]) => `<button class="atile" data-a="arcadeGo" data-v="${k}"><span class="aic" style="background:${c}">${ic('game', 22)}</span><span>${l}</span></button>`).join('')}</div><div class="mute small">Play on your own against Nexa, or challenge a friend in chat with <b>+</b> → <b>Fun</b>.</div></section>` : ''}
+    ${tab === 'all' || tab === 'games' ? `<section class="panel glass card"><div class="row spread"><h2 class="h2">Play now</h2><button class="small" style="color:var(--ac2);font-weight:800" data-a="arcadeOpen">vs Nexa</button></div>${window.nxTiles ? window.nxTiles() : ''}<div class="agrid">${SOLO_GAMES.map(([k, l, c]) => `<button class="atile" data-a="arcadeGo" data-v="${k}"><span class="aic" style="background:${c}">${ic('game', 22)}</span><span>${l}</span></button>`).join('')}</div><div class="mute small">Play on your own against Nexa, or challenge a friend in chat with <b>+</b> → <b>Fun</b>.</div></section>` : ''}
     ${sec('games', 'Games leaderboard', friendIds().length ? `<div class="list">${board.map((x, i) => `<div class="item" style="min-height:48px"><span class="rank r${i}">${i + 1}</span>${av(x.u, 36)}<b class="grow ellip">${esc(x.u === S.me ? 'You' : dname(x.u))}</b><span class="small"><b>${x.w}</b> <span class="mute">win${x.w === 1 ? '' : 's'}</span></span></div>`).join('')}</div>` : '', 'Add friends and play games in chat (+ → Fun) to fill the leaderboard.')}
 
     </div></div>`;
@@ -5836,7 +5836,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.19';
+const APP_VERSION = '21.20';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9588,7 +9588,7 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
 try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
@@ -11558,7 +11558,7 @@ function vSpaceCol(sp) {
 
 /* Nexa rows: how messages look (avatar, name in role colour, tag, time; hover for quick actions) */
 {
-  const rowsOn = c => !!c && S.prefs.chatStyle !== 'bubbles' && !(S.prefs.chatStyle === 'groups' && c.type === 'dm');
+  const rowsOn = c => { if (!c) return false; const st = S.prefs.chatStyle || 'bubbles'; return st === 'rows' || st === 'auto' || (st === 'groups' && c.type !== 'dm'); };
   const tf = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
   const _vc = vChat;
   vChat = function (c, ...a) {
@@ -11588,12 +11588,12 @@ function vSpaceCol(sp) {
   const _vs = vSettings;
   vSettings = function () {
     const h = _vs(); if (S.setSec !== 'chats') return h;
-    const st = S.prefs.chatStyle || 'auto';
-    const row = `<div class="field" id="chatStylePick">Message style<span class="mute small" style="font-weight:500">Nexa rows show names, roles and tags on every message, like a server. Bubbles look like texting.</span><div class="seg" style="display:flex;max-width:420px">${[['auto', 'Rows everywhere'], ['groups', 'Rows in groups'], ['bubbles', 'Bubbles']].map(([k, n]) => `<button class="${(st === 'rows' ? 'auto' : st) === k ? 'on' : ''}" data-a="chatStyle" data-v="${k}" style="flex:1">${n}</button>`).join('')}</div></div>
+    const st0 = S.prefs.chatStyle || 'bubbles', st = st0 === 'auto' ? 'rows' : st0;
+    const row = `<div class="field" id="chatStylePick">Message style<span class="mute small" style="font-weight:500">Bubbles look like iMessage. Rows show names, roles and tags on every message, like a server.</span><div class="seg" style="display:flex;max-width:460px">${[['bubbles', 'Bubbles (iMessage)'], ['groups', 'Rows in groups'], ['rows', 'Rows everywhere']].map(([k, n]) => `<button class="${st === k ? 'on' : ''}" data-a="chatStyle" data-v="${k}" style="flex:1">${n}</button>`).join('')}</div></div>
       <div class="setrow"><span><b>Spaces layout</b><div class="mute small">On computers and iPads: groups and communities as icons on the left, channels next to them.</div></span>${togN(S.prefs.nxLayout !== false, 'nxToggle', '', 'Spaces layout')}</div>`;
     const i = h.lastIndexOf('</section>'); return i > 0 ? h.slice(0, i) + row + h.slice(i) : h;
   };
-  Object.assign(actions, { chatStyle: d => savePrefs({ chatStyle: d.v === 'auto' ? null : d.v }), nxToggle: () => savePrefs({ nxLayout: S.prefs.nxLayout === false }) });
+  Object.assign(actions, { chatStyle: d => savePrefs({ chatStyle: d.v }), nxToggle: () => savePrefs({ nxLayout: S.prefs.nxLayout === false }) });
 }
 
 /* Profile pop-up: tap a name or avatar */
@@ -12306,13 +12306,13 @@ async function loadMediaPieces(ids) {
     function drawTile(i, j) {
       const [sx, sy] = toScreen(i, j), w = tw(), h = th(), v = at(i, j), k = j * N + i;
       x.beginPath(); x.moveTo(sx, sy); x.lineTo(sx + w / 2, sy + h / 2); x.lineTo(sx, sy + h); x.lineTo(sx - w / 2, sy + h / 2); x.closePath();
-      x.fillStyle = v === 'road' ? '#3a3f55' : (i + j) % 2 ? '#2f7d4f' : '#2c7449'; x.fill(); x.strokeStyle = 'rgba(255,255,255,.06)'; x.lineWidth = 1; x.stroke();
+      { const hv = ((k * 2654435761) >>> 0) % 7; x.fillStyle = v === 'road' ? '#3a3f55' : ['#2f7d4f', '#2c7449', '#317f4c', '#2e784a', '#33844f', '#2b7046', '#30804d'][hv]; } x.fill(); if (v !== 'road' && ((k * 7) % 5 === 0)) { x.fillStyle = 'rgba(160,220,120,.18)'; x.beginPath(); x.ellipse(sx + w * .08, sy + h * .55, w * .06, h * .05, 0, 0, 7); x.fill(); } x.strokeStyle = 'rgba(255,255,255,.06)'; x.lineWidth = 1; x.stroke();
       if (v === 'road') { x.strokeStyle = 'rgba(255,230,120,.5)'; x.setLineDash([w * .06, w * .06]); x.beginPath(); x.moveTo(sx - w / 4, sy + h / 4 + h / 4); x.lineTo(sx + w / 4, sy + h * .75 - h / 4); x.stroke(); x.setLineDash([]); }
       if (k === hover) { x.fillStyle = 'rgba(255,255,255,.22)'; x.fill(); }
       if (v && v !== 'road') { const b = B[v], H = b.h * w / 34, cx0 = sx, cy0 = sy + h / 2, s2 = w * .3;
         if (v === 'tree' || v === 'park') { x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse(cx0, cy0 + h * .1, s2 * .8, s2 * .4, 0, 0, 7); x.fill(); const n = v === 'park' ? 3 : 1; for (let q = 0; q < n; q++) { const ox = (q - (n - 1) / 2) * s2 * .7; x.fillStyle = '#6b4a2b'; x.fillRect(cx0 + ox - w * .015, cy0 - H * .3, w * .03, H * .4); x.fillStyle = q % 2 ? '#3fbf6a' : '#2fa95a'; x.beginPath(); x.arc(cx0 + ox, cy0 - H * .6, s2 * .45, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,.25)'; x.beginPath(); x.arc(cx0 + ox - s2 * .12, cy0 - H * .7, s2 * .15, 0, 7); x.fill(); } }
         else { // a little glass building: left side, right side, roof
-          const top = cy0 - H; x.fillStyle = shade(b.c, -.25); x.beginPath(); x.moveTo(cx0 - s2, cy0 - s2 / 2); x.lineTo(cx0, cy0); x.lineTo(cx0, top + s2 / 2); x.lineTo(cx0 - s2, top); x.closePath(); x.fill();
+          const top = cy0 - H; x.fillStyle = 'rgba(8,20,30,.28)'; x.beginPath(); x.moveTo(cx0 + s2, cy0 - s2 / 2); x.lineTo(cx0 + s2 + H * .55, cy0 - s2 / 2 + H * .18); x.lineTo(cx0 + H * .55, cy0 + H * .18); x.lineTo(cx0, cy0); x.closePath(); x.fill(); x.fillStyle = shade(b.c, -.25); x.beginPath(); x.moveTo(cx0 - s2, cy0 - s2 / 2); x.lineTo(cx0, cy0); x.lineTo(cx0, top + s2 / 2); x.lineTo(cx0 - s2, top); x.closePath(); x.fill();
           x.fillStyle = shade(b.c, -.45); x.beginPath(); x.moveTo(cx0 + s2, cy0 - s2 / 2); x.lineTo(cx0, cy0); x.lineTo(cx0, top + s2 / 2); x.lineTo(cx0 + s2, top); x.closePath(); x.fill();
           if (v === 'house') { const rh = s2 * .9; x.fillStyle = '#e0605a'; x.beginPath(); x.moveTo(cx0 - s2, top); x.lineTo(cx0, top - rh); x.lineTo(cx0, top + s2 / 2); x.closePath(); x.fill(); x.fillStyle = '#b8443f'; x.beginPath(); x.moveTo(cx0 + s2, top); x.lineTo(cx0, top - rh); x.lineTo(cx0, top + s2 / 2); x.closePath(); x.fill(); }
           else { x.fillStyle = shade(b.c, .15); x.beginPath(); x.moveTo(cx0, top - s2 / 2); x.lineTo(cx0 + s2, top); x.lineTo(cx0, top + s2 / 2); x.lineTo(cx0 - s2, top); x.closePath(); x.fill(); x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 1.2; x.stroke();
@@ -12323,12 +12323,23 @@ async function loadMediaPieces(ids) {
         } }
     }
     const shade = (hex, a) => { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b2 = n & 255, f = v => Math.round(Math.max(0, Math.min(255, a < 0 ? v * (1 + a) : v + (255 - v) * a))); return `rgb(${f(r)},${f(g)},${f(b2)})`; };
+    function backdrop() {
+      const W2 = cv.width, H2 = cv.height, nt = (Math.sin((performance.now() - t0) / 9000) + 1) / 2;
+      const g = x.createLinearGradient(0, 0, 0, H2); g.addColorStop(0, `rgb(${Math.round(40 - nt * 30)},${Math.round(90 - nt * 70)},${Math.round(170 - nt * 110)})`); g.addColorStop(1, `rgb(${Math.round(120 - nt * 100)},${Math.round(160 - nt * 140)},${Math.round(200 - nt * 160)})`); x.fillStyle = g; x.fillRect(0, 0, W2, H2);
+      if (nt > .45) { for (let q = 0; q < 60; q++) { x.fillStyle = `rgba(255,255,255,${(nt - .45) * 1.4 * (((q * 37) % 10) / 10)})`; x.fillRect(((q * 9301) % 1000) / 1000 * W2, ((q * 4973) % 1000) / 1000 * H2 * .5, 2 * dpr, 2 * dpr); } }
+      const [tx, ty] = toScreen(0, 0), [rx, ry] = toScreen(N, 0), [bx, by] = toScreen(N, N), [lx, ly] = toScreen(0, N), d = tw() * .55;
+      x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); x.ellipse((lx + rx) / 2, by + d * 1.2, (rx - lx) * .48, d * .9, 0, 0, 7); x.fill();
+      const e1 = x.createLinearGradient(0, ly, 0, by + d); e1.addColorStop(0, '#6b4a2b'); e1.addColorStop(1, '#3b2614'); x.fillStyle = e1; x.beginPath(); x.moveTo(lx, ly); x.lineTo(bx, by); x.lineTo(bx, by + d); x.lineTo(lx, ly + d); x.closePath(); x.fill();
+      const e2 = x.createLinearGradient(0, ry, 0, by + d); e2.addColorStop(0, '#5a3d22'); e2.addColorStop(1, '#2e1d0f'); x.fillStyle = e2; x.beginPath(); x.moveTo(bx, by); x.lineTo(rx, ry); x.lineTo(rx, ry + d); x.lineTo(bx, by + d); x.closePath(); x.fill();
+      x.fillStyle = '#3a8f55'; x.beginPath(); x.moveTo(lx, ly); x.lineTo(bx, by); x.lineTo(rx, ry); x.lineTo(rx, ry + d * .12); x.lineTo(bx, by + d * .12); x.lineTo(lx, ly + d * .12); x.closePath(); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,.15)'; x.lineWidth = 1; for (let q = 1; q < 4; q++) { x.beginPath(); x.moveTo(lx, ly + d * q / 4); x.lineTo(bx, by + d * q / 4); x.lineTo(rx, ry + d * q / 4); x.stroke(); }
+    }
     function frame() {
-      x.clearRect(0, 0, cv.width, cv.height);
+      backdrop();
       for (let s2 = 0; s2 < N * 2 - 1; s2++) for (let j = 0; j < N; j++) { const i = s2 - j; if (i >= 0 && i < N) drawTile(i, j); }
       // cars driving on the roads
       if (Math.random() < .05 && cars.length < Math.min(40, count('road') / 2)) { const roads = C.g.map((v, k) => v === 'road' ? k : -1).filter(k => k >= 0); if (roads.length) cars.push({ k: roads[(Math.random() * roads.length) | 0], p: 0, c: ['#fff', '#FFD23F', '#FF5FA2', '#5AA8FF'][(Math.random() * 4) | 0], life: 400 }); }
-      cars = cars.filter(c => { c.p += .03; c.life--; if (c.p >= 1) { c.p = 0; const i = c.k % N, j = (c.k / N) | 0, nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => [i + a, j + b]).filter(([a, b]) => at(a, b) === 'road'); if (!nb.length) return false; const [a, b] = nb[(Math.random() * nb.length) | 0]; c.from = c.k; c.k = b * N + a; } const fi = (c.from ?? c.k) % N, fj = ((c.from ?? c.k) / N) | 0, ti = c.k % N, tj = (c.k / N) | 0, [sx, sy] = toScreen(fi + .5 + (ti - fi) * c.p, fj + .5 + (tj - fj) * c.p); x.fillStyle = c.c; x.beginPath(); x.arc(sx, sy, tw() * .045, 0, 7); x.fill(); return c.life > 0; });
+      cars = cars.filter(c => { c.p += .03; c.life--; if (c.p >= 1) { c.p = 0; const i = c.k % N, j = (c.k / N) | 0, nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => [i + a, j + b]).filter(([a, b]) => at(a, b) === 'road'); if (!nb.length) return false; const [a, b] = nb[(Math.random() * nb.length) | 0]; c.from = c.k; c.k = b * N + a; } const fi = (c.from ?? c.k) % N, fj = ((c.from ?? c.k) / N) | 0, ti = c.k % N, tj = (c.k / N) | 0, [sx, sy] = toScreen(fi + .5 + (ti - fi) * c.p, fj + .5 + (tj - fj) * c.p); { const cw2 = tw() * .07, ch2 = tw() * .04; x.fillStyle = 'rgba(0,0,0,.3)'; x.beginPath(); x.ellipse(sx, sy + ch2 * .5, cw2 * .6, ch2 * .4, 0, 0, 7); x.fill(); x.fillStyle = c.c; x.beginPath(); x.ellipse(sx, sy, cw2 * .5, ch2 * .5, 0, 0, 7); x.fill(); x.fillStyle = 'rgba(30,40,70,.8)'; x.beginPath(); x.ellipse(sx, sy - ch2 * .25, cw2 * .28, ch2 * .28, 0, 0, 7); x.fill(); const nt2 = (Math.sin((performance.now() - t0) / 9000) + 1) / 2; if (nt2 > .5) { x.fillStyle = `rgba(255,240,180,${(nt2 - .5) * .5})`; x.beginPath(); x.arc(sx, sy, cw2 * .7, 0, 7); x.fill(); } } return c.life > 0; });
       fx = fx.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += .35 * dpr; p.l -= .012; x.globalAlpha = Math.max(0, p.l); x.fillStyle = p.c; x.fillRect(p.x, p.y, 4 * dpr, 6 * dpr); x.globalAlpha = 1; return p.l > 0; });
       if (++tick % 180 === 0) simulate(); // a new day every ~3 seconds
       raf = requestAnimationFrame(frame);
@@ -12394,7 +12405,7 @@ async function loadMediaPieces(ids) {
   vArcade = function () {
     const h = _vArc();
     if (S.solo) return h;
-    return `<div class="ng-big"><button class="ng-bigtile city" data-a="cityOpen"><span>🏙️</span><b>Nexa City</b><i>Build roads, homes and shops. Grow a village into a megacity.</i></button><button class="ng-bigtile racer" data-a="racerOpen"><span>🏎️</span><b>Nexa Racer</b><i>Dodge cars, grab coins, beat your best score.</i></button></div>` + h;
+    return (window.nxTiles ? window.nxTiles() : '') + h;
   };
   document.head.insertAdjacentHTML('beforeend', `<style>.ng-big{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.ng-bigtile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px;border-radius:22px;border:1px solid rgba(255,255,255,.22);color:#fff;text-align:left;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 14px 30px -16px rgba(0,0,0,.7);transition:transform .4s cubic-bezier(.22,1.3,.36,1)}.ng-bigtile:hover{transform:translateY(-3px)}.ng-bigtile span{font-size:34px}.ng-bigtile b{font-size:17px}.ng-bigtile i{font-style:normal;font-size:12.5px;opacity:.85;line-height:1.4}.ng-bigtile.city{background:linear-gradient(150deg,#2f7d4f,#1d4f8f)}.ng-bigtile.racer{background:linear-gradient(150deg,#c2185b,#4527a0)}@media(max-width:520px){.ng-big{grid-template-columns:1fr}}</style>`);
 }
@@ -12420,3 +12431,57 @@ try { if (!document.querySelector('.g5-orbs')) { const o = document.createElemen
   };
   Object.assign(actions, { g5Pick: d => { savePrefs({ g5s: d.v, look: 'pro' }); applyTheme(); render(); toast((G5.find(x => x[0] === d.v) || G5[0])[1] + ' glass ✨'); } });
 }
+
+/* ================= Nexa 1.9: Nexa Arcade — 13 games (City, Racer 3D and 11 more), loaded only when you play ================= */
+{
+  const ART = {
+    city: ['🏙️', 'Nexa City', 'Build a village into a megacity', 'linear-gradient(150deg,#2f9e5a,#1b5e8a)'],
+    racer: ['🏎️', 'Nexa Racer', 'Real 3D road, traffic and nitro', 'linear-gradient(150deg,#ff6a3d,#7a1d8f)'],
+    penalty: ['⚽', 'Penalty Kick', 'Beat the keeper, round after round', 'linear-gradient(150deg,#2fae52,#0b3d6b)'],
+    space: ['🚀', 'Star Blaster', 'Blast alien waves in space', 'linear-gradient(150deg,#3b1d8f,#05051a)'],
+    runner: ['🏃', 'Rooftop Run', 'Jump across the city at night', 'linear-gradient(150deg,#ff7a59,#2b1550)'],
+    hoops: ['🏀', 'Hoops', 'Shoot baskets before time runs out', 'linear-gradient(150deg,#ff9f43,#7a2e0e)'],
+    blocks: ['🟪', 'Block Drop', 'Fit the blocks, clear the lines', 'linear-gradient(150deg,#8c5cff,#2a0f5a)'],
+    breaker: ['🧱', 'Glass Breaker', 'Smash every glass brick', 'linear-gradient(150deg,#ff5f7e,#3b1d6b)'],
+    glide: ['🕊️', 'Sky Glide', 'Flap through the glass towers', 'linear-gradient(150deg,#5ab0ff,#ffb86b)'],
+    stack: ['🏗️', 'Stack Tower', 'Build the tallest tower', 'linear-gradient(150deg,#22c5b5,#1d3b8f)'],
+    snake: ['🐍', 'Neon Snake', 'Eat, grow, don’t bite yourself', 'linear-gradient(150deg,#1fd17a,#062a2a)'],
+    m2048: ['🔢', 'Merge 2048', 'Slide and merge to 2048', 'linear-gradient(150deg,#ffcf5a,#ff6a8a)'],
+    memory: ['🃏', 'Card Flip', 'Find the pairs, fewest moves', 'linear-gradient(150deg,#b794ff,#ff6aa8)'],
+  };
+  const bestOf = id => { try { return +(localStorage.getItem(`nexa.g.${id}.best.${S.me || 'me'}`) || 0); } catch { return 0; } };
+  window.nxTiles = () => `<div class="nxa">${Object.entries(ART).map(([id, [e, t, d, bg]], i) => { const b = id === 'city' ? 0 : bestOf(id); return `<button class="nxa-t${i < 2 ? ' big' : ''}" data-a="gamePlay" data-v="${id}" style="--bg:${bg}"><span class="nxa-e">${e}</span><span class="nxa-tx"><b>${t}</b><i>${d}</i></span>${b ? `<span class="nxa-best">🏆 ${b.toLocaleString()}</span>` : id !== 'city' && id !== 'racer' ? '<span class="nxa-new">NEW</span>' : ''}</button>`; }).join('')}</div>`;
+  let mod = null;
+  actions.gamePlay = d => {
+    if (d.v === 'city') return actions.cityOpen();
+    S.modal = null; render();
+    (mod ? Promise.resolve(mod) : import('./games.js')).then(m => { mod = m; m.play(d.v, { me: S.me, onClose: () => { try { render(); } catch {} } }); }).catch(() => toast('Couldn’t open the game. Check your internet and try again.'));
+  };
+  actions.racerOpen = () => actions.gamePlay({ v: 'racer' });
+  document.head.insertAdjacentHTML('beforeend', `<style>
+.nxa{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-flow:dense;gap:10px;margin:4px 0 14px}
+.nxa-t{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:4px;min-height:132px;padding:14px;border-radius:22px;border:1px solid rgba(255,255,255,.24);background:var(--bg);color:#fff;text-align:left;cursor:pointer;isolation:isolate;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.6),inset 0 -1px 0 rgba(255,255,255,.12),0 16px 34px -18px rgba(0,0,0,.75);transition:transform .55s var(--g4-spring,cubic-bezier(.16,1,.3,1)),box-shadow .3s ease}
+.nxa-t::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(120% 70% at 20% -10%,rgba(255,255,255,.42),rgba(255,255,255,.06) 45%,transparent 60%),linear-gradient(180deg,transparent 40%,rgba(0,0,0,.35))}
+.nxa-t::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;z-index:-1;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-12deg);transition:left .9s cubic-bezier(.16,1,.3,1)}
+@media (hover:hover){.nxa-t:hover{transform:translateY(-3px)}.nxa-t:hover::after{left:130%}}
+.nxa-t:active{transform:scale(.97)!important;transition-duration:.12s}
+.nxa-t.big{grid-column:span 2;min-height:150px}
+.nxa-e{position:absolute;right:10px;top:8px;font-size:46px;line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45));transition:transform .6s var(--g4-spring,ease)}
+.nxa-t.big .nxa-e{font-size:62px;right:16px;top:14px}
+@media (hover:hover){.nxa-t:hover .nxa-e{transform:translateY(-3px) rotate(-6deg) scale(1.06)}}
+.nxa-tx{display:flex;flex-direction:column;gap:2px;max-width:100%}
+.nxa-tx b{font-size:16px;text-shadow:0 2px 8px rgba(0,0,0,.35)}.nxa-tx i{font-style:normal;font-size:12.5px;opacity:.88;line-height:1.35}
+.nxa-best,.nxa-new{position:absolute;left:10px;top:10px;padding:4px 9px;border-radius:99px;font-size:11.5px;font-weight:800;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(8px)}
+.nxa-new{background:linear-gradient(90deg,#FFE27A,#FFB86B);color:#2a1a00;border-color:transparent}
+@media (max-width:520px){.nxa{grid-template-columns:1fr 1fr}.nxa-t{min-height:118px}}
+</style>`);
+}
+
+WN_TITLE['21.20'] = 'Nexa 1.9: the Arcade';
+WN_INTRO['21.20'] = '13 games, all inside Nexa. Explore › Play now.';
+WN_HUMAN['21.20'] = [
+  ['game', '11 new games', 'Penalty Kick, Star Blaster, Rooftop Run, Hoops, Block Drop, Glass Breaker, Sky Glide, Stack Tower, Neon Snake, Merge 2048 and Card Flip.'],
+  ['game', 'Real 3D racing', 'Nexa Racer now has a real road with curves, hills, traffic, coins and nitro.'],
+  ['spark', 'Your glass, your way', 'Settings › Appearance › Glass: pick Crystal, Smoke or Aurora.'],
+];
+try { WN_STEPS['21.20'] = WN_STEPS['21.0']; UP_HL['21.20'] = UP_HL['21.0']; } catch {}

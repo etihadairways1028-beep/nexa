@@ -1,1 +1,1 @@
-Readable copies of app.js and store.js for the Dev Hub "Nexa code" tab.
+Readable copies of app.js, store.js and games.js for the Dev Hub "Nexa code" tab.
