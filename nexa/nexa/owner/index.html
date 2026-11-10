@@ -14,7 +14,7 @@
 <style>
 :root{--ac:#3d7bff;--ac2:#5aa2ff;--mint:#5ff2c8;--text:#eef2ff;--mute:rgba(220,228,255,.68);--line:rgba(255,255,255,.14)}
 *{box-sizing:border-box;margin:0}
-body{min-height:100vh;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:#05070f url(../sky.jpg) center/cover fixed;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(106,92,255,.75),transparent 62%) fixed,radial-gradient(52vmax 52vmax at 100% 8%,rgba(255,95,168,.5),transparent 62%) fixed,radial-gradient(120% 90% at 50% -10%,#1d1f5c,#0c0d2b 45%,#05060f) fixed #05060f;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:0;background:radial-gradient(60% 40% at 20% 10%,rgba(22,199,154,.25),transparent 70%),radial-gradient(50% 40% at 90% 80%,rgba(138,92,255,.25),transparent 70%),rgba(4,6,18,var(--dim,.35));pointer-events:none}
 .wrap{position:relative;max-width:1180px;margin:0 auto;padding:24px 18px 60px}
 .glass{background:radial-gradient(150% 100% at 25% -20%,rgba(255,255,255,.18),transparent 46%),linear-gradient(165deg,rgba(255,255,255,.10),rgba(255,255,255,.02) 50%,rgba(255,255,255,.06)),rgba(12,16,42,.35);backdrop-filter:blur(14px) saturate(1.8);-webkit-backdrop-filter:blur(14px) saturate(1.8);box-shadow:inset 2px 2px 1px -1px rgba(255,255,255,.75),inset -2px -2px 1px -1px rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.1),0 24px 50px -24px rgba(0,0,0,.7);border-radius:28px}
@@ -104,6 +104,26 @@ textarea.inp{height:auto;min-height:90px;padding:12px 16px;font:inherit;font-siz
 .tsite{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:inherit;position:relative;overflow:hidden;transition:transform .6s cubic-bezier(.16,1,.3,1)}
 .tsite::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 0% 0%,color-mix(in srgb,var(--c) 35%,transparent),transparent 60%);pointer-events:none}
 .tsite:hover{transform:translateY(-4px)}.tse{font-size:28px}.tsite b{font-size:17px}.tsgo{margin-top:6px;font-weight:800;font-size:13px;color:var(--c)}
+
+/* ===== Nexa 1.9.3: the owner page gets the same Liquid Glass look as the rest of Nexa ===== */
+@font-face{font-family:"Nexa Sans";font-weight:100 900;src:url(/nexa-sans.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Nexa Serif";src:url(/nexa-serif.woff2) format("woff2");font-display:swap}
+:root{--ac:#8c7bff;--ac2:#ff6fae;--mint:#5ff2c8;--text:#f4f2fb;--mute:rgba(232,230,248,.7)}
+body{font-family:"Nexa Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body::before{background:rgba(4,4,16,var(--dim,.3))!important}
+h1{font-family:"Nexa Serif",Georgia,serif;font-weight:400;letter-spacing:-.01em}
+.glass{background:radial-gradient(130% 55% at 18% -8%,rgba(255,255,255,.16),rgba(255,255,255,.03) 42%,transparent 62%),linear-gradient(162deg,rgba(255,255,255,.09),rgba(255,255,255,.02) 42%,rgba(255,255,255,.055)),rgba(14,12,36,.44)!important;backdrop-filter:blur(26px) saturate(190%)!important;-webkit-backdrop-filter:blur(26px) saturate(190%)!important;border:1px solid rgba(255,255,255,.09)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.05),inset 12px 0 26px -22px rgba(255,140,220,.55),inset -12px 0 26px -22px rgba(90,210,255,.55),0 28px 64px -34px rgba(0,0,0,.7)!important;border-radius:26px}
+.glass .glass,.kpi.glass,.tile.glass{background:linear-gradient(162deg,rgba(255,255,255,.1),rgba(255,255,255,.025)),rgba(14,12,36,.3)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.06),0 12px 28px -18px rgba(0,0,0,.6)!important;border:0!important}
+.btn{background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 4px 12px -8px rgba(0,0,0,.6)}
+.btn.pri{background:linear-gradient(180deg,#fff,#e9e6f2)!important;color:#0b0b12!important;border:0;box-shadow:inset 0 -2px 0 rgba(0,0,0,.08),0 10px 26px -10px rgba(255,255,255,.45)!important}
+.tabs{background:rgba(0,0,0,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 2px 6px rgba(0,0,0,.25)}
+.tab.on{background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.1));color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 6px 16px -8px rgba(160,130,255,.8)}
+.inp{background:rgba(0,0,0,.24)!important;box-shadow:inset 0 2px 5px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.1)!important}
+.inp:focus{box-shadow:inset 0 2px 5px rgba(0,0,0,.3),0 0 0 3px rgba(140,123,255,.35)!important}
+.b.me{background:#0b84ff}
+.bar i{background:linear-gradient(180deg,#ff8fb1,#8c7bff)}
+.logo{box-shadow:0 0 40px rgba(160,120,255,.55)}
+.tsite{transition:transform .6s cubic-bezier(.16,1,.3,1)}
 </style></head>
 <body><div class="wrap" id="app"><div class="gate glass card"><div class="row"><div class="logo"></div><div><h1>Nexa Owner</h1><div class="mute small">Loading…</div></div></div></div></div>
 <script type="module">
@@ -155,10 +175,10 @@ function render() {
 }
 const fmtD = t => t ? new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const ago = t => { if (!t) return '—'; const d = Date.now() - t; if (d < 3 * 60e3) return '<span class="online">Online now</span>'; if (d < 3600e3) return Math.round(d / 60e3) + ' min ago'; if (d < 864e5) return Math.round(d / 3600e3) + ' h ago'; return Math.round(d / 864e5) + ' days ago'; };
-const BGS = { sky: ['Sky', 'url(../sky.jpg)'], aurora: ['Aurora', 'radial-gradient(70% 60% at 20% 20%,#16c79a,transparent 70%),radial-gradient(60% 60% at 85% 30%,#8a5cff,transparent 70%),radial-gradient(70% 60% at 50% 100%,#2b6bff,transparent 70%),linear-gradient(#050816,#050816)'], midnight: ['Midnight', 'radial-gradient(80% 60% at 50% 0%,#1d2a6b,transparent 70%),linear-gradient(#03040b,#03040b)'], sunset: ['Sunset', 'linear-gradient(160deg,#ff7a59,#c1356b 45%,#3a1c71)'], ocean: ['Ocean', 'linear-gradient(160deg,#0f9b8e,#1b4f9c 55%,#071a3a)'], graphite: ['Graphite', 'linear-gradient(160deg,#3a3f4b,#16181d)'], rose: ['Rose', 'linear-gradient(160deg,#f7a1c4,#8a5cff 60%,#2a1b55)'] };
+const BGS = { nexa: ['Nexa', 'radial-gradient(60vmax 60vmax at 0% 0%,rgba(106,92,255,.75),transparent 62%),radial-gradient(52vmax 52vmax at 100% 8%,rgba(255,95,168,.5),transparent 62%),radial-gradient(56vmax 56vmax at 40% 112%,rgba(32,214,196,.32),transparent 62%),radial-gradient(30vmax 30vmax at 92% 92%,rgba(255,176,74,.26),transparent 62%),radial-gradient(120% 90% at 50% -10%,#1d1f5c,#0c0d2b 45%,#05060f)'], sky: ['Sky', 'url(../sky.jpg)'], aurora: ['Aurora', 'radial-gradient(70% 60% at 20% 20%,#16c79a,transparent 70%),radial-gradient(60% 60% at 85% 30%,#8a5cff,transparent 70%),radial-gradient(70% 60% at 50% 100%,#2b6bff,transparent 70%),linear-gradient(#050816,#050816)'], midnight: ['Midnight', 'radial-gradient(80% 60% at 50% 0%,#1d2a6b,transparent 70%),linear-gradient(#03040b,#03040b)'], sunset: ['Sunset', 'linear-gradient(160deg,#ff7a59,#c1356b 45%,#3a1c71)'], ocean: ['Ocean', 'linear-gradient(160deg,#0f9b8e,#1b4f9c 55%,#071a3a)'], graphite: ['Graphite', 'linear-gradient(160deg,#3a3f4b,#16181d)'], rose: ['Rose', 'linear-gradient(160deg,#f7a1c4,#8a5cff 60%,#2a1b55)'] };
 function applyBg() {
-  const u = S.ui || {}; const b = u.bg || 'sky';
-  const v = b.startsWith('data:') ? `url(${b})` : (BGS[b] || BGS.sky)[1];
+  const u = S.ui || {}; const b = u.bg || 'nexa';
+  const v = b.startsWith('data:') ? `url(${b})` : (BGS[b] || BGS.nexa)[1];
   const st = document.body.style; st.backgroundImage = v; st.backgroundSize = 'cover'; st.backgroundPosition = 'center'; st.backgroundAttachment = 'fixed'; st.backgroundColor = '#05070f';
   document.body.style.setProperty('--dim', ((u.dim ?? 30) / 100).toFixed(2));
 }
@@ -242,15 +262,15 @@ function vOverview() {
   const msgToday = md.length ? md[md.length - 1].n : null, msgYest = md.length > 1 ? md[md.length - 2].n : null;
   const dl = t => new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' });
   let total = st.users - sg.reduce((a, x) => a + x.n, 0); const growth = sg.map(x => { total += x.n; return { l: dl(x.day), v: Math.max(0, total) }; });
-  const kpi = (v, l, sub, cls = '') => `<div class="kpi glass ${cls}"><span class="mute small">${l}</span><b>${v ?? '—'}</b><span class="small ${/^\+/.test(sub || '') ? 'up' : /^-/.test(sub || '') ? 'down' : 'mute'}">${sub || '&nbsp;'}</span></div>`;
+  const kpi = (v, l, sub, cls = '') => { v = String(v ?? '—').replace(/undefined|NaN/g, '—'); sub = sub == null ? sub : String(sub).replace(/undefined|NaN%?/g, '—'); return `<div class="kpi glass ${cls}"><span class="mute small">${l}</span><b>${v}</b><span class="small ${/^\+/.test(sub || '') ? 'up' : /^-/.test(sub || '') ? 'down' : 'mute'}">${sub || '&nbsp;'}</span></div>`; };
   const people = (list, empty) => list.length ? `<div class="plist">${list.map(u => `<div class="prow">${avatar({ ...u, online: false }, 34)}<span class="grow ellip"><b>${esc(u.name || 'Nexa user')}</b> <span class="mute small">${u.handle ? '@' + esc(u.handle) : ''}</span></span>${u.joined ? `<span class="mute small">${dl(u.joined)}</span>` : '<span class="livedot"></span>'}</div>`).join('')}</div>` : `<div class="mute small">${empty}</div>`;
   const dau = st.users ? Math.round(st.active24h / st.users * 100) : 0, wau = st.users ? Math.round(st.active7d / st.users * 100) : 0;
   return `<div class="kpis">${kpi(st.users, 'People on Nexa', `${thisWeek ? '+' + thisWeek : '+0'} this week (${pct(thisWeek, lastWeek)} vs last)`)}${kpi(`<span class="livedot"></span>${st.onlineNow}`, 'Online now', 'live')}${kpi(st.active24h, 'Active today', `${dau}% of everyone`)}${kpi(msgToday, 'Messages today', msgYest != null ? pct(msgToday, msgYest) + ' vs yesterday' : '')}${kpi(st.new24h, 'Joined today', `${st.new7d} this week`)}${kpi(d.invites?.all ?? 0, 'Joined from invites', `${d.invites?.week ?? 0} this week`)}${kpi(S.inbox?.unread ?? 0, 'Help chats waiting', (d.safety?.flagsOpen ? d.safety.flagsOpen + ' flagged messages' : 'no flags'), (S.inbox?.unread || d.safety?.flagsOpen) ? 'hot' : '')}</div>
   <div class="grid2" style="margin-top:16px"><section class="glass card"><div class="row spread"><h2>Total people · last 30 days</h2><span class="mute small">${growth.length ? growth[0].v + ' → ' + growth[growth.length - 1].v : ''}</span></div>${growth.length ? areaChart(growth, 'people') : ''}
     <h2 style="margin-top:14px">New sign-ups per day</h2>${sg.length ? barChart(sg.map(x => ({ l: dl(x.day), v: x.n })), 'joined', '#5ff2c8') : ''}</section>
   <section class="glass card"><h2>Engagement</h2><div class="eng">
-    <div><b>${dau}%</b><span class="mute small">active today</span></div><div><b>${wau}%</b><span class="mute small">active this week</span></div>
-    <div><b>${st.users ? (st.friendships * 2 / st.users).toFixed(1) : 0}</b><span class="mute small">friends per person</span></div><div><b>${st.messages ?? '—'}</b><span class="mute small">messages ever</span></div>
+    <div><b>${Number.isFinite(+dau) ? dau + '%' : '—'}</b><span class="mute small">active today</span></div><div><b>${Number.isFinite(+wau) ? wau + '%' : '—'}</b><span class="mute small">active this week</span></div>
+    <div><b>${st.users && Number.isFinite(+st.friendships) ? (st.friendships * 2 / st.users).toFixed(1) : '—'}</b><span class="mute small">friends per person</span></div><div><b>${st.messages ?? '—'}</b><span class="mute small">messages ever</span></div>
     <div><b>${st.chats ?? '—'}</b><span class="mute small">chats</span></div><div><b>${st.groups ?? '—'}</b><span class="mute small">groups</span></div>
     <div><b>${st.events ?? '—'}</b><span class="mute small">events</span></div><div><b>${st.moments ?? '—'}</b><span class="mute small">moments</span></div></div>
     <h2 style="margin-top:16px">Safety</h2><div style="display:flex;flex-direction:column;gap:8px"><div class="row spread"><span class="mute">Flagged messages open</span><b>${d.safety?.flagsOpen ?? '—'}</b></div><div class="row spread"><span class="mute">Reports</span><b>${st.reports ?? '—'}</b></div><div class="row spread"><span class="mute">Warnings given</span><b>${d.safety?.warnings ?? '—'}</b></div><div class="row spread"><span class="mute">Banned</span><b>${(d.bans || []).length}</b></div></div>
@@ -291,7 +311,7 @@ function vSettings() {
     <button class="btn" id="saveAuto" style="align-self:flex-start">Save auto-reply</button>
   </section>
   <section class="glass card"><h2>🎨 Background</h2>
-    <div class="sw">${Object.entries(BGS).map(([k, [l, v]]) => `<button class="swatch ${u.bg === k || (!u.bg && k === 'sky') ? 'on' : ''}" data-bg="${k}" style="background-image:${v};background-size:cover;background-position:center">${l}</button>`).join('')}<label class="swatch ${String(u.bg || '').startsWith('data:') ? 'on' : ''}" style="${String(u.bg || '').startsWith('data:') ? `background-image:url(${u.bg})` : 'background:rgba(255,255,255,.08)'};cursor:pointer">📷 Photo<input type="file" accept="image/*" id="bgFile" hidden></label></div>
+    <div class="sw">${Object.entries(BGS).map(([k, [l, v]]) => `<button class="swatch ${u.bg === k || (!u.bg && k === 'nexa') ? 'on' : ''}" data-bg="${k}" style="background-image:${v};background-size:cover;background-position:center">${l}</button>`).join('')}<label class="swatch ${String(u.bg || '').startsWith('data:') ? 'on' : ''}" style="${String(u.bg || '').startsWith('data:') ? `background-image:url(${u.bg})` : 'background:rgba(255,255,255,.08)'};cursor:pointer">📷 Photo<input type="file" accept="image/*" id="bgFile" hidden></label></div>
     <label>Darken background <span class="mute small" style="font-weight:500">${u.dim ?? 30}%</span><input type="range" id="dim" min="0" max="80" value="${u.dim ?? 30}"></label>
   </section>
   <section class="glass card"><h2>📣 Announcement to everyone</h2>

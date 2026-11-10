@@ -1,11 +1,10 @@
 {
- "version": "21.20",
+ "version": "21.24",
  "notes": [
-  "11 new games: Penalty Kick, Star Blaster, Rooftop Run, Hoops and more.",
-  "Nexa Racer is now real 3D with curves, hills and nitro.",
-  "Nexa City looks more real, with day and night.",
-  "Pick your glass: Crystal, Smoke or Aurora."
+  "Message notifications are more reliable on your phone and computer.",
+  "Unread number on the Nexa icon.",
+  "Richer Liquid Glass on every Nexa website, plus small fixes."
  ],
- "quiet": false,
- "display": "1.9.0"
+ "quiet": true,
+ "display": "1.9.4"
 }

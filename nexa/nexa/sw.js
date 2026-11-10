@@ -1,15 +1,15 @@
 // Nexa service worker: makes Nexa installable and keeps the app working offline.
 // Updates: a new version downloads in the background and WAITS — people keep using the version they have
 // until they tap "Update" in Nexa. Then everything (app, look, logo) switches at once.
-const VERSION = '21.20';
+const VERSION = '21.24';
 // QUIET = a small fix: it installs by itself in the background — no update screen, no walk-through.
-const QUIET = false;
-const DISPLAY = '1.9.0'; // the version people see (small update: last number, e.g. 1.7.6 · big update: 1.8.0)
-const NOTES = ["11 new games: Penalty Kick, Star Blaster, Rooftop Run, Hoops and more.", "Nexa Racer is now real 3D with curves, hills and nitro.", "Nexa City looks more real, with day and night.", "Pick your glass: Crystal, Smoke or Aurora."];
+const QUIET = true;
+const DISPLAY = '1.9.4'; // the version people see (small update: last number, e.g. 1.7.6 · big update: 1.8.0)
+const NOTES = ["Message notifications are more reliable on your phone and computer.", "Unread number on the Nexa icon.", "Richer Liquid Glass on every Nexa website, plus small fixes."];
 // The test site (www…/test/) has its own copy and its own saved files, so testing never touches the real app.
 const TEST = /\/test\/$/.test(new URL(self.registration.scope).pathname);
 const PREFIX = TEST ? 'nexa-test-v' : 'nexa-shell-v';
-const CACHE = PREFIX + '88';
+const CACHE = PREFIX + '92';
 const SHELL = ['./', 'styles.css', 'app.js', 'store.js', 'config.js', 'favicon-v4.png', 'icon-192-v4.png', 'icon-512-v4.png', 'icon-maskable-v4.png', 'apple-touch-icon-v4.png', 'sky.jpg', 'qr.js', 'badge-96.png', 'games.js'];
 const FONTS = ['nexa-sans.woff2', 'nexa-serif.woff2', 'nexa-serif-italic.woff2', 'nexa-round.woff2'];
 const LIVE = /^\/(test\/)?(\.netlify|api|owner|support|hiring|crew|videoeditor|webdev|designer|studio|devhub|team|__seen)(\/|$)|^\/(test\/)?(manifest\.webmanifest|careers\.html|glass4\.js|terms\.html|privacy\.html)$/; // always straight from the server
@@ -145,6 +145,7 @@ self.addEventListener('push', e => {
     }
     // calls: ring like a phone — long buzzes, stays on screen, and rings again a few times until answered or dismissed
     if (x.kind === 'call') return ringCall(title, body, x);
+    if (x.kind === 'message') e.waitUntil?.(Promise.resolve().then(async () => { try { await new Promise(r => setTimeout(r, 50)); const all = await self.registration.getNotifications(); const n = all.filter(o => /^c_/.test(o.tag || '')).length; if (n && self.navigator.setAppBadge) await self.navigator.setAppBadge(n); } catch {} }));
     return self.registration.showNotification(count > 1 ? `${title} (${count} new messages)` : title, {
       body: lines.join('\n'), icon: /^https:\/\//.test(x.icon || '') ? x.icon : appIcon(), badge: 'badge-96.png', tag: x.tag || undefined, renotify: !!x.tag,
       data: { chat: x.chat || '', page: x.page || '', url: x.url || '', lines, count, ids }, vibrate: x.kind === 'call' ? [300, 150, 300, 150, 300] : x.vibe === 'off' ? [] : x.vibe === 'long' ? [200, 100, 200, 100, 200] : x.vibe === 'double' ? [80, 80, 80] : [80], silent: x.silent === '1',

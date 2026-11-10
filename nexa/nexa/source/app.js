@@ -470,7 +470,7 @@ let tick = 0;
 setInterval(() => {
   if (S.view !== 'app') return;
   tick++; if (S.prefsLoaded && S.profile && !S.prefs.guideDone && !lsGet('nexa.guideDone', false) && !S.modal && S.tour == null && !S.guideShown) actions.guideOpen();
-  checkReminders(); runScheduled(); if (tick % 4 === 2) checkBadges(); if (!S.pushChecked && S.profile && S.prefs.deviceNotifs && 'Notification' in window && Notification.permission === 'granted') { S.pushChecked = true; registerPush(true); } if (!S.devChecked && S.profile && S.prefs) { S.devChecked = true; checkDevice(); } if (tick % 15 === 1) checkBirthdays();
+  checkReminders(); runScheduled(); if (tick % 4 === 2) checkBadges(); if (!S.pushChecked && S.profile && S.prefs.deviceNotifs !== false && 'Notification' in window && Notification.permission === 'granted') { S.pushChecked = true; if (!S.prefs.deviceNotifs) savePrefs({ deviceNotifs: true }); registerPush(true); } if (!S.devChecked && S.profile && S.prefs) { S.devChecked = true; checkDevice(); } if (tick % 15 === 1) checkBirthdays();
   if (tick % 15 === 0 && (S.profile?.mood || S.convs.length)) render();
   const typingLive = S.convs.some(c => Object.entries(c.typing || {}).some(([u, t]) => u !== S.me && now() - t < 9000));
   if (typingLive || tick % 8 === 0) render();
@@ -5836,7 +5836,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.20';
+const APP_VERSION = '21.24';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9588,7 +9588,7 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0', '21.21': '1.9.1', '21.22': '1.9.2', '21.23': '1.9.3', '21.24': '1.9.4' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
 try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
@@ -12485,3 +12485,45 @@ WN_HUMAN['21.20'] = [
   ['spark', 'Your glass, your way', 'Settings › Appearance › Glass: pick Crystal, Smoke or Aurora.'],
 ];
 try { WN_STEPS['21.20'] = WN_STEPS['21.0']; UP_HL['21.20'] = UP_HL['21.0']; } catch {}
+
+/* ================= Nexa 1.9.1: emoji-only messages show big, with no bubble (like iMessage) ================= */
+{
+  const seg = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+  const EMO = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator}|‍|️|⃣|[#*0-9]️?⃣|\s)+$/u;
+  const mark = () => { try { document.querySelectorAll('#stream .m > .bub:not(.emo-done)').forEach(b => { b.classList.add('emo-done'); if (b.children.length) return; const t = (b.textContent || '').trim(); if (!t || t.length > 40 || !EMO.test(t) || /^[0-9#*\s]+$/.test(t)) return; const n = seg ? [...seg.segment(t.replace(/\s+/g, ''))].length : t.length; if (n <= 3) { b.classList.add('emo'); if (n === 1) b.classList.add('emo1'); } }); } catch {} };
+  const _dr = doRender; doRender = function (...a) { const r = _dr.apply(this, a); mark(); return r; };
+}
+
+/* ================= Nexa 1.9.2: small things — jump to newest, double-tap to ❤️, safer settings ================= */
+{
+  // a settings page that doesn't exist (old link) opens Profile instead of an empty page
+  const KNOWN = ['profile', 'appearance', 'chats', 'notifications', 'privacy', 'account', 'shortcuts'];
+  const _vs = vSettings; vSettings = function (...a) { if (S.setSec && !KNOWN.includes(S.setSec)) S.setSec = 'profile'; return _vs.apply(this, a); };
+  // ↓ button when you scroll up in a chat (shows how many new messages arrived below)
+  let lastCount = 0, lastConv = '', below = 0;
+  const wire = () => {
+    const st = document.getElementById('stream'), chat = st && st.closest('.chat'); if (!st || !chat) return;
+    let btn = chat.querySelector('.nx-jump'); if (!btn) { btn = document.createElement('button'); btn.className = 'nx-jump'; btn.setAttribute('aria-label', 'Jump to newest message'); btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg><b></b>'; chat.appendChild(btn); btn.onclick = () => { st.scrollTo({ top: st.scrollHeight, behavior: 'smooth' }); below = 0; }; }
+    const n = (S.msgs[S.conv] || []).length; if (S.conv !== lastConv) { lastConv = S.conv; lastCount = n; below = 0; }
+    const away = () => st.scrollHeight - st.scrollTop - st.clientHeight > 320;
+    if (n > lastCount && away()) below += n - lastCount; lastCount = n;
+    st._nxupd = () => { const b2 = st.closest('.chat')?.querySelector('.nx-jump'); if (!b2) return; const a = away(); if (!a) below = 0; try { const cr = st.closest('.chat').getBoundingClientRect(), sr = st.getBoundingClientRect(), ps = st.closest('.chat').querySelector('.plansugg'); const pb = ps && ps.offsetParent ? cr.bottom - ps.getBoundingClientRect().top : 0; b2.style.bottom = Math.max(cr.bottom - sr.bottom, pb) + 14 + 'px'; } catch {} b2.classList.toggle('on', a); b2.querySelector('b').textContent = below ? String(Math.min(99, below)) : ''; };
+    if (!st._nxj) { st._nxj = 1; st.addEventListener('scroll', () => st._nxupd && st._nxupd(), { passive: true }); }
+    st._nxupd();
+  };
+  const _dr = doRender; doRender = function (...a) { const r = _dr.apply(this, a); try { wire(); } catch {} return r; };
+  // double-tap (or double-click) a message to ❤️ it
+  const heart = (x, y) => { const h = document.createElement('div'); h.className = 'nx-heart'; h.textContent = '❤️'; h.style.left = x + 'px'; h.style.top = y + 'px'; document.body.appendChild(h); setTimeout(() => h.remove(), 900); };
+  const love = (m, x, y) => { const id = m.dataset.v; if (!id || !S.conv) return; const msg = (S.msgs[S.conv] || []).find(z => z.id === id); if (!msg || msg.system || msg.deleted) return; if (!(msg.reactions?.['❤️'] || []).includes(S.me)) actions.react({ v: id, r: '❤️' }); heart(x, y); try { navigator.vibrate && navigator.vibrate(12); } catch {} try { window.getSelection()?.removeAllRanges(); } catch {} };
+  const skip = t => t.closest('a,button,input,textarea,video,audio,.reacts,.game,.bcard');
+  document.addEventListener('dblclick', e => { const m = e.target.closest && e.target.closest('#stream .m[data-v]'); if (!m || skip(e.target)) return; love(m, e.clientX, e.clientY); });
+  let tap = null;
+  document.addEventListener('pointerup', e => { if (e.pointerType !== 'touch') return; const m = e.target.closest && e.target.closest('#stream .m[data-v]'); if (!m || skip(e.target)) { tap = null; return; } const t = performance.now(); if (tap && tap.m === m.dataset.v && t - tap.t < 300 && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 30) { tap = null; love(m, e.clientX, e.clientY); setTimeout(() => { if (S.selMsg) { S.selMsg = null; render(); } }, 30); return; } tap = { m: m.dataset.v, t, x: e.clientX, y: e.clientY }; }, true);
+}
+
+/* ================= Nexa 1.9.3: unread number on the Nexa icon on your home screen ================= */
+{
+  let lastBadge = -1;
+  const badge = () => { try { if (!('setAppBadge' in navigator) || !S.me || !Array.isArray(S.convs)) return; const n = S.convs.filter(c => { try { return unread(c) && !(S.prefs?.muted || {})[c.id]; } catch { return false; } }).length; if (n === lastBadge) return; lastBadge = n; n ? navigator.setAppBadge(n).catch(() => {}) : navigator.clearAppBadge().catch(() => {}); } catch {} };
+  const _dr = doRender; doRender = function (...a) { const r = _dr.apply(this, a); badge(); return r; };
+}

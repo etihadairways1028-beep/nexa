@@ -168,7 +168,7 @@ function vShell() {
     <button class="k-navb" data-a="logout">${icon('out')}<span>Sign out (${esc(D.me.name)})</span></button></div></aside>
   <main class="k-main"><div class="k-top"><span class="k-logo sm k-mob">${CFG.emoji}</span><b class="k-mob">${esc(tab.label)}</b><span style="flex:1"></span><button class="k-btn ai" data-a="aiOpen">${icon('spark', 18)} Nexa AI</button></div>
     <div class="k-page k-enter" data-key="${tab.id}">${tab.id === 'files' ? vFiles() : tab.id === 'chat' ? vChat() : tab.view(S)}</div></main>
-  <nav class="k-tabbar glass">${CFG.tabs.filter(t => !t.desktopOnly).slice(0, 5).map(t => `<button class="${t.id === tab.id ? 'on' : ''}" data-a="tab" data-v="${t.id}">${icon(t.icon, 22)}<span>${esc(t.short || t.label)}</span></button>`).join('')}</nav>
+  <nav class="k-tabbar glass">${CFG.tabs.filter(t => !t.desktopOnly).slice(0, 6).map(t => `<button class="${t.id === tab.id ? 'on' : ''}" data-a="tab" data-v="${t.id}">${icon(t.icon, 22)}<span>${esc(t.short || t.label)}</span></button>`).join('')}</nav>
   ${S.ai.open ? '' : `<button class="k-fab" data-a="aiOpen" aria-label="Open Nexa AI"><span class="k-aiorb big"><i></i>${icon('spark', 22)}</span></button>`}${vAI()}${S.modal ? `<div class="k-modal" data-a="modalBg"><div class="k-mcard glass" role="dialog">${S.modal.html()}</div></div>` : ''}</div>`;
 }
 let lastTab = '';
@@ -487,6 +487,31 @@ label.k-lab{display:block;font-size:13px;color:var(--mute);margin:12px 0 6px;fon
 .glass::before{transition:opacity .5s ease}
 @media (hover:hover){.k-card.glass:not(:hover)::before,.k-file.glass:not(:hover)::before{opacity:.8}}
 .k-toast{transition:transform .5s var(--g4-spring,ease),opacity .3s ease!important}
+
+/* ===== Nexa 1.9.3: calmer background + richer, easier-to-read glass (same look as Nexa and Nexa Support) ===== */
+.k-bg{background:radial-gradient(120% 90% at 50% -10%,#1d1f5c 0%,#0c0d2b 45%,#05060f 100%)!important}
+.k-bg i:nth-child(4),.k-bg i:nth-child(5){display:none!important}
+.k-bg i:nth-child(1){width:64vmax!important;height:64vmax!important;left:-22vmax!important;top:-26vmax!important;background:radial-gradient(closest-side,#6a5cff,transparent)!important;opacity:.7!important}
+.k-bg i:nth-child(2){width:54vmax!important;height:54vmax!important;right:-18vmax!important;top:-8vmax!important;background:radial-gradient(closest-side,#ff5fa8,transparent)!important;opacity:.45!important}
+.k-bg i:nth-child(3){width:58vmax!important;height:58vmax!important;left:22vmax!important;bottom:-34vmax!important;background:radial-gradient(closest-side,#20d6c4,transparent)!important;opacity:.35!important}
+.k-bg b{opacity:.12!important;filter:blur(40px)!important;height:140px!important}
+.glass{background-color:rgba(14,12,36,.44)!important;border:1px solid rgba(255,255,255,.09)!important}
+.k-card.glass,.k-file.glass,.col.glass,.k-empty.glass{background-color:rgba(14,12,36,.36)!important}
+.k-mcard.glass,.k-ai.glass{background-color:rgba(16,14,38,.8)!important;backdrop-filter:blur(30px) saturate(170%)!important;-webkit-backdrop-filter:blur(30px) saturate(170%)!important}
+.k-fab{display:none!important} /* Nexa AI is always one tap away at the top */
+.k-tabbar button{min-width:0}.k-tabbar button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.k-chat .k-in,.k-comp{padding-right:14px}
+
+/* ===== Liquid Glass 5 (same as the Nexa app): clear glass, bright edges, colour shining through ===== */
+.k-bg::after{content:"";position:absolute;width:60vmax;height:60vmax;left:30%;top:28%;border-radius:50%;background:radial-gradient(closest-side,rgba(110,90,255,.38),transparent);pointer-events:none}
+.k-bg::before{content:"";position:absolute;width:44vmax;height:44vmax;right:-8%;bottom:-10%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,80,160,.32),transparent);pointer-events:none}
+html .glass{background:radial-gradient(130% 55% at 18% -8%,rgba(255,255,255,.16),rgba(255,255,255,.03) 42%,transparent 62%),linear-gradient(162deg,rgba(255,255,255,.10),rgba(255,255,255,.02) 42%,rgba(255,255,255,.06)),rgba(16,14,40,.32)!important;backdrop-filter:blur(26px) saturate(190%) brightness(1.04)!important;-webkit-backdrop-filter:blur(26px) saturate(190%) brightness(1.04)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.06),inset 12px 0 26px -22px rgba(255,140,220,.6),inset -12px 0 26px -22px rgba(90,210,255,.6),inset 0 -22px 34px -30px rgba(255,255,255,.35),0 28px 64px -34px rgba(0,0,0,.7)!important}
+html .glass .glass{background:linear-gradient(162deg,rgba(255,255,255,.09),rgba(255,255,255,.025))!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 10px 26px -18px rgba(0,0,0,.6)!important}
+html .k-lens .glass[data-klens]{backdrop-filter:var(--klens,none) blur(22px) saturate(190%) brightness(1.04)!important}
+html .k-mcard.glass,html .k-ai.glass{background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.03) 40%,rgba(255,255,255,.05)),rgba(18,16,40,.84)!important}
+html .k-navb.on{background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.07))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8px 20px -12px rgba(140,120,255,.9)!important}
+html .k-in::placeholder{color:rgba(255,255,255,.5)}
+.k-lite html .glass,.k-lite .glass{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background-color:rgba(18,16,42,.62)!important}
 
 .k-lite .k-btn,.k-lite .k-pill,.k-lite .k-x,.k-lite .ve-seg button,.k-lite .ve-mini,.k-lite .pg-tabs button,.k-lite .k-starter{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 .k-lite .glass{backdrop-filter:blur(10px) saturate(150%)!important;-webkit-backdrop-filter:blur(10px) saturate(150%)!important}

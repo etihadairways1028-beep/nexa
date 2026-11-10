@@ -40,7 +40,9 @@ async function deliver(db, uid, data, ttl, exclude, pre, maxTokens = 20) {
   const pdoc = db.doc(`users/${uid}/private/push`);
   const push = pre || (await pdoc.get()).data() || {};
   // newest devices first; each phone/browser is one request to Google
-  const tokens = [...new Set([...(push.tokens || []).slice().reverse(), ...Object.values(push.devices || {})])].filter(t => typeof t === 'string' && t && !(exclude || []).includes(t)).slice(0, maxTokens);
+  // 1.9.3: the phone/computer you used most recently goes first, so it's never cut off when you've signed in on lots of browsers
+  const meta = push.meta || {}, devs = Object.entries(push.devices || {}).sort((a, b) => ((meta[b[0]] || {}).at || 0) - ((meta[a[0]] || {}).at || 0)).map(([, t]) => t);
+  const tokens = [...new Set([...devs, ...(push.tokens || []).slice().reverse()])].filter(t => typeof t === 'string' && t && !(exclude || []).includes(t)).slice(0, maxTokens);
   if (!tokens.length) return 0;
   const res = await admin.messaging().sendEachForMulticast({
     tokens,
@@ -230,7 +232,7 @@ export default async (req, ctx = {}) => {
       const mentioned = !isDm && (msg.mentions || []).includes(u);
       if (prefs.deviceNotifs === false || ((prefs.muted || {})[cid] && !mentioned) || (prefs.blocked || []).includes(uid) || (prefs.notif && prefs.notif.msg === false)) return;
       const text = prefs.pushPreview === false ? 'New message' : label(msg).slice(0, 140);
-      const n = await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon, vibe: (prefs.alerts || {}).vibe || '', silent: (prefs.alerts || {}).push === 'silent' ? '1' : '' }, 86400, null, pushDoc, 4);
+      const n = await deliver(db, u, { kind: 'message', title: mentioned ? `${name.split(' ')[0]} mentioned you in ${title}` : title, body: isDm || mentioned ? text : `${name.split(' ')[0]}: ${text}`, chat: cid, tag: 'c_' + cid, msg: mid, icon, vibe: (prefs.alerts || {}).vibe || '', silent: (prefs.alerts || {}).push === 'silent' ? '1' : '' }, 86400, null, pushDoc, slice.length <= 2 ? 10 : 4);
       if (!n) missed.push([u, prefs]);
       sent += n;
     }));
