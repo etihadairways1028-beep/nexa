@@ -222,6 +222,18 @@ class WriteBatch {
 }
 class Firestore {
   doc(path) { return new DocumentReference(this, path); }
+  // read many documents in one request (same as the official Admin SDK's getAll). Results keep the order asked for.
+  async getAll(...refs) {
+    refs = refs.flat().filter(Boolean); if (!refs.length) return [];
+    const out = [];
+    for (let i = 0; i < refs.length; i += 100) {
+      const part = refs.slice(i, i + 100);
+      const r = await gfetch(HOST() + DB() + ':batchGet', { method: 'POST', body: JSON.stringify({ documents: part.map(x => docName(x.path)) }) });
+      const found = new Map(); (Array.isArray(r) ? r : []).forEach(e => { if (e && e.found && e.found.name) found.set(e.found.name, e.found); });
+      part.forEach(x => out.push(new DocumentSnapshot(x, found.get(docName(x.path)) || null)));
+    }
+    return out;
+  }
   collection(path) { return new CollectionReference(this, path); }
   collectionGroup(id) { const q = new Query(this, id); q._q.group = true; return q; }
   batch() { return new WriteBatch(); }
