@@ -1,4 +1,5 @@
 /*! © 2026 Nexa (nexaconnect.qd.je). All rights reserved. Nexa's code, design, logo, styles and name may not be copied or re-used. See /terms.html */
+if (typeof window !== 'undefined' && window.__NX_MOVED) throw new Error('Nexa has moved');
 import { createBackend, ops } from './store.js';
 import CONFIG from './config.js';
 
