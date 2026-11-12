@@ -1,10 +1,9 @@
 {
- "version": "21.26",
+ "version": "21.27",
  "notes": [
-  "Play your friends: Football match online, Penalty duel and Cricket, right in your chat (+ › Fun).",
-  "Football Match and Cricket in Explore › Play now.",
-  "Message notifications fixed."
+  "Nexa now works on nexa-ccs.pages.dev and any new address.",
+  "Football match, Penalty duel and Cricket in chat (+ › Fun) and Explore › Play now."
  ],
  "quiet": true,
- "display": "1.10.1"
+ "display": "1.10.2"
 }

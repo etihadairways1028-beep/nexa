@@ -286,7 +286,7 @@ function drawCard(kind, lt, dur, W, H) {
   const a = Math.min(1, lt / .4, (dur - lt) / .35), s = Math.min(W, H); cx.save(); cx.globalAlpha = Math.max(0, a); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
   cx.font = `400 ${Math.round(s * .2)}px "Nexa Serif",Georgia,serif`; cx.fillText('nexa', W / 2, H / 2 - s * .03 + (1 - a) * 20);
   cx.font = `600 ${Math.round(s * .045)}px "Nexa Sans",system-ui,sans-serif`; cx.fillStyle = 'rgba(255,255,255,.85)';
-  cx.fillText(kind === 'intro' ? (E.text.t || 'Chat with everyone you love') : 'Try Nexa · nexaconnect.qd.je', W / 2, H / 2 + s * .12);
+  cx.fillText(kind === 'intro' ? (E.text.t || 'Chat with everyone you love') : 'Try Nexa · ' + location.host.replace(/^www\./, ''), W / 2, H / 2 + s * .12);
   const g2 = cx.createLinearGradient(W / 2 - s * .2, 0, W / 2 + s * .2, 0); ['#FF7AB6', '#FFE27A', '#7BF0B8', '#7FB2FF', '#B794FF'].forEach((c, i) => g2.addColorStop(i / 4, c)); cx.fillStyle = g2; rr(W / 2 - s * .2 * a, H / 2 + s * .19, s * .4 * a, s * .008, s * .004); cx.fill(); cx.restore();
 }
 function drawMark(W, H) {
