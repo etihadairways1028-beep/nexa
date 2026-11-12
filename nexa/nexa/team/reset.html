@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Get the newest Nexa</title><meta name="robots" content="noindex">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#f4f2fb;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(106,92,255,.7),transparent 62%),radial-gradient(52vmax 52vmax at 100% 8%,rgba(255,95,168,.5),transparent 62%),radial-gradient(120% 90% at 50% -10%,#1d1f5c,#0c0d2b 45%,#05060f) #05060f}
+.card{width:min(440px,100%);padding:28px 24px;border-radius:28px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 40%,rgba(255,255,255,.07)),rgba(18,16,40,.55);border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.6),0 30px 70px -30px rgba(0,0,0,.8);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
+img{width:72px;height:72px;border-radius:20px;box-shadow:0 10px 24px -8px rgba(0,0,0,.6)}
+h1{font-size:26px;margin:14px 0 6px}p{margin:6px 0;opacity:.85}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;margin-top:8px;border-radius:14px;background:rgba(255,255,255,.08);font-size:14.5px}
+.row b{font-variant-numeric:tabular-nums}
+button{margin-top:18px;width:100%;height:52px;border:0;border-radius:999px;font:inherit;font-weight:800;font-size:16px;color:#0b0b12;background:linear-gradient(180deg,#fff,#e6e2f3);cursor:pointer}
+.ok{color:#7bf0b8}.bad{color:#ff9aa5}
+</style></head><body>
+<div class="card">
+  <img src="/icon-192-v4.png" alt="">
+  <h1>Get the newest Nexa</h1>
+  <p>This clears the old saved copy of Nexa on this device and loads the newest one. Your account, chats and settings stay as they are.</p>
+  <div class="row"><span>Newest Nexa online</span><b id="srv">checking…</b></div>
+  <div class="row"><span>Saved copy on this device</span><b id="dev">checking…</b></div>
+  <button id="go">Update Nexa now</button>
+  <p id="st" style="margin-top:12px;font-size:14px"></p>
+</div>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  try { const j = await (await fetch('/support/version.json?t=' + Date.now(), { cache: 'no-store' })).json(); $('srv').textContent = j.display || j.version || '?'; } catch { $('srv').textContent = 'couldn’t check'; $('srv').className = 'bad'; }
+  try {
+    const keys = 'caches' in window ? await caches.keys() : [];
+    const shell = keys.find(k => /nexa-shell-v/.test(k));
+    let had = 'nothing saved';
+    if (shell) { const c = await caches.open(shell); const r = await c.match('sw.js') || await c.match('/sw.js'); if (r) { const t = await r.text(); const m = t.match(/DISPLAY = '([^']+)'/); had = m ? m[1] : shell.replace('nexa-shell-v', 'copy #'); } else had = "#" + shell.replace("nexa-shell-v", ""); }
+    $('dev').textContent = had;
+  } catch { $('dev').textContent = '?'; }
+  $('go').onclick = async () => {
+    $('go').disabled = true; $('go').textContent = 'Updating…';
+    try { const regs = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistrations() : []; await Promise.all(regs.map(r => r.unregister())); } catch {}
+    try { const keys = 'caches' in window ? await caches.keys() : []; await Promise.all(keys.filter(k => /^nexa-(shell|test)-v/.test(k)).map(k => caches.delete(k))); } catch {}
+    $('st').innerHTML = '<span class="ok">Done ✓ Opening the newest Nexa…</span>';
+    setTimeout(() => location.replace('/?fresh=' + Date.now()), 900);
+  };
+})();
+</script>
+</body></html>
