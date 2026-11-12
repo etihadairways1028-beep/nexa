@@ -1,10 +1,10 @@
 {
- "version": "21.25",
+ "version": "21.26",
  "notes": [
   "Play your friends: Football match online, Penalty duel and Cricket, right in your chat (+ › Fun).",
   "Football Match and Cricket in Explore › Play now.",
   "Message notifications fixed."
  ],
- "quiet": false,
- "display": "1.10.0"
+ "quiet": true,
+ "display": "1.10.1"
 }

@@ -5836,7 +5836,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.25';
+const APP_VERSION = '21.26';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9509,7 +9509,7 @@ const humanNotes = v => WN_HUMAN[v] || (S.updateInfo?.notes || S.mustUpdate?.not
       const info = S.updateInfo?.version ? S.updateInfo : (S.mustUpdate || {}), v = info.version || '';
       const list = (WN_HUMAN[v] || []).length ? WN_HUMAN[v].slice(0, 4).map(([i, t]) => `<li class="hu-short"><span class="hu-ic">${ic(i, 16)}</span><span><b>${esc(t)}</b></span></li>`).join('')
         : (info.notes || []).slice(0, 5).map(x => `<li><span class="hu-dot"></span><span>${esc(x)}</span></li>`).join('');
-      return `<div class="hu-sheet"><div class="hu-head"><img src="${festIcon()}" alt="" class="hu-icon"><div><b class="hu-t">Update ready</b><span class="mute small">Nexa ${esc(dispVer(v))} · takes a few seconds</span></div></div><p class="mute" style="margin:0;font-size:14.5px;line-height:1.45">A few fixes and some things you asked for. Your chats and settings stay as they are.</p>
+      return `<div class="hu-sheet"><div class="hu-head"><img src="${festIcon()}" alt="" class="hu-icon"><div><b class="hu-t">Update ready</b><span class="mute small">Nexa ${esc(info.display || dispVer(v))} · takes a few seconds</span></div></div><p class="mute" style="margin:0;font-size:14.5px;line-height:1.45">A few fixes and some things you asked for. Your chats and settings stay as they are.</p>
         ${list ? `<ul class="hu-list">${list}</ul>` : ''}
         <button class="btn pri hu-btn" data-a="updNow" ${S.updating ? 'disabled' : ''}>${S.updating ? 'Updating…' : 'Update'}</button></div>`;
     }
@@ -9566,7 +9566,7 @@ UP_HL['20.3'] = UP_HL['20.2'];
 
 /* ================= v21.0 = Nexa 1.0: the first official version ================= */
 // People see "Nexa 1.0" (then 1.1, 1.2…). The update number underneath keeps counting up (21.0, 21.1…) so every phone keeps updating.
-function dispVer(v) { if (DISP_FIX[String(v)]) return DISP_FIX[String(v)]; const m = String(v || '').match(/^(\d+)\.(\d+)/); if (!m) return String(v || ''); const a = +m[1], b = +m[2]; return a >= 21 ? `${a - 20}.${b}` : `${a}.${b}`; }
+function dispVer(v) { if (DISP_FIX[String(v)]) return DISP_FIX[String(v)]; try { for (const i of [S.updateInfo, S.mustUpdate]) if (i && String(i.version) === String(v) && i.display) return i.display; } catch {} const m = String(v || '').match(/^(\d+)\.(\d+)/); if (!m) return String(v || ''); const a = +m[1], b = +m[2]; return a >= 21 ? `${a - 20}.${b}` : `${a}.${b}`; }
 const WN_TITLE = { '21.0': 'Nexa 1.0 is here' };
 const WN_INTRO = { '21.0': 'Thanks for being here early. This is the first official version of Nexa: everything you’ve been testing, finished.' };
 WN_HUMAN['21.0'] = [
@@ -9588,7 +9588,7 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0', '21.21': '1.9.1', '21.22': '1.9.2', '21.23': '1.9.3', '21.24': '1.9.4', '21.25': '1.10.0' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0', '21.21': '1.9.1', '21.22': '1.9.2', '21.23': '1.9.3', '21.24': '1.9.4', '21.25': '1.10.0', '21.26': '1.10.1' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
 try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
@@ -12592,3 +12592,5 @@ WN_HUMAN['21.25'] = [
   ['game', 'Cricket', 'Bowl your line, length and pace, then bat and chase the target.'],
 ];
 try { WN_STEPS['21.25'] = WN_STEPS['21.0']; UP_HL['21.25'] = UP_HL['21.0']; } catch {}
+
+try { WN_TITLE['21.26'] = WN_TITLE['21.25']; WN_INTRO['21.26'] = WN_INTRO['21.25']; WN_HUMAN['21.26'] = WN_HUMAN['21.25']; WN_STEPS['21.26'] = WN_STEPS['21.25']; UP_HL['21.26'] = UP_HL['21.25']; } catch {}
