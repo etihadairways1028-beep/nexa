@@ -4,7 +4,7 @@ const GLASS = `
 #nxg{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;color:#F6F4EF;font-family:"Nexa Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#05060d;animation:nxgIn .45s cubic-bezier(.16,1,.3,1) both;-webkit-user-select:none;user-select:none}
 @keyframes nxgIn{from{opacity:0;transform:scale(.985)}}
 #nxg [hidden]{display:none!important}
-#nxg .g-top{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:12px 14px;pointer-events:none}
+#nxg .g-top{position:absolute;left:0;right:0;top:0;z-index:8;display:flex;align-items:center;gap:8px;padding:12px 14px;pointer-events:none}
 #nxg .g-top>*{pointer-events:auto}
 #nxg .g-gl{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.06) 45%,rgba(255,255,255,.1)),rgba(18,16,40,.28);border:1px solid rgba(255,255,255,.26);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.7),inset 0 -1px 0 rgba(255,255,255,.12),inset 0 -14px 24px -18px rgba(255,255,255,.35),0 14px 34px -16px rgba(0,0,0,.6);backdrop-filter:blur(18px) saturate(190%);-webkit-backdrop-filter:blur(18px) saturate(190%)}
 #nxg .g-title{border-radius:999px;padding:9px 16px;font-weight:800;font-size:16px;display:flex;gap:8px;align-items:center}
@@ -599,3 +599,6 @@ export function play(id, ctx = {}) {
   cur = { stop() { cancelAnimationFrame(raf); ro.disconnect(); document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); document.removeEventListener('visibilitychange', vis); game.stop && game.stop(); root.remove(); ctx.onClose && ctx.onClose(); } };
   return cur;
 }
+// shared with sports.js (football, penalty duel, cricket)
+export { GLASS, rr, glassTile, SFX, tone, Parts, rnd, ri, clamp, lerp, pick };
+export const isMuted = () => muted;

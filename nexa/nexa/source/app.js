@@ -4672,7 +4672,7 @@ function vAttach() {
   let body = '';
   if (tab === 'share') body = f('sendPhotos', 'album', 'Photos', '#3d7bff', 'image/*', 1) + g('vnoteStart', 'video', 'Video message', '#e8604c') + f('sendVideo', 'film', 'Send video', '#8a63d2', 'video/*') + g('liveOpen', 'map', 'Location', '#2a9d8f') + g('addLink', 'link', 'Link', '#5c6784') + f('newSticker', 'sticker', 'Make sticker', '#d9a441', 'image/*');
   if (tab === 'plan') body = g('pollOpen', 'poll', 'Poll', '#3d7bff') + g('todoOpen', 'list', 'To-do list', '#2a9d8f') + g('schOpen', 'clock', 'Schedule', '#8a63d2') + g('newEvent', 'cal', 'Event', '#e8604c');
-  if (tab === 'fun') body = g('fxOpen', 'spark', 'Effects', '#d94f86') + g('boardOpen', 'brush', 'Draw', '#3d7bff') + g('watchOpen', 'play', 'Watch together', '#e8604c') + g('newGame', 'game', 'Tic-tac-toe', '#2a9d8f', 'data-v="ttt"') + g('newGame', 'game', 'Connect Four', '#d9a441', 'data-v="c4"') + g('wordNewOpen', 'game', 'Word guess', '#8a63d2') + g('newGame', 'game', 'Trivia', '#4f9d4a', 'data-v="trivia"') + g('newGame', 'game', 'Rock paper scissors', '#5c6784', 'data-v="rps"') + g('arcadeOpen', 'trophy', 'Play vs Nexa', '#3d7bff');
+  if (tab === 'fun') body = g('fxOpen', 'spark', 'Effects', '#d94f86') + g('boardOpen', 'brush', 'Draw', '#3d7bff') + g('watchOpen', 'play', 'Watch together', '#e8604c') + g('newGame', 'game', 'Tic-tac-toe', '#2a9d8f', 'data-v="ttt"') + g('newGame', 'game', 'Connect Four', '#d9a441', 'data-v="c4"') + g('wordNewOpen', 'game', 'Word guess', '#8a63d2') + g('newGame', 'game', 'Trivia', '#4f9d4a', 'data-v="trivia"') + g('newGame', 'game', 'Rock paper scissors', '#5c6784', 'data-v="rps"') + g('newGame', 'game', 'Football match', '#1f9d55', 'data-v="football"') + g('newGame', 'game', 'Penalty duel', '#2b7bd8', 'data-v="penduel"') + g('newGame', 'game', 'Cricket', '#c9822b', 'data-v="cricket"') + g('arcadeOpen', 'trophy', 'Play vs Nexa', '#3d7bff');
   return `<div class="attachsheet glass${A('attach')}" role="menu"><div class="atabs">${Object.entries(tabs).map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-a="attachTab" data-v="${k}">${l}</button>`).join('')}</div><div class="agrid">${body}</div></div>`;
 }
 
@@ -5836,7 +5836,7 @@ Object.assign(actions, {
 });
 
 /* ================= v16.5: updates for everyone, pick who helps you, owner can't be friended ================= */
-const APP_VERSION = '21.24';
+const APP_VERSION = '21.25';
 if (window.nexaDesktop) document.documentElement.dataset.desktop = '1';
 // ---- only @shiv can add the @owner account as a friend
 // @owner: only @shiv can add it. @support (Nexa Support): nobody can — people message it through Help.
@@ -9588,7 +9588,7 @@ setInterval(() => {
 }, 1500);
 
 // still called Nexa 1.0 (fixes on top of the launch)
-var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0', '21.21': '1.9.1', '21.22': '1.9.2', '21.23': '1.9.3', '21.24': '1.9.4' };
+var DISP_FIX = { '21.1': '1.0', '21.2': '1.0', '21.3': '1.1', '21.4': '1.2', '21.5': '1.3', '21.6': '1.3', '21.7': '1.4', '21.8': '1.5', '21.9': '1.6', '21.10': '1.7', '21.11': '1.7.1', '21.12': '1.7.2', '21.13': '1.7.3', '21.14': '1.7.4', '21.15': '1.7.5', '21.16': '1.7.6', '21.17': '1.8.0', '21.18': '1.8.1', '21.19': '1.8.2', '21.20': '1.9.0', '21.21': '1.9.1', '21.22': '1.9.2', '21.23': '1.9.3', '21.24': '1.9.4', '21.25': '1.10.0' };
 WN_HUMAN['21.1'] = WN_HUMAN['21.0']; WN_TITLE['21.1'] = WN_TITLE['21.0']; WN_INTRO['21.1'] = WN_INTRO['21.0']; WN_STEPS['21.1'] = WN_STEPS['21.0']; UP_HL['21.1'] = UP_HL['21.0'];
 // already saw the 1.0 card? then this just installs quietly
 try { const seen = lsGet('nexa.seenVersion', null); if ((APP_VERSION === '21.1' || APP_VERSION === '21.2') && seen && verNum(seen) >= verNum('21.0') && verNum(seen) < verNum(APP_VERSION)) { lsSet('nexa.seenVersion', APP_VERSION); lsSet('nexa.justUpdated', null); lsSet('nexa.upShown', APP_VERSION); } } catch {}
@@ -12437,6 +12437,8 @@ try { if (!document.querySelector('.g5-orbs')) { const o = document.createElemen
   const ART = {
     city: ['🏙️', 'Nexa City', 'Build a village into a megacity', 'linear-gradient(150deg,#2f9e5a,#1b5e8a)'],
     racer: ['🏎️', 'Nexa Racer', 'Real 3D road, traffic and nitro', 'linear-gradient(150deg,#ff6a3d,#7a1d8f)'],
+    football: ['🏟️', 'Football Match', 'Full 5-a-side match vs Nexa or a friend', 'linear-gradient(150deg,#1f9d55,#0b2e5a)'],
+    cricket: ['🏏', 'Cricket', 'Bowl, bat and chase the target', 'linear-gradient(150deg,#6bbf59,#c9822b)'],
     penalty: ['⚽', 'Penalty Kick', 'Beat the keeper, round after round', 'linear-gradient(150deg,#2fae52,#0b3d6b)'],
     space: ['🚀', 'Star Blaster', 'Blast alien waves in space', 'linear-gradient(150deg,#3b1d8f,#05051a)'],
     runner: ['🏃', 'Rooftop Run', 'Jump across the city at night', 'linear-gradient(150deg,#ff7a59,#2b1550)'],
@@ -12454,6 +12456,7 @@ try { if (!document.querySelector('.g5-orbs')) { const o = document.createElemen
   let mod = null;
   actions.gamePlay = d => {
     if (d.v === 'city') return actions.cityOpen();
+    if (d.v === 'football' || d.v === 'cricket') { S.modal = null; render(); return import('./sports.js').then(m => d.v === 'football' ? m.footballMenu({ onClose: () => render() }) : m.cricket(m.aiApi('crk', S.me, () => render()))).catch(() => toast('Couldn’t open the game. Check your internet and try again.')); }
     S.modal = null; render();
     (mod ? Promise.resolve(mod) : import('./games.js')).then(m => { mod = m; m.play(d.v, { me: S.me, onClose: () => { try { render(); } catch {} } }); }).catch(() => toast('Couldn’t open the game. Check your internet and try again.'));
   };
@@ -12527,3 +12530,65 @@ try { WN_STEPS['21.20'] = WN_STEPS['21.0']; UP_HL['21.20'] = UP_HL['21.0']; } ca
   const badge = () => { try { if (!('setAppBadge' in navigator) || !S.me || !Array.isArray(S.convs)) return; const n = S.convs.filter(c => { try { return unread(c) && !(S.prefs?.muted || {})[c.id]; } catch { return false; } }).length; if (n === lastBadge) return; lastBadge = n; n ? navigator.setAppBadge(n).catch(() => {}) : navigator.clearAppBadge().catch(() => {}); } catch {} };
   const _dr = doRender; doRender = function (...a) { const r = _dr.apply(this, a); badge(); return r; };
 }
+
+/* ================= Nexa 1.10: Sports with friends — Football match (online), Penalty duel, Cricket ================= */
+{
+  const SPORT = { fb: ['⚽', 'Football match', 'linear-gradient(150deg,#1f9d55,#0b2e5a)'], pen: ['🥅', 'Penalty duel', 'linear-gradient(150deg,#2fae52,#0b3d6b)'], crk: ['🏏', 'Cricket', 'linear-gradient(150deg,#6bbf59,#c9822b)'] };
+  const _ml = msgLabel; msgLabel = m => m && m.game && SPORT[m.game.t] ? SPORT[m.game.t][1] : _ml(m);
+  const fbScore = g => (g.score || [0, 0]).join(' – ');
+  const penScore = g => { const t = {}; (g.kicks || []).forEach(k => { t[k.s] = (t[k.s] || 0) + (k.goal ? 1 : 0); }); return `${t[g.a] || 0} – ${t[g.b] || 0}`; };
+  const crkScore = g => (g.inn || []).map(I => `${I.balls.reduce((a, b) => a + (b.r === 'W' ? 0 : b.r), 0)}/${I.balls.filter(b => b.r === 'W').length}`).join(' · ') || '0/0';
+  const _vg = vGame;
+  vGame = function (m) {
+    const g = m.game || {}; if (!SPORT[g.t]) return _vg(m);
+    const [e, name, bg] = SPORT[g.t], inIt = g.a === S.me || g.b === S.me;
+    const who = g.b ? `${esc(dname(g.a).split(' ')[0])} vs ${esc(dname(g.b).split(' ')[0])}` : `${esc(dname(g.a).split(' ')[0])} is waiting for a player`;
+    const sc = g.t === 'fb' ? fbScore(g) : g.t === 'pen' ? penScore(g) : crkScore(g);
+    const st = g.win ? (g.win === 'tie' ? 'Tie!' : `🏆 ${g.win === S.me ? 'You won' : esc(dname(g.win).split(' ')[0]) + ' won'}`) : g.b ? 'Live' : '';
+    const btn = !g.b && g.a !== S.me ? 'Join' : inIt ? (g.win ? 'View' : 'Play') : 'Watch';
+    return `<div class="bub game sportcard" style="--bg:${bg}"><div class="sc-top"><span class="sc-e">${e}</span><span class="grow"><b>${name}</b><span class="small">${who}</span></span>${st ? `<span class="sc-live">${st}</span>` : ''}</div>${g.b ? `<div class="sc-score">${sc}</div>` : ''}<button class="btn sm pri" data-a="sportOpen" data-v="${m.id}">${btn}</button></div>`;
+  };
+  const NEW = { football: 'fb', penduel: 'pen', cricket: 'crk' };
+  const _ng = actions.newGame;
+  actions.newGame = async d => {
+    if (!NEW[d.v]) return _ng(d);
+    S.attach = false; const c = convOf(S.conv); if (!c) return; bumpStat('games');
+    const t = NEW[d.v], b = c.type === 'dm' ? others(c)[0] : null;
+    const game = t === 'fb' ? { t, a: S.me, b, score: [0, 0] } : t === 'pen' ? { t, a: S.me, b, kicks: [], cs: {} } : { t, a: S.me, b, inn: [{ bat: S.me, balls: [] }], cs: {} };
+    render(); await sendMessage({ game });
+  };
+  actions.sportOpen = async d => {
+    const cid = S.conv, m = (S.msgs[cid] || []).find(x => x.id === d.v); if (!m?.game) return;
+    let g = m.game; const path = `conversations/${cid}/messages/${m.id}`;
+    if (!g.b && g.a !== S.me) { await db().update(path, { 'game.b': S.me }); g = { ...g, b: S.me }; }
+    if (g.t === 'fb' && !(g.a === S.me || g.b === S.me)) return toast('Only the two players can open this match.');
+    if (g.t === 'fb' && !g.b) return toast('Waiting for your friend to tap Join.');
+    loadIce();
+    const api = { me: S.me, name: u => dname(u), get: () => ((S.msgs[cid] || []).find(x => x.id === m.id)?.game) || g, listen: cb => db().listenDoc(path, doc => cb(doc && doc.game)), update: patch => db().update(path, patch), ice: () => ICE(), onClose: () => render() };
+    try {
+      const mod = await import('./sports.js');
+      if (g.t === 'pen') return mod.penaltyDuel(api);
+      if (g.t === 'crk') return mod.cricket(api);
+      const host = g.a === S.me, net = await mod.linkUp(api, host);
+      mod.football({ mode: host ? 'host' : 'guest', net, names: [dname(g.a).split(' ')[0], dname(g.b).split(' ')[0]], onEnd: sc => { if (host) db().update(path, { 'game.score': sc, 'game.win': sc[0] === sc[1] ? 'tie' : sc[0] > sc[1] ? g.a : g.b }).catch(() => {}); }, onClose: () => render() });
+    } catch (e) { console.warn(e); toast('Couldn’t start the game. Check your internet and try again.'); }
+  };
+  document.head.insertAdjacentHTML('beforeend', `<style>
+:root:not(#sp0):not(#sp1):not(#sp2):not(#sp3):not(#sp4):not(#sp5):not(#sp6):not(#sp7):not(#sp8):not(#sp9):not(#sp10):not(#sp11):not(#sp12):not(#sp13):not(#sp14):not(#sp15):not(#sp16):not(#sp17):not(#sp18):not(#sp19) .bub.sportcard{min-width:250px;padding:12px!important;border-radius:20px!important;color:#fff!important;background:var(--bg)!important;backdrop-filter:none!important;border:1px solid rgba(255,255,255,.25)!important;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.55),0 12px 26px -14px rgba(0,0,0,.7)!important;position:relative;overflow:hidden}
+.bub.sportcard::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 70% at 20% -10%,rgba(255,255,255,.35),transparent 55%);pointer-events:none}
+.sportcard .sc-top{display:flex;gap:10px;align-items:center;position:relative}.sportcard .sc-e{flex:none;width:40px;height:40px;display:grid;place-items:center;overflow:hidden;font-size:26px;line-height:1;border-radius:12px;background:rgba(255,255,255,.16);filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}.sportcard .sc-top .grow{min-width:0;flex:1}
+.sportcard .sc-top .grow{display:flex;flex-direction:column}.sportcard .small{opacity:.85}
+.sportcard .sc-live{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.3)}
+.sportcard .sc-score{position:relative;font-size:26px;font-weight:900;letter-spacing:-.01em;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.sportcard .btn{position:relative;margin-top:10px;width:100%;justify-content:center}
+</style>`);
+}
+
+WN_TITLE['21.25'] = 'Nexa 1.10: play your friends';
+WN_INTRO['21.25'] = 'Real sports, live with your friends.';
+WN_HUMAN['21.25'] = [
+  ['game', 'Football match', 'A full 5-a-side match, live with a friend. In any chat: + › Fun › Football match. Or play Nexa in Explore.'],
+  ['game', 'Penalty duel', 'Take turns: you shoot, they dive, then swap. 5 each, then sudden death.'],
+  ['game', 'Cricket', 'Bowl your line, length and pace, then bat and chase the target.'],
+];
+try { WN_STEPS['21.25'] = WN_STEPS['21.0']; UP_HL['21.25'] = UP_HL['21.0']; } catch {}

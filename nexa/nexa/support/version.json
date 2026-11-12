@@ -1,10 +1,10 @@
 {
- "version": "21.24",
+ "version": "21.25",
  "notes": [
-  "Message notifications are more reliable on your phone and computer.",
-  "Unread number on the Nexa icon.",
-  "Richer Liquid Glass on every Nexa website, plus small fixes."
+  "Play your friends: Football match online, Penalty duel and Cricket, right in your chat (+ › Fun).",
+  "Football Match and Cricket in Explore › Play now.",
+  "Message notifications fixed."
  ],
- "quiet": true,
- "display": "1.9.4"
+ "quiet": false,
+ "display": "1.10.0"
 }
